@@ -254,7 +254,7 @@ function AdminSupport() {
   };
 
   const updateStatus = async (ticketId: string, status: string) => {
-    await supabase.from("support_tickets").update({ status }).eq("id", ticketId);
+    await supabase.from("support_tickets").update({ status: status as any }).eq("id", ticketId);
     toast.success("Stato aggiornato");
     load();
     if (selectedTicket?.id === ticketId) setSelectedTicket({ ...selectedTicket, status });
