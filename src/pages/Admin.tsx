@@ -30,7 +30,7 @@ function AdminUsers() {
   useEffect(() => { load(); }, []);
 
   const updateStatus = async (userId: string, status: string) => {
-    await supabase.from("profiles").update({ status }).eq("user_id", userId);
+    await supabase.from("profiles").update({ status: status as any }).eq("user_id", userId);
     toast.success("Stato aggiornato");
     load();
   };
