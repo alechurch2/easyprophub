@@ -14,6 +14,7 @@ import {
   X,
   ChevronRight,
   Bot,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
