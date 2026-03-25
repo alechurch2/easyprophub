@@ -381,6 +381,45 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting }: { ac
                 <RefreshCw className={cn("h-3 w-3 mr-1", syncing === acc.id && "animate-spin")} />
                 Aggiorna
               </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                    disabled={deleting === acc.id}
+                  >
+                    {deleting === acc.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                    Elimina
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Eliminare questo conto?</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2">
+                      <p>Stai per eliminare <strong>{acc.account_name}</strong>. Questa azione è irreversibile.</p>
+                      <ul className="list-disc pl-4 text-xs space-y-1">
+                        <li>Il conto verrà rimosso dall'Account Center</li>
+                        <li>Tutti i trade sincronizzati verranno eliminati</li>
+                        <li>Le note del journal collegate verranno eliminate</li>
+                        <li>I log di sincronizzazione verranno rimossi</li>
+                        {acc.provider_type === "metaapi" && acc.provider_account_id && (
+                          <li>L'account MetaApi verrà disconnesso e rimosso</li>
+                        )}
+                      </ul>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annulla</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDelete(acc.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Elimina definitivamente
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
 
