@@ -45,6 +45,8 @@ interface ProviderAccountData {
 
 // ========== METAAPI PROVIDER ==========
 const METAAPI_BASE = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai";
+// MetaApi Client API uses regional subdomains. The exact domain depends on
+// the account's deploy region. We try the documented base first.
 const METAAPI_CLIENT_BASE = "https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai";
 
 async function metaapiRequest(path: string, options: RequestInit = {}) {
