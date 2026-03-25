@@ -331,6 +331,8 @@ function AdminReviews() {
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [filterRating, setFilterRating] = useState("all");
   const [filterMode, setFilterMode] = useState("all");
+  const [filterTier, setFilterTier] = useState("all");
+  const [premiumStats, setPremiumStats] = useState<{ total: number; byUser: Record<string, number> }>({ total: 0, byUser: {} });
 
   // Didactic form
   const [didacticTitle, setDidacticTitle] = useState("");
