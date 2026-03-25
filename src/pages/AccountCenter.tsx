@@ -102,10 +102,15 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
   const [investorPassword, setInvestorPassword] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [connectionStep, setConnectionStep] = useState("");
 
   const handleSave = async () => {
-    if (!name.trim() || !user) return;
+    if (!name.trim() || !accountNumber.trim() || !server.trim() || !investorPassword.trim() || !user) {
+      toast.error("Compila login, server e investor password");
+      return;
+    }
     setSaving(true);
+    setConnectionStep("Creazione account...");
 
     // 1. Create account as pending
     const { data: account, error } = await supabase.from("trading_accounts").insert({
@@ -118,18 +123,20 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
       investor_password: investorPassword.trim() || null,
       connection_status: "pending",
       sync_status: "idle",
-      provider_type: "mock",
+      provider_type: "metaapi",
       user_note: note.trim() || null,
     } as any).select().single();
 
     if (error || !account) {
       toast.error("Errore nel salvataggio");
       setSaving(false);
+      setConnectionStep("");
       return;
     }
 
-    // 2. Test connection via edge function
-    toast.info("Connessione in corso...");
+    // 2. Connect via MetaApi (provisioning + deploy + wait)
+    setConnectionStep("Connessione a MetaApi in corso...");
+    toast.info("Connessione al broker in corso. Può richiedere fino a 90 secondi...");
     try {
       const { data: session } = await supabase.auth.getSession();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -141,15 +148,16 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.session?.access_token}`,
           },
-          body: JSON.stringify({ action: "test_connection", account_id: (account as any).id }),
+          body: JSON.stringify({ action: "connect_metaapi", account_id: (account as any).id }),
         }
       );
       const result = await res.json();
 
       if (result.success) {
-        toast.success("Conto collegato con successo! Avvio sincronizzazione...");
+        setConnectionStep("Sincronizzazione dati...");
+        toast.success("Conto collegato! Avvio prima sincronizzazione...");
         // 3. Run first sync
-        await fetch(
+        const syncRes = await fetch(
           `https://${projectId}.supabase.co/functions/v1/account-sync`,
           {
             method: "POST",
@@ -160,15 +168,21 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
             body: JSON.stringify({ action: "sync", account_id: (account as any).id }),
           }
         );
-        toast.success("Prima sincronizzazione completata!");
+        const syncResult = await syncRes.json();
+        if (syncResult.success) {
+          toast.success(`Sincronizzazione completata! ${syncResult.trades_synced} trade importati.`);
+        } else {
+          toast.warning(`Conto collegato ma errore sync: ${syncResult.error || "Riprova manualmente"}`);
+        }
       } else {
         toast.error(`Errore connessione: ${result.error || "Sconosciuto"}`);
       }
     } catch {
-      toast.error("Errore durante il test di connessione");
+      toast.error("Errore durante la connessione al broker");
     }
 
     setSaving(false);
+    setConnectionStep("");
     onSaved();
   };
 
