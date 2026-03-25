@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Review } from "./types";
 import { AnalysisDisplay } from "./AnalysisDisplay";
+import { EasyAnalysisDisplay } from "./EasyAnalysisDisplay";
 import { ReviewRatingWidget } from "./ReviewRatingWidget";
 import { ReviewForm } from "./ReviewForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, MessageSquare, Link2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, Link2, Zap, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -19,31 +20,22 @@ interface Props {
 export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Props) {
   const [showReexamine, setShowReexamine] = useState(false);
   const [linkedReviews, setLinkedReviews] = useState<Review[]>([]);
+  const isEasy = review.review_mode === "easy";
 
-  useEffect(() => {
-    loadLinked();
-  }, [review.id]);
+  useEffect(() => { loadLinked(); }, [review.id]);
 
   const loadLinked = async () => {
-    // Get children (reviews that reference this one)
     const { data: children } = await supabase
-      .from("ai_chart_reviews")
-      .select("*")
+      .from("ai_chart_reviews").select("*")
       .eq("parent_review_id", review.id)
       .order("created_at", { ascending: true });
-    
     const results: Review[] = [];
-    
-    // Also get parent if exists
     if (review.parent_review_id) {
       const { data: parent } = await supabase
-        .from("ai_chart_reviews")
-        .select("*")
-        .eq("id", review.parent_review_id)
-        .single();
+        .from("ai_chart_reviews").select("*")
+        .eq("id", review.parent_review_id).single();
       if (parent) results.push(parent as any);
     }
-    
     if (children) results.push(...(children as any[]));
     setLinkedReviews(results);
   };
@@ -56,8 +48,18 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-heading text-xl font-bold text-foreground">{review.asset} - {review.timeframe}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{review.request_type} · {new Date(review.created_at).toLocaleString("it-IT")}</p>
+          <div className="flex items-center gap-2">
+            <h1 className="font-heading text-xl font-bold text-foreground">{review.asset} - {review.timeframe}</h1>
+            {isEasy ? (
+              <Badge variant="outline" className="border-primary/30 text-primary"><Zap className="h-3 w-3 mr-0.5" />Easy</Badge>
+            ) : (
+              <Badge variant="outline"><BarChart3 className="h-3 w-3 mr-0.5" />Pro</Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            {review.request_type} · {new Date(review.created_at).toLocaleString("it-IT")}
+            {review.account_size ? ` · Conto: $${(review.account_size).toLocaleString()}` : ""}
+          </p>
         </div>
         <Badge className={cn(
           review.status === "completed" ? "bg-success/10 text-success" :
@@ -74,7 +76,6 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
         </div>
       )}
 
-      {/* User note */}
       {review.user_note && (
         <div className="card-premium p-4 mb-6 border-primary/20">
           <div className="flex items-center gap-2 mb-2">
@@ -91,16 +92,22 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
         </div>
       )}
 
-      <AnalysisDisplay analysis={review.analysis} />
+      {isEasy ? (
+        <EasyAnalysisDisplay
+          analysis={review.analysis}
+          accountSize={review.account_size || undefined}
+          asset={review.asset}
+        />
+      ) : (
+        <AnalysisDisplay analysis={review.analysis} />
+      )}
 
-      {/* Rating */}
       {review.status === "completed" && (
         <div className="mt-6">
           <ReviewRatingWidget reviewId={review.id} />
         </div>
       )}
 
-      {/* Re-examine button */}
       {review.status === "completed" && !showReexamine && (
         <div className="mt-4">
           <Button variant="outline" onClick={() => setShowReexamine(true)}>
@@ -121,7 +128,6 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
         </div>
       )}
 
-      {/* Linked reviews */}
       {linkedReviews.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center gap-2 mb-3">
@@ -130,11 +136,7 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
           </div>
           <div className="space-y-2">
             {linkedReviews.map((lr) => (
-              <button
-                key={lr.id}
-                onClick={() => onSelectReview(lr)}
-                className="w-full card-premium p-3 text-left hover:border-primary/30 transition-colors"
-              >
+              <button key={lr.id} onClick={() => onSelectReview(lr)} className="w-full card-premium p-3 text-left hover:border-primary/30 transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-foreground">
@@ -144,7 +146,7 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
                     <p className="text-xs text-muted-foreground">{new Date(lr.created_at).toLocaleDateString("it-IT")}</p>
                   </div>
                   <Badge variant="secondary" className="text-[10px]">
-                    {lr.analysis?.qualita_setup ? `${lr.analysis.qualita_setup}/10` : "N/A"}
+                    {lr.analysis?.qualita_setup ? `${lr.analysis.qualita_setup}/10` : lr.analysis?.signal_quality || "N/A"}
                   </Badge>
                 </div>
               </button>
@@ -156,8 +158,9 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
       {/* Disclaimer */}
       <div className="mt-6 p-4 bg-secondary/50 rounded-lg border border-border">
         <p className="text-xs text-muted-foreground">
-          <strong>Disclaimer:</strong> Questa analisi è generata a scopo educativo e informativo. Non costituisce consulenza finanziaria
-          né raccomandazione operativa. Le decisioni di trading sono sotto la tua esclusiva responsabilità.
+          <strong>Disclaimer:</strong> Questa analisi ha finalità informative, educative e di supporto operativo.
+          Non costituisce esecuzione automatica, consulenza finanziaria personalizzata o garanzia di risultato.
+          Le decisioni di trading sono sotto la tua esclusiva responsabilità.
         </p>
       </div>
     </div>

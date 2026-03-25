@@ -2,16 +2,18 @@ import { useEffect, useState, useMemo } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star } from "lucide-react";
+import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { Review } from "@/components/ai-review/types";
 import { ReviewForm } from "@/components/ai-review/ReviewForm";
+import { EasyReviewForm } from "@/components/ai-review/EasyReviewForm";
 import { ReviewDetail } from "@/components/ai-review/ReviewDetail";
 import { ReviewComparison } from "@/components/ai-review/ReviewComparison";
 import { ReviewFilters } from "@/components/ai-review/ReviewFilters";
+import { ModeSelector } from "@/components/ai-review/ModeSelector";
 
 export default function AIReview() {
   const { user } = useAuth();
@@ -19,6 +21,7 @@ export default function AIReview() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
+  const [reviewMode, setReviewMode] = useState<"pro" | "easy">("easy");
 
   // Filters
   const [search, setSearch] = useState("");
@@ -51,11 +54,10 @@ export default function AIReview() {
     if (filterStatus !== "all") result = result.filter(r => r.status === filterStatus);
     if (filterQuality !== "all") {
       result = result.filter(r => {
-        const q = r.analysis?.qualita_setup;
-        if (typeof q !== "number") return false;
-        if (filterQuality === "high") return q >= 8;
-        if (filterQuality === "medium") return q >= 5 && q <= 7;
-        if (filterQuality === "low") return q <= 4;
+        const q = r.analysis?.qualita_setup ?? r.analysis?.signal_quality;
+        if (filterQuality === "high") return (typeof q === "number" ? q >= 8 : q === "alta");
+        if (filterQuality === "medium") return (typeof q === "number" ? (q >= 5 && q <= 7) : q === "media");
+        if (filterQuality === "low") return (typeof q === "number" ? q <= 4 : q === "bassa");
         return true;
       });
     }
@@ -82,7 +84,6 @@ export default function AIReview() {
     setCompareIds(next);
   };
 
-  // Show comparison view
   if (showComparison && compareIds.size === 2) {
     const ids = Array.from(compareIds);
     const a = reviews.find(r => r.id === ids[0])!;
@@ -96,7 +97,6 @@ export default function AIReview() {
     );
   }
 
-  // Show detail view
   if (selectedReview) {
     return (
       <AppLayout>
@@ -141,14 +141,22 @@ export default function AIReview() {
         {/* Disclaimer */}
         <div className="p-4 mb-6 bg-secondary/50 rounded-lg border border-border">
           <p className="text-xs text-muted-foreground">
-            <strong>⚠️ Disclaimer:</strong> L'AI Chart Review fornisce supporto analitico a scopo educativo.
-            Non esegue operazioni automatiche e non costituisce consulenza finanziaria.
+            <strong>⚠️ Disclaimer:</strong> Questa analisi ha finalità informative, educative e di supporto operativo.
+            Non costituisce esecuzione automatica, consulenza finanziaria personalizzata o garanzia di risultato.
+            In assenza di contesto sufficiente, il sistema può non proporre alcun setup.
           </p>
         </div>
 
-        {/* Form */}
+        {/* Mode selector + Form */}
         {showForm && (
-          <ReviewForm onClose={() => setShowForm(false)} onSuccess={loadReviews} />
+          <>
+            <ModeSelector mode={reviewMode} onChange={setReviewMode} />
+            {reviewMode === "pro" ? (
+              <ReviewForm onClose={() => setShowForm(false)} onSuccess={loadReviews} />
+            ) : (
+              <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={loadReviews} />
+            )}
+          </>
         )}
 
         {/* Filters */}
@@ -208,10 +216,20 @@ export default function AIReview() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {r.review_mode === "easy" && (
+                          <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                            <Zap className="h-2.5 w-2.5 mr-0.5" />Easy
+                          </Badge>
+                        )}
                         {r.user_note && <MessageSquare className="h-3 w-3 text-muted-foreground" />}
                         {r.analysis?.qualita_setup != null && (
                           <Badge variant="secondary" className="text-[10px]">
                             <Star className="h-2.5 w-2.5 mr-0.5" />{r.analysis.qualita_setup}/10
+                          </Badge>
+                        )}
+                        {r.analysis?.signal_quality && !r.analysis?.qualita_setup && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {r.analysis.signal_quality}
                           </Badge>
                         )}
                         <Badge className={cn(
