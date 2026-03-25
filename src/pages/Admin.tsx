@@ -5,7 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone, Bot,
   Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft,
-  ThumbsUp, ThumbsDown, Star, MessageSquare, Link2, GraduationCap, Search, ArrowUpDown, Wallet
+  ThumbsUp, ThumbsDown, Star, MessageSquare, Link2, GraduationCap, Search, ArrowUpDown, Wallet,
+  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,17 +15,39 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
-// ---- Users Tab ----
+// ---- Users Tab with License & Quota Management ----
 function AdminUsers() {
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [premiumUsage, setPremiumUsage] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterLicense, setFilterLicense] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   const load = async () => {
     const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
     if (data) setProfiles(data);
+
+    // Load premium usage for current month
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const { data: usageData } = await supabase
+      .from("premium_review_usage")
+      .select("*")
+      .eq("month_year", monthYear);
+    if (usageData) {
+      const map: Record<string, any> = {};
+      usageData.forEach((u: any) => { map[u.user_id] = u; });
+      setPremiumUsage(map);
+    }
+
     setLoading(false);
   };
 
@@ -36,6 +59,133 @@ function AdminUsers() {
     load();
   };
 
+  const updateLicense = async (userId: string, updates: Record<string, any>) => {
+    await supabase.from("profiles").update(updates as any).eq("user_id", userId);
+    toast.success("Licenza aggiornata");
+    load();
+  };
+
+  const setLicenseDuration = async (userId: string, days: number) => {
+    const now = new Date();
+    const expires = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    await updateLicense(userId, {
+      license_status: "active",
+      access_started_at: now.toISOString(),
+      access_expires_at: expires.toISOString(),
+      status: "approved",
+    });
+  };
+
+  const setLifetime = async (userId: string) => {
+    await updateLicense(userId, {
+      license_status: "lifetime",
+      access_expires_at: null,
+      status: "approved",
+    });
+  };
+
+  const suspendLicense = async (userId: string) => {
+    await updateLicense(userId, { license_status: "suspended" });
+  };
+
+  const reactivateLicense = async (userId: string) => {
+    await updateLicense(userId, { license_status: "active", status: "approved" });
+  };
+
+  const setCustomExpiry = async (userId: string, date: Date) => {
+    await updateLicense(userId, {
+      license_status: "active",
+      access_expires_at: date.toISOString(),
+      status: "approved",
+    });
+  };
+
+  const extendLicense = async (userId: string, days: number) => {
+    const profile = profiles.find(p => p.user_id === userId);
+    if (!profile) return;
+    const current = profile.access_expires_at ? new Date(profile.access_expires_at) : new Date();
+    const base = current > new Date() ? current : new Date();
+    const newExpiry = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+    await updateLicense(userId, {
+      license_status: "active",
+      access_expires_at: newExpiry.toISOString(),
+      status: "approved",
+    });
+  };
+
+  // Premium quota management
+  const updatePremiumQuota = async (userId: string, quota: number) => {
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const existing = premiumUsage[userId];
+    if (existing) {
+      await supabase.from("premium_review_usage").update({ quota_limit: quota } as any).eq("id", existing.id);
+    } else {
+      await supabase.from("premium_review_usage").insert({
+        user_id: userId, month_year: monthYear, reviews_used: 0, quota_limit: quota,
+      } as any);
+    }
+    toast.success("Quota premium aggiornata");
+    load();
+  };
+
+  const resetPremiumUsage = async (userId: string) => {
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const existing = premiumUsage[userId];
+    if (existing) {
+      await supabase.from("premium_review_usage").update({ reviews_used: 0 } as any).eq("id", existing.id);
+    }
+    toast.success("Utilizzo premium resettato");
+    load();
+  };
+
+  const addExtraReviews = async (userId: string, extra: number) => {
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const existing = premiumUsage[userId];
+    if (existing) {
+      await supabase.from("premium_review_usage").update({
+        quota_limit: existing.quota_limit + extra,
+      } as any).eq("id", existing.id);
+    } else {
+      await supabase.from("premium_review_usage").insert({
+        user_id: userId, month_year: monthYear, reviews_used: 0, quota_limit: extra,
+      } as any);
+    }
+    toast.success(`Aggiunte ${extra} review premium extra`);
+    load();
+  };
+
+  const getDaysRemaining = (p: any): number | null => {
+    if (!p.access_expires_at) return null;
+    if (p.license_status === "lifetime") return null;
+    const diff = new Date(p.access_expires_at).getTime() - Date.now();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
+  const getLicenseColor = (p: any) => {
+    const ls = p.license_status || "active";
+    if (ls === "lifetime") return "bg-primary/10 text-primary";
+    if (ls === "suspended") return "bg-destructive/10 text-destructive";
+    if (ls === "expired") return "bg-destructive/10 text-destructive";
+    const days = getDaysRemaining(p);
+    if (days !== null && days <= 0) return "bg-destructive/10 text-destructive";
+    if (days !== null && days <= 7) return "bg-amber-500/10 text-amber-600";
+    return "bg-success/10 text-success";
+  };
+
+  const getLicenseLabel = (p: any) => {
+    const ls = p.license_status || "active";
+    if (ls === "lifetime") return "♾️ Lifetime";
+    if (ls === "suspended") return "🔒 Sospeso";
+    if (ls === "pending") return "⏳ Pending";
+    const days = getDaysRemaining(p);
+    if (days !== null && days <= 0) return "❌ Scaduta";
+    if (days !== null) return `${days}g rimanenti`;
+    return "✅ Attiva";
+  };
+
   const statusColor = (s: string) => {
     switch (s) {
       case "approved": return "bg-success/10 text-success";
@@ -45,36 +195,289 @@ function AdminUsers() {
     }
   };
 
+  const filtered = profiles.filter(p => {
+    if (filterStatus !== "all" && p.status !== filterStatus) return false;
+    if (filterLicense === "active") {
+      const days = getDaysRemaining(p);
+      if (p.license_status === "lifetime") return true;
+      if (p.license_status !== "active") return false;
+      if (days !== null && days <= 0) return false;
+    }
+    if (filterLicense === "expired") {
+      const days = getDaysRemaining(p);
+      if (days === null && p.license_status !== "expired") return false;
+      if (days !== null && days > 0) return false;
+    }
+    if (filterLicense === "suspended" && p.license_status !== "suspended") return false;
+    if (filterLicense === "lifetime" && p.license_status !== "lifetime") return false;
+    if (filterLicense === "expiring") {
+      const days = getDaysRemaining(p);
+      if (days === null || days > 7 || days <= 0) return false;
+    }
+    if (filterLicense === "no_premium") {
+      const usage = premiumUsage[p.user_id];
+      if (!usage || usage.reviews_used < usage.quota_limit) return false;
+    }
+    if (searchTerm.trim()) {
+      const s = searchTerm.toLowerCase();
+      if (!(p.full_name || "").toLowerCase().includes(s) && !p.user_id.toLowerCase().includes(s)) return false;
+    }
+    return true;
+  });
+
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
+  // Stats
+  const totalActive = profiles.filter(p => {
+    const d = getDaysRemaining(p);
+    return p.status === "approved" && (p.license_status === "lifetime" || p.license_status === "active") && (d === null || d > 0);
+  }).length;
+  const totalExpired = profiles.filter(p => { const d = getDaysRemaining(p); return d !== null && d <= 0; }).length;
+  const totalExpiring = profiles.filter(p => { const d = getDaysRemaining(p); return d !== null && d > 0 && d <= 7; }).length;
+
   return (
-    <div className="space-y-2">
-      {profiles.map((p) => (
-        <div key={p.id} className="card-premium p-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-foreground">{p.full_name || "N/A"}</p>
-            <p className="text-xs text-muted-foreground">{p.user_id}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge className={statusColor(p.status)}>{p.status}</Badge>
-            {p.status !== "approved" && (
-              <Button size="sm" variant="outline" onClick={() => updateStatus(p.user_id, "approved")}>
-                <Check className="h-3 w-3 mr-1" /> Approva
-              </Button>
-            )}
-            {p.status !== "suspended" && (
-              <Button size="sm" variant="outline" onClick={() => updateStatus(p.user_id, "suspended")}>
-                <Pause className="h-3 w-3 mr-1" /> Sospendi
-              </Button>
-            )}
-            {p.status === "suspended" && (
-              <Button size="sm" variant="outline" onClick={() => updateStatus(p.user_id, "pending")}>
-                Riattiva
-              </Button>
-            )}
-          </div>
+    <div className="space-y-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Totale utenti</p>
+          <p className="text-xl font-bold text-foreground">{profiles.length}</p>
         </div>
-      ))}
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Licenze attive</p>
+          <p className="text-xl font-bold text-success">{totalActive}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">In scadenza (7g)</p>
+          <p className={cn("text-xl font-bold", totalExpiring > 0 ? "text-amber-500" : "text-foreground")}>{totalExpiring}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Scadute</p>
+          <p className={cn("text-xl font-bold", totalExpired > 0 ? "text-destructive" : "text-foreground")}>{totalExpired}</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2">
+        <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Cerca utente..." className="h-8 text-xs w-[200px]" />
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue placeholder="Stato" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti</SelectItem>
+            <SelectItem value="approved">Approvati</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="suspended">Sospesi</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterLicense} onValueChange={setFilterLicense}>
+          <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Licenza" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutte</SelectItem>
+            <SelectItem value="active">Attive</SelectItem>
+            <SelectItem value="expired">Scadute</SelectItem>
+            <SelectItem value="expiring">In scadenza</SelectItem>
+            <SelectItem value="suspended">Sospese</SelectItem>
+            <SelectItem value="lifetime">Lifetime</SelectItem>
+            <SelectItem value="no_premium">Quota esaurita</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <p className="text-xs text-muted-foreground">{filtered.length} utenti</p>
+
+      {/* User list */}
+      {filtered.map((p) => {
+        const days = getDaysRemaining(p);
+        const usage = premiumUsage[p.user_id];
+        const isExpanded = expandedUser === p.user_id;
+
+        return (
+          <div key={p.id} className={cn("card-premium transition-all", isExpanded && "border-primary/30")}>
+            {/* Summary row */}
+            <button className="w-full p-4 text-left" onClick={() => setExpandedUser(isExpanded ? null : p.user_id)}>
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium text-foreground">{p.full_name || "N/A"}</p>
+                    <Badge className={statusColor(p.status)} >{p.status}</Badge>
+                    <Badge className={getLicenseColor(p)}>{getLicenseLabel(p)}</Badge>
+                    {usage && (
+                      <Badge variant="outline" className="text-[10px]">
+                        <Crown className="h-2.5 w-2.5 mr-0.5 text-amber-500" />
+                        {usage.reviews_used}/{usage.quota_limit}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {p.user_id.slice(0, 12)}...
+                    {p.access_expires_at && ` · Scade: ${new Date(p.access_expires_at).toLocaleDateString("it-IT")}`}
+                  </p>
+                </div>
+                <ChevronLeft className={cn("h-4 w-4 text-muted-foreground transition-transform", isExpanded && "-rotate-90")} />
+              </div>
+            </button>
+
+            {/* Expanded management panel */}
+            {isExpanded && (
+              <div className="px-4 pb-4 space-y-4 border-t border-border pt-4 animate-fade-in">
+                {/* Account status */}
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground mb-2 block">Stato Account</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {p.status !== "approved" && (
+                      <Button size="sm" variant="outline" onClick={() => updateStatus(p.user_id, "approved")}>
+                        <Check className="h-3 w-3 mr-1" /> Approva
+                      </Button>
+                    )}
+                    {p.status !== "suspended" && (
+                      <Button size="sm" variant="outline" onClick={() => updateStatus(p.user_id, "suspended")}>
+                        <Pause className="h-3 w-3 mr-1" /> Sospendi Account
+                      </Button>
+                    )}
+                    {p.status === "suspended" && (
+                      <Button size="sm" variant="outline" onClick={() => updateStatus(p.user_id, "approved")}>
+                        <RefreshCw className="h-3 w-3 mr-1" /> Riattiva Account
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* License management */}
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground mb-2 block">Gestione Licenza</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                    <div className="card-premium p-2">
+                      <p className="text-[10px] text-muted-foreground">Stato</p>
+                      <p className="text-xs font-medium text-foreground">{p.license_status || "active"}</p>
+                    </div>
+                    <div className="card-premium p-2">
+                      <p className="text-[10px] text-muted-foreground">Inizio</p>
+                      <p className="text-xs font-medium text-foreground">
+                        {p.access_started_at ? new Date(p.access_started_at).toLocaleDateString("it-IT") : "—"}
+                      </p>
+                    </div>
+                    <div className="card-premium p-2">
+                      <p className="text-[10px] text-muted-foreground">Scadenza</p>
+                      <p className="text-xs font-medium text-foreground">
+                        {p.access_expires_at ? new Date(p.access_expires_at).toLocaleDateString("it-IT") : "∞"}
+                      </p>
+                    </div>
+                    <div className="card-premium p-2">
+                      <p className="text-[10px] text-muted-foreground">Giorni rimasti</p>
+                      <p className={cn("text-xs font-medium", days !== null && days <= 0 ? "text-destructive" : days !== null && days <= 7 ? "text-amber-500" : "text-foreground")}>
+                        {days !== null ? (days <= 0 ? "Scaduta" : days) : "∞"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Duration presets */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <Label className="text-xs text-muted-foreground w-full">Imposta durata:</Label>
+                    {[7, 14, 30, 60, 90].map(d => (
+                      <Button key={d} size="sm" variant="outline" className="h-7 text-xs" onClick={() => setLicenseDuration(p.user_id, d)}>
+                        {d}g
+                      </Button>
+                    ))}
+                    <Button size="sm" variant="outline" className="h-7 text-xs border-primary/30 text-primary" onClick={() => setLifetime(p.user_id)}>
+                      <Infinity className="h-3 w-3 mr-1" />Lifetime
+                    </Button>
+                  </div>
+
+                  {/* Extend */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    <Label className="text-xs text-muted-foreground w-full">Estendi licenza:</Label>
+                    {[7, 30].map(d => (
+                      <Button key={d} size="sm" variant="outline" className="h-7 text-xs" onClick={() => extendLicense(p.user_id, d)}>
+                        +{d}g
+                      </Button>
+                    ))}
+                  </div>
+
+                  {/* Custom date */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <Label className="text-xs text-muted-foreground">Scadenza manuale:</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-7 text-xs">
+                          <Calendar className="h-3 w-3 mr-1" />Seleziona data
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={p.access_expires_at ? new Date(p.access_expires_at) : undefined}
+                          onSelect={(date) => { if (date) setCustomExpiry(p.user_id, date); }}
+                          disabled={(date) => date < new Date()}
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {/* Suspend / reactivate license */}
+                  <div className="flex gap-2">
+                    {p.license_status !== "suspended" && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => suspendLicense(p.user_id)}>
+                        <Pause className="h-3 w-3 mr-1" />Sospendi licenza
+                      </Button>
+                    )}
+                    {p.license_status === "suspended" && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs text-success" onClick={() => reactivateLicense(p.user_id)}>
+                        <RefreshCw className="h-3 w-3 mr-1" />Riattiva licenza
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Premium quota management */}
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground mb-2 block">
+                    <Crown className="h-3 w-3 inline mr-1 text-amber-500" />Quota Premium Review
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    <div className="card-premium p-2">
+                      <p className="text-[10px] text-muted-foreground">Usate</p>
+                      <p className="text-xs font-bold text-foreground">{usage?.reviews_used ?? 0}</p>
+                    </div>
+                    <div className="card-premium p-2">
+                      <p className="text-[10px] text-muted-foreground">Quota</p>
+                      <p className="text-xs font-bold text-foreground">{usage?.quota_limit ?? 3}</p>
+                    </div>
+                    <div className="card-premium p-2">
+                      <p className="text-[10px] text-muted-foreground">Residue</p>
+                      <p className={cn("text-xs font-bold", (usage && usage.reviews_used >= usage.quota_limit) ? "text-destructive" : "text-success")}>
+                        {usage ? Math.max(0, usage.quota_limit - usage.reviews_used) : 3}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Quota presets */}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <Label className="text-xs text-muted-foreground w-full">Imposta quota mensile:</Label>
+                    {[0, 3, 5, 10, 20].map(q => (
+                      <Button key={q} size="sm" variant="outline" className="h-7 text-xs" onClick={() => updatePremiumQuota(p.user_id, q)}>
+                        {q}
+                      </Button>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => resetPremiumUsage(p.user_id)}>
+                      <RefreshCw className="h-3 w-3 mr-1" />Reset utilizzo
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => addExtraReviews(p.user_id, 3)}>
+                      <Plus className="h-3 w-3 mr-1" />+3 extra
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => addExtraReviews(p.user_id, 5)}>
+                      <Plus className="h-3 w-3 mr-1" />+5 extra
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
