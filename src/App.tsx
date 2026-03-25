@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Training from "./pages/Training";
 import Support from "./pages/Support";
 import AIReview from "./pages/AIReview";
+import AIAssistant from "./pages/AIAssistant";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
