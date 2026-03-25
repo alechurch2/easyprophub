@@ -106,11 +106,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-border flex items-center px-4">
-        <button onClick={() => setMobileOpen(true)} className="text-foreground">
-          <Menu className="h-5 w-5" />
-        </button>
-        <div className="ml-3">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-border flex items-center justify-between px-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setMobileOpen(true)} className="text-foreground p-1.5 -ml-1.5 rounded-lg active:bg-secondary">
+            <Menu className="h-5 w-5" />
+          </button>
           <BrandLogo size="sm" />
         </div>
       </div>
