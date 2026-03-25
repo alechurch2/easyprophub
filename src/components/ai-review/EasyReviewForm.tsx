@@ -1,0 +1,151 @@
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { toast } from "sonner";
+import { ASSETS, TIMEFRAMES } from "./types";
+import { ACCOUNT_PRESETS } from "./lotSizeCalculator";
+
+interface Props {
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export function EasyReviewForm({ onClose, onSuccess }: Props) {
+  const { user } = useAuth();
+  const [asset, setAsset] = useState(ASSETS[0]);
+  const [timeframe, setTimeframe] = useState(TIMEFRAMES[4]);
+  const [file, setFile] = useState<File | null>(null);
+  const [userNote, setUserNote] = useState("");
+  const [accountPreset, setAccountPreset] = useState("100000");
+  const [customAccount, setCustomAccount] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const isCustom = accountPreset === "custom";
+  const accountSize = isCustom ? parseInt(customAccount) || 0 : parseInt(accountPreset);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) { toast.error("Carica uno screenshot del grafico"); return; }
+    if (accountSize <= 0) { toast.error("Inserisci la dimensione del conto"); return; }
+    setSubmitting(true);
+
+    try {
+      const filePath = `${user!.id}/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("chart-screenshots").upload(filePath, file);
+      if (uploadError) { toast.error("Errore nel caricamento dell'immagine"); setSubmitting(false); return; }
+      const { data: urlData } = supabase.storage.from("chart-screenshots").getPublicUrl(filePath);
+
+      const { data: session } = await supabase.auth.getSession();
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chart-review`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.session?.access_token}`,
+          },
+          body: JSON.stringify({
+            asset,
+            timeframe,
+            request_type: "Easy Mode",
+            screenshot_url: urlData.publicUrl,
+            user_note: userNote.trim() || null,
+            review_mode: "easy",
+            account_size: accountSize,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok) { toast.error(result.error || "Errore nell'analisi AI"); setSubmitting(false); return; }
+      toast.success("Analisi completata!");
+      onClose();
+      onSuccess();
+    } catch {
+      toast.error("Errore di connessione");
+    }
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="card-premium p-6 mb-8 animate-fade-in">
+      <h2 className="font-heading font-semibold text-foreground mb-1">Easy Mode — Analisi semplificata</h2>
+      <p className="text-xs text-muted-foreground mb-4">Carica il tuo grafico e ricevi un'idea operativa chiara e semplice</p>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-foreground">Asset</Label>
+            <Select value={asset} onValueChange={setAsset}>
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>{ASSETS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-foreground">Timeframe</Label>
+            <Select value={timeframe} onValueChange={setTimeframe}>
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+              <SelectContent>{TIMEFRAMES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div>
+          <Label className="text-foreground">Grandezza conto</Label>
+          <ToggleGroup
+            type="single"
+            value={accountPreset}
+            onValueChange={(v) => v && setAccountPreset(v)}
+            className="mt-1.5 justify-start flex-wrap"
+          >
+            {ACCOUNT_PRESETS.map((p) => (
+              <ToggleGroupItem key={p.value} value={String(p.value)} className="text-xs px-4">
+                {p.label}
+              </ToggleGroupItem>
+            ))}
+            <ToggleGroupItem value="custom" className="text-xs px-4">Personalizzato</ToggleGroupItem>
+          </ToggleGroup>
+          {isCustom && (
+            <Input
+              type="number"
+              value={customAccount}
+              onChange={(e) => setCustomAccount(e.target.value)}
+              placeholder="Es: 75000"
+              className="mt-2 max-w-[200px]"
+              min={1}
+            />
+          )}
+        </div>
+
+        <div>
+          <Label className="text-foreground">Screenshot del grafico</Label>
+          <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="mt-1.5" />
+        </div>
+
+        <div>
+          <Label className="text-foreground">Nota <span className="text-muted-foreground font-normal">(facoltativa — es: "Penso sia un buy")</span></Label>
+          <Textarea
+            value={userNote}
+            onChange={(e) => setUserNote(e.target.value)}
+            placeholder="Cosa pensi di questo grafico?"
+            className="mt-1.5"
+            rows={2}
+          />
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>Annulla</Button>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? (<><Loader2 className="h-4 w-4 animate-spin mr-2" />Analisi in corso...</>) : "Analizza"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
