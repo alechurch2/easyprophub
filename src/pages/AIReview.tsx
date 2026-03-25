@@ -171,7 +171,9 @@ export default function AIReview() {
               premiumUsed={premiumUsage?.reviews_used ?? 0}
               premiumQuota={premiumUsage?.quota_limit ?? 3}
             />
-            <ModeSelector mode={reviewMode} onChange={setReviewMode} />
+            <div className="mb-8">
+              <ModeSelector mode={reviewMode} onChange={setReviewMode} />
+            </div>
 
             {/* Selection summary */}
             <div className="mt-10 mb-10">
@@ -201,11 +203,13 @@ export default function AIReview() {
               </div>
             </div>
 
-            {reviewMode === "pro" ? (
-              <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
-            ) : (
-              <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
-            )}
+            <div className="mt-8">
+              {reviewMode === "pro" ? (
+                <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
+              ) : (
+                <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
+              )}
+            </div>
           </div>
         )}
 
