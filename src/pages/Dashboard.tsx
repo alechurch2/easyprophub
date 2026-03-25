@@ -63,6 +63,14 @@ export default function Dashboard() {
       color: "text-primary",
       bg: "bg-primary/10",
     },
+    {
+      title: "Libreria Didattica",
+      description: "Esempi selezionati di analisi AI",
+      icon: GraduationCap,
+      path: "/case-studies",
+      color: "text-info",
+      bg: "bg-info/10",
+    },
   ];
 
   return (
