@@ -105,7 +105,7 @@ export default function AIReview() {
     const b = reviews.find(r => r.id === ids[1])!;
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto">
           <ReviewComparison reviewA={a} reviewB={b} onClose={() => { setShowComparison(false); setCompareIds(new Set()); }} />
         </div>
       </AppLayout>
@@ -115,7 +115,7 @@ export default function AIReview() {
   if (selectedReview) {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
           <ReviewDetail
             review={selectedReview}
             onBack={() => setSelectedReview(null)}
@@ -129,7 +129,7 @@ export default function AIReview() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">

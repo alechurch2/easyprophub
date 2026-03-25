@@ -137,7 +137,7 @@ export default function Support() {
   if (selectedTicket) {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-3xl mx-auto animate-fade-in">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto animate-fade-in">
           <button onClick={() => setSelectedTicket(null)} className="text-sm text-primary hover:underline mb-4">
             ← Torna ai ticket
           </button>
@@ -193,7 +193,7 @@ export default function Support() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">

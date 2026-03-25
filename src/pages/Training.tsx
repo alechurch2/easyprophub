@@ -103,7 +103,7 @@ export default function Training() {
   if (selectedLesson) {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
           <button onClick={() => setSelectedLesson(null)} className="text-sm text-primary hover:underline mb-4 flex items-center gap-1">
             ← Torna al modulo
           </button>
@@ -147,7 +147,7 @@ export default function Training() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         <div className="flex items-center gap-3 mb-8">
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <BookOpen className="h-5 w-5 text-primary" />

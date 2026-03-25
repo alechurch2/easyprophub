@@ -951,7 +951,7 @@ export default function AccountCenter() {
   if (selectedTrade) {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
           <TradeDetail trade={selectedTrade} onBack={() => setSelectedTrade(null)} />
         </div>
       </AppLayout>
@@ -960,7 +960,7 @@ export default function AccountCenter() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
