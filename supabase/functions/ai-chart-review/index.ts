@@ -447,11 +447,37 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       },
     ];
 
+    // Download image from storage and convert to base64 (bucket is private)
     if (screenshot_url) {
-      userContent.push({
-        type: "image_url",
-        image_url: { url: screenshot_url },
-      });
+      try {
+        // Extract file path from the URL
+        const bucketPath = screenshot_url.split("/chart-screenshots/").pop();
+        if (bucketPath) {
+          const decodedPath = decodeURIComponent(bucketPath);
+          const { data: fileData, error: downloadError } = await supabase.storage
+            .from("chart-screenshots")
+            .download(decodedPath);
+
+          if (downloadError) {
+            console.error("Storage download error:", downloadError);
+          } else if (fileData) {
+            const arrayBuffer = await fileData.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            let binary = "";
+            for (let i = 0; i < uint8Array.length; i++) {
+              binary += String.fromCharCode(uint8Array[i]);
+            }
+            const base64 = btoa(binary);
+            const mimeType = fileData.type || "image/png";
+            userContent.push({
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${base64}` },
+            });
+          }
+        }
+      } catch (imgErr) {
+        console.error("Image processing error:", imgErr);
+      }
     }
 
     // Call AI with tool calling for structured output
