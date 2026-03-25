@@ -150,9 +150,16 @@ serve(async (req) => {
       return { role: msg.role, content: msg.content };
     });
 
-    // Use vision-capable model when images are present
+    // ============================================================
+    // 🔧 CONFIGURAZIONE MODELLO AI ASSISTANT — Centralizzata
+    // Modifica qui per cambiare il modello usato dall'AI Assistant
+    // ============================================================
+    const AI_ASSISTANT_MODEL = "google/gemini-2.5-flash-lite";
+    // ============================================================
+
+    // Use vision-capable model when images are present (flash-lite supports vision too)
     const hasImages = messages.some((msg: any) => msg.image_url);
-    const model = hasImages ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash";
+    const model = hasImages ? "google/gemini-2.5-flash" : AI_ASSISTANT_MODEL;
 
     // Call AI with streaming
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

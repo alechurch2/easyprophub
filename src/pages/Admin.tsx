@@ -331,6 +331,8 @@ function AdminReviews() {
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [filterRating, setFilterRating] = useState("all");
   const [filterMode, setFilterMode] = useState("all");
+  const [filterTier, setFilterTier] = useState("all");
+  const [premiumStats, setPremiumStats] = useState<{ total: number; byUser: Record<string, number> }>({ total: 0, byUser: {} });
 
   // Didactic form
   const [didacticTitle, setDidacticTitle] = useState("");
@@ -341,6 +343,12 @@ function AdminReviews() {
     const { data } = await supabase.from("ai_chart_reviews").select("*").order("created_at", { ascending: false });
     if (data) {
       setReviews(data);
+      // Compute premium stats
+      const premiumReviews = data.filter((r: any) => r.review_tier === "premium");
+      const byUser: Record<string, number> = {};
+      premiumReviews.forEach((r: any) => { byUser[r.user_id] = (byUser[r.user_id] || 0) + 1; });
+      setPremiumStats({ total: premiumReviews.length, byUser });
+
       const userIds = [...new Set(data.map((r: any) => r.user_id))];
       if (userIds.length > 0) {
         const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
@@ -350,7 +358,6 @@ function AdminReviews() {
           setProfiles(map);
         }
       }
-      // Load all ratings
       const reviewIds = data.map((r: any) => r.id);
       if (reviewIds.length > 0) {
         const { data: allRatings } = await supabase.from("ai_review_ratings" as any).select("*").in("review_id", reviewIds);
@@ -419,6 +426,7 @@ function AdminReviews() {
     if (filterAsset !== "all" && r.asset !== filterAsset) return false;
     if (filterStatus !== "all" && r.status !== filterStatus) return false;
     if (filterMode !== "all" && (r.review_mode || "pro") !== filterMode) return false;
+    if (filterTier !== "all" && (r.review_tier || "standard") !== filterTier) return false;
     if (filterRating === "useful" && (!ratings[r.id] || ratings[r.id].useful === 0)) return false;
     if (filterRating === "not_useful" && (!ratings[r.id] || ratings[r.id].notUseful === 0)) return false;
     if (filterRating === "didactic" && !r.is_didactic_example) return false;
@@ -506,6 +514,25 @@ function AdminReviews() {
 
   return (
     <div className="space-y-4">
+      {/* Premium stats summary */}
+      {premiumStats.total > 0 && (
+        <div className="card-premium p-4 border-amber-500/20">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-foreground">📊 Statistiche Premium</span>
+            <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+              {premiumStats.total} review premium totali
+            </Badge>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(premiumStats.byUser).map(([uid, count]) => (
+              <Badge key={uid} variant="secondary" className="text-[10px]">
+                {profiles[uid] || uid.slice(0, 8)}: {count}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="flex-1 min-w-[200px]">
@@ -546,6 +573,14 @@ function AdminReviews() {
             <SelectItem value="easy">Easy</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterTier} onValueChange={setFilterTier}>
+          <SelectTrigger className="w-[110px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti</SelectItem>
+            <SelectItem value="standard">Standard</SelectItem>
+            <SelectItem value="premium">Premium</SelectItem>
+          </SelectContent>
+        </Select>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSortOrder(s => s === "desc" ? "asc" : "desc")}>
           <ArrowUpDown className="h-3 w-3 mr-1" />{sortOrder === "desc" ? "Recenti" : "Vecchie"}
         </Button>
@@ -561,6 +596,7 @@ function AdminReviews() {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium text-foreground">{r.asset} - {r.timeframe}</p>
+                {(r.review_tier || "standard") === "premium" && <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">👑 Premium</Badge>}
                 {(r.review_mode || "pro") === "easy" && <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">⚡ Easy</Badge>}
                 {(r.review_mode || "pro") === "pro" && <Badge variant="outline" className="text-[10px]">Pro</Badge>}
                 {r.is_didactic_example && <Badge className="bg-primary/10 text-primary text-[10px]"><GraduationCap className="h-2.5 w-2.5 mr-0.5" />Didattico</Badge>}

@@ -15,9 +15,10 @@ import { ACCOUNT_PRESETS } from "./lotSizeCalculator";
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
+  reviewTier?: "standard" | "premium";
 }
 
-export function EasyReviewForm({ onClose, onSuccess }: Props) {
+export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: Props) {
   const { user } = useAuth();
   const [asset, setAsset] = useState(ASSETS[0]);
   const [timeframe, setTimeframe] = useState(TIMEFRAMES[4]);
@@ -59,13 +60,22 @@ export function EasyReviewForm({ onClose, onSuccess }: Props) {
             user_note: userNote.trim() || null,
             review_mode: "easy",
             account_size: accountSize,
+            review_tier: reviewTier,
           }),
         }
       );
 
       const result = await response.json();
-      if (!response.ok) { toast.error(result.error || "Errore nell'analisi AI"); setSubmitting(false); return; }
-      toast.success("Analisi completata!");
+      if (!response.ok) {
+        if (result.quota_exceeded) {
+          toast.error("Hai esaurito le review premium disponibili per questo mese.");
+        } else {
+          toast.error(result.error || "Errore nell'analisi AI");
+        }
+        setSubmitting(false);
+        return;
+      }
+      toast.success(`Analisi ${reviewTier === "premium" ? "premium " : ""}completata!`);
       onClose();
       onSuccess();
     } catch {
