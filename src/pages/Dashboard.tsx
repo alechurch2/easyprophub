@@ -119,6 +119,14 @@ export default function Dashboard() {
       color: "text-info",
       bg: "bg-info/10",
     },
+    {
+      title: "Account Center",
+      description: "Monitora i tuoi conti trading",
+      icon: Wallet,
+      path: "/account-center",
+      color: "text-success",
+      bg: "bg-success/10",
+    },
   ];
 
   return (

@@ -34,6 +34,7 @@ const navItems: NavItem[] = [
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
   { label: "AI Assistant", icon: Bot, path: "/ai-assistant" },
   { label: "Libreria Didattica", icon: GraduationCap, path: "/case-studies" },
+  { label: "Account Center", icon: Wallet, path: "/account-center" },
   { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 

@@ -38,6 +38,7 @@ const App = () => (
             <Route path="/ai-review" element={<ProtectedRoute><AIReview /></ProtectedRoute>} />
             <Route path="/ai-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
             <Route path="/case-studies" element={<ProtectedRoute><CaseStudies /></ProtectedRoute>} />
+            <Route path="/account-center" element={<ProtectedRoute><AccountCenter /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
