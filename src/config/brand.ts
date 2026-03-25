@@ -16,7 +16,7 @@ export const BRAND = {
   copyright: `© ${new Date().getFullYear()} EasyProp. Tutti i diritti riservati.`,
   
   // Paths per asset — aggiorna qui quando carichi i file definitivi
-  logo: null as string | null,       // es: "/src/assets/logo.svg"
-  logoIcon: null as string | null,   // es: "/src/assets/logo-icon.svg"
+  logo: null as string | null,       // Loaded via ES6 import in BrandLogo
+  logoIcon: null as string | null,
   favicon: "/favicon.svg",
 } as const;

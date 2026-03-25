@@ -1,5 +1,6 @@
 import { BRAND } from "@/config/brand";
 import { cn } from "@/lib/utils";
+import logoImage from "@/assets/logo.png";
 
 interface BrandLogoProps {
   size?: "sm" | "md" | "lg";
@@ -9,28 +10,29 @@ interface BrandLogoProps {
 }
 
 const sizes = {
-  sm: { box: "h-8 w-8", text: "text-base", fontSize: "text-[11px]" },
-  md: { box: "h-10 w-10", text: "text-xl", fontSize: "text-xs" },
-  lg: { box: "h-14 w-14", text: "text-2xl", fontSize: "text-sm" },
+  sm: { height: "h-7", iconBox: "h-8 w-8", fontSize: "text-[11px]" },
+  md: { height: "h-9", iconBox: "h-10 w-10", fontSize: "text-xs" },
+  lg: { height: "h-12", iconBox: "h-14 w-14", fontSize: "text-sm" },
 };
 
-export default function BrandLogo({ size = "md", showName = true, className, iconOnly }: BrandLogoProps) {
+export default function BrandLogo({ size = "md", className, iconOnly }: BrandLogoProps) {
   const s = sizes[size];
 
-  const icon = BRAND.logoIcon || BRAND.logo ? (
-    <img src={(iconOnly ? BRAND.logoIcon : BRAND.logo) || BRAND.logoIcon || BRAND.logo!} alt={BRAND.name} className={cn(s.box, "rounded-xl object-contain")} />
-  ) : (
-    <div className={cn(s.box, "rounded-xl bg-primary flex items-center justify-center")}>
-      <span className={cn(s.fontSize, "font-bold text-primary-foreground tracking-tight")}>EP</span>
-    </div>
-  );
+  // Full logo available — use it everywhere (it contains icon + text)
+  if (!iconOnly) {
+    return (
+      <div className={className}>
+        <img src={logoImage} alt={BRAND.name} className={cn(s.height, "w-auto object-contain")} />
+      </div>
+    );
+  }
 
-  if (iconOnly || !showName) return <div className={className}>{icon}</div>;
-
+  // Icon-only fallback (sidebar compact, etc.)
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      {icon}
-      <span className={cn("font-heading font-bold text-foreground", s.text)}>{BRAND.name}</span>
+    <div className={className}>
+      <div className={cn(s.iconBox, "rounded-xl bg-primary flex items-center justify-center")}>
+        <span className={cn(s.fontSize, "font-bold text-primary-foreground tracking-tight")}>EP</span>
+      </div>
     </div>
   );
 }
