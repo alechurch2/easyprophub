@@ -30,11 +30,11 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Formazione", icon: BookOpen, path: "/training" },
-  { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
+  { label: "Libreria Didattica", icon: GraduationCap, path: "/case-studies" },
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
   { label: "AI Assistant", icon: Bot, path: "/ai-assistant" },
-  { label: "Libreria Didattica", icon: GraduationCap, path: "/case-studies" },
   { label: "Account Center", icon: Wallet, path: "/account-center" },
+  { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
   { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
