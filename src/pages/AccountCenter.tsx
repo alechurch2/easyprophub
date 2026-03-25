@@ -953,6 +953,7 @@ export default function AccountCenter() {
   const [showConnect, setShowConnect] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
