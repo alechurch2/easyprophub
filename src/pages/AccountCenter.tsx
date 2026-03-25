@@ -336,7 +336,7 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
                 <Eye className="h-2.5 w-2.5 mr-1" />Read-only
               </Badge>
               <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                {acc.provider_type === "mock" ? "📊 Demo" : acc.provider_type}
+                {acc.provider_type === "metaapi" ? "⚡ MetaApi" : acc.provider_type === "mock" ? "📊 Demo" : acc.provider_type}
               </Badge>
               <SyncStatusBadge status={acc.sync_status} />
               <StatusBadge status={acc.connection_status} />
