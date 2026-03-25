@@ -164,46 +164,46 @@ export default function AIReview() {
 
         {/* Tier selector + Mode selector + Form */}
         {showForm && (
-          <div className="space-y-0">
-            <TierSelector
-              tier={reviewTier}
-              onChange={setReviewTier}
-              premiumUsed={premiumUsage?.reviews_used ?? 0}
-              premiumQuota={premiumUsage?.quota_limit ?? 3}
-            />
-            <div className="mb-8">
+          <div className="flex flex-col gap-10">
+            {/* Block 1: Tier + Mode selectors */}
+            <div className="space-y-6">
+              <TierSelector
+                tier={reviewTier}
+                onChange={setReviewTier}
+                premiumUsed={premiumUsage?.reviews_used ?? 0}
+                premiumQuota={premiumUsage?.quota_limit ?? 3}
+              />
               <ModeSelector mode={reviewMode} onChange={setReviewMode} />
             </div>
 
-            {/* Selection summary */}
-            <div className="mt-10 mb-10">
-              <div className={cn(
-                "rounded-xl border px-5 py-4",
-                reviewTier === "premium"
-                  ? "border-amber-500/20 bg-amber-500/[0.04]"
-                  : "border-border bg-secondary/40"
-              )}>
-                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
-                  Review selezionata
-                </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold",
-                    reviewTier === "premium"
-                      ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
-                      : "bg-primary/10 text-primary border border-primary/20"
-                  )}>
-                    {reviewTier === "premium" ? "👑 Premium Review" : "⚡ Standard Review"}
-                  </span>
-                  <span className="text-muted-foreground/40 text-sm">·</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 text-xs font-semibold">
-                    {reviewMode === "pro" ? "📊 Pro Mode" : "⚡ Easy Mode"}
-                  </span>
-                </div>
+            {/* Block 2: Selection summary */}
+            <div className={cn(
+              "rounded-xl border px-5 py-4",
+              reviewTier === "premium"
+                ? "border-amber-500/20 bg-amber-500/[0.04]"
+                : "border-border bg-secondary/40"
+            )}>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                Review selezionata
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold",
+                  reviewTier === "premium"
+                    ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                    : "bg-primary/10 text-primary border border-primary/20"
+                )}>
+                  {reviewTier === "premium" ? "👑 Premium Review" : "⚡ Standard Review"}
+                </span>
+                <span className="text-muted-foreground/40 text-sm">·</span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 text-xs font-semibold">
+                  {reviewMode === "pro" ? "📊 Pro Mode" : "⚡ Easy Mode"}
+                </span>
               </div>
             </div>
 
-            <div className="mt-8">
+            {/* Block 3: Review form */}
+            <div>
               {reviewMode === "pro" ? (
                 <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
               ) : (
