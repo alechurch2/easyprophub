@@ -131,14 +131,14 @@ export default function AIReview() {
     <AppLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
               <BarChart3 className="h-5 w-5 text-success" />
             </div>
             <div>
-              <h1 className="font-heading text-2xl font-bold text-foreground">AI Chart Review</h1>
-              <p className="text-sm text-muted-foreground">Analisi strutturata dei tuoi grafici, powered by EasyProp</p>
+              <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground">AI Chart Review</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">Analisi strutturata dei tuoi grafici</p>
             </div>
           </div>
           <div className="flex gap-2">
