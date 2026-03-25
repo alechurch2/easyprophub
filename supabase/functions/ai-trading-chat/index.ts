@@ -64,6 +64,48 @@ Questa chat ha finalità informative, educative e di supporto operativo. Non cos
 `;
 // ============================================================
 
+// ============================================================
+// Cost estimation per model
+// ============================================================
+const MODEL_COSTS: Record<string, { input: number; output: number; perCall: number }> = {
+  "google/gemini-2.5-flash": { input: 0.00015, output: 0.0006, perCall: 0.003 },
+  "google/gemini-2.5-pro": { input: 0.00125, output: 0.005, perCall: 0.015 },
+  "google/gemini-2.5-flash-lite": { input: 0.000075, output: 0.0003, perCall: 0.001 },
+};
+
+function estimateAICost(model: string): number {
+  return MODEL_COSTS[model]?.perCall || 0.005;
+}
+
+async function checkChatLimits(supabase: any, userId: string, isAdmin: boolean): Promise<string | null> {
+  if (isAdmin) return null;
+  const { data: limits } = await supabase
+    .from("ai_usage_limits")
+    .select("*")
+    .or(`user_id.eq.${userId},user_id.is.null`)
+    .eq("limit_type", "chat_daily")
+    .eq("is_active", true);
+
+  if (!limits || limits.length === 0) return null;
+
+  // User-specific override
+  const limit = limits.find((l: any) => l.user_id === userId) || limits[0];
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+  const { count } = await supabase
+    .from("ai_usage_log")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("function_type", "chat")
+    .gte("created_at", todayStart);
+
+  if (count !== null && count >= limit.limit_value) {
+    return `Hai raggiunto il limite giornaliero di ${limit.limit_value} messaggi AI.`;
+  }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -94,6 +136,16 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Token non valido" }), {
         status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check admin status and usage limits
+    const { data: isAdminCheck } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    const limitError = await checkChatLimits(supabase, user.id, !!isAdminCheck);
+    if (limitError) {
+      return new Response(JSON.stringify({ error: limitError, limit_exceeded: true }), {
+        status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -198,6 +250,17 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Log AI usage (fire and forget for streaming)
+    supabase.from("ai_usage_log").insert({
+      user_id: user.id,
+      function_type: "chat",
+      model,
+      tokens_input: 0,
+      tokens_output: 0,
+      estimated_cost: estimateAICost(model),
+      metadata: { conversation_id, mode },
+    }).then(() => {});
 
     return new Response(aiResponse.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
