@@ -54,6 +54,7 @@ export default function AIAssistant() {
   const [mode, setMode] = useState<ChatMode>("trading_questions");
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [pendingImage, setPendingImage] = useState<File | null>(null);
   const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
