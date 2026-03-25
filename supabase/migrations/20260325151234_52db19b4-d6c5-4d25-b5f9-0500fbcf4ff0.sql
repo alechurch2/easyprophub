@@ -1,0 +1,1 @@
+DELETE FROM trading_accounts WHERE id = '51e1f023-0173-4b3d-b618-3c6e7fca8e03' AND provider_account_id IS NULL AND connection_status = 'failed';

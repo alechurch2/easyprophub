@@ -93,22 +93,28 @@ async function createMetaApiAccount(account: any): Promise<string> {
   if (!token) throw new Error("METAAPI_TOKEN non configurato");
 
   const payload = {
-    login: account.account_number,
+    login: String(account.account_number),
     password: account.investor_password,
     name: account.account_name || `EasyProp-${account.account_number}`,
     server: account.server,
     platform: (account.platform || "mt5").toLowerCase(),
     type: "cloud-g2",
     reliability: "high",
-    // read-only: we use investor password, MetaApi will detect access type
   };
+
+  console.log("[MetaApi] Creating account with payload:", JSON.stringify({ ...payload, password: "***" }));
 
   const result = await metaapiRequest("/users/current/accounts", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
-  return result.id; // MetaApi account ID
+  console.log("[MetaApi] Account created, id:", result.id);
+  if (!result.id) {
+    throw new Error(`MetaApi non ha restituito un account ID. Risposta: ${JSON.stringify(result)}`);
+  }
+
+  return result.id;
 }
 
 // Deploy the account (start the cloud instance)
@@ -358,25 +364,39 @@ Deno.serve(async (req) => {
       }
 
       try {
+        console.log("[connect_metaapi] Starting for account_id:", account_id);
+
         await supabase.from("trading_accounts").update({
           connection_status: "syncing",
           sync_status: "running",
         }).eq("id", account_id);
 
         // 1. Create MetaApi account
+        console.log("[connect_metaapi] Step 1: Creating MetaApi account...");
         const metaAccountId = await createMetaApiAccount(account);
+        console.log("[connect_metaapi] Step 1 done. MetaApi ID:", metaAccountId);
 
         // 2. Save provider_account_id immediately
-        await supabase.from("trading_accounts").update({
+        console.log("[connect_metaapi] Step 2: Saving provider_account_id...");
+        const { error: updateError } = await supabase.from("trading_accounts").update({
           provider_account_id: metaAccountId,
           provider_type: "metaapi",
         }).eq("id", account_id);
+        if (updateError) {
+          console.error("[connect_metaapi] Step 2 FAILED:", updateError);
+          throw new Error(`Errore salvataggio provider_account_id: ${updateError.message}`);
+        }
+        console.log("[connect_metaapi] Step 2 done.");
 
         // 3. Deploy the account
+        console.log("[connect_metaapi] Step 3: Deploying...");
         await deployMetaApiAccount(metaAccountId);
+        console.log("[connect_metaapi] Step 3 done.");
 
         // 4. Wait for connection
+        console.log("[connect_metaapi] Step 4: Waiting for connection...");
         await waitForConnection(metaAccountId);
+        console.log("[connect_metaapi] Step 4 done. Connected!");
 
         // 5. Mark connected
         await supabase.from("trading_accounts").update({
@@ -394,6 +414,7 @@ Deno.serve(async (req) => {
         });
 
       } catch (err) {
+        console.error("[connect_metaapi] FAILED:", err.message);
         await supabase.from("trading_accounts").update({
           connection_status: "failed",
           sync_status: "error",
