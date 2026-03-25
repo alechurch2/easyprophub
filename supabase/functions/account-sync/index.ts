@@ -92,11 +92,23 @@ async function metaapiClientRequest(accountId: string, path: string) {
     },
   });
 
+  const rawBody = await res.text();
+  console.log(`[MetaApi Client] GET ${path} -> ${res.status}, body length: ${rawBody.length}`);
+
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`MetaApi client error ${res.status}: ${body}`);
+    throw new Error(`MetaApi client error ${res.status}: ${rawBody || "empty response"}`);
   }
-  return res.json();
+
+  if (!rawBody || rawBody.trim() === "") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawBody);
+  } catch (e) {
+    console.warn(`[MetaApi Client] Non-JSON response for ${path}: ${rawBody.substring(0, 200)}`);
+    return null;
+  }
 }
 
 // Deploy a MetaApi account and wait for it to connect
