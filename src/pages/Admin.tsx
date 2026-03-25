@@ -315,32 +315,272 @@ function AdminSupport() {
   );
 }
 
-// ---- Reviews Tab ----
+// ---- Reviews Tab (Enhanced) ----
 function AdminReviews() {
   const [reviews, setReviews] = useState<any[]>([]);
+  const [ratings, setRatings] = useState<Record<string, { useful: number; notUseful: number }>>({});
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [selectedReview, setSelectedReview] = useState<any>(null);
+  const [linkedReviews, setLinkedReviews] = useState<any[]>([]);
 
-  useEffect(() => {
-    supabase.from("ai_chart_reviews").select("*").order("created_at", { ascending: false }).then(({ data }) => {
-      if (data) setReviews(data);
-      setLoading(false);
-    });
-  }, []);
+  // Filters
+  const [search, setSearch] = useState("");
+  const [filterAsset, setFilterAsset] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [filterRating, setFilterRating] = useState("all");
+
+  // Didactic form
+  const [didacticTitle, setDidacticTitle] = useState("");
+  const [didacticDesc, setDidacticDesc] = useState("");
+  const [didacticTags, setDidacticTags] = useState("");
+
+  const load = async () => {
+    const { data } = await supabase.from("ai_chart_reviews").select("*").order("created_at", { ascending: false });
+    if (data) {
+      setReviews(data);
+      const userIds = [...new Set(data.map((r: any) => r.user_id))];
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+        if (profs) {
+          const map: Record<string, string> = {};
+          profs.forEach((p: any) => { map[p.user_id] = p.full_name || "N/A"; });
+          setProfiles(map);
+        }
+      }
+      // Load all ratings
+      const reviewIds = data.map((r: any) => r.id);
+      if (reviewIds.length > 0) {
+        const { data: allRatings } = await supabase.from("ai_review_ratings" as any).select("*").in("review_id", reviewIds);
+        if (allRatings) {
+          const map: Record<string, { useful: number; notUseful: number }> = {};
+          (allRatings as any[]).forEach((rt: any) => {
+            if (!map[rt.review_id]) map[rt.review_id] = { useful: 0, notUseful: 0 };
+            if (rt.is_useful) map[rt.review_id].useful++;
+            else map[rt.review_id].notUseful++;
+          });
+          setRatings(map);
+        }
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const toggleDidactic = async (review: any) => {
+    if (review.is_didactic_example) {
+      // Remove didactic
+      await supabase.from("ai_chart_reviews").update({
+        is_didactic_example: false, didactic_title: null, didactic_description: null, didactic_tags: null, didactic_visible: false,
+      } as any).eq("id", review.id);
+      toast.success("Esempio didattico rimosso");
+    } else {
+      setSelectedReview(review);
+      setDidacticTitle("");
+      setDidacticDesc("");
+      setDidacticTags("");
+      return;
+    }
+    load();
+  };
+
+  const saveDidactic = async () => {
+    if (!selectedReview || !didacticTitle.trim()) return;
+    await supabase.from("ai_chart_reviews").update({
+      is_didactic_example: true,
+      didactic_title: didacticTitle.trim(),
+      didactic_description: didacticDesc.trim() || null,
+      didactic_tags: didacticTags.trim() ? didacticTags.split(",").map(t => t.trim()) : null,
+      didactic_visible: true,
+    } as any).eq("id", selectedReview.id);
+    toast.success("Salvato come esempio didattico");
+    setSelectedReview(null);
+    load();
+  };
+
+  const viewLinked = async (reviewId: string) => {
+    const review = reviews.find(r => r.id === reviewId);
+    if (!review) return;
+    setSelectedReview(review);
+    const { data: children } = await supabase.from("ai_chart_reviews").select("*").eq("parent_review_id", reviewId);
+    const linked: any[] = [];
+    if (review.parent_review_id) {
+      const { data: parent } = await supabase.from("ai_chart_reviews").select("*").eq("id", review.parent_review_id).single();
+      if (parent) linked.push(parent);
+    }
+    if (children) linked.push(...children);
+    setLinkedReviews(linked);
+  };
+
+  const filtered = reviews.filter(r => {
+    if (filterAsset !== "all" && r.asset !== filterAsset) return false;
+    if (filterStatus !== "all" && r.status !== filterStatus) return false;
+    if (filterRating === "useful" && (!ratings[r.id] || ratings[r.id].useful === 0)) return false;
+    if (filterRating === "not_useful" && (!ratings[r.id] || ratings[r.id].notUseful === 0)) return false;
+    if (filterRating === "didactic" && !r.is_didactic_example) return false;
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      if (!r.asset.toLowerCase().includes(s) && !r.request_type.toLowerCase().includes(s) &&
+          !(r.user_note || "").toLowerCase().includes(s) && !(profiles[r.user_id] || "").toLowerCase().includes(s)) return false;
+    }
+    return true;
+  }).sort((a, b) => {
+    const d = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    return sortOrder === "desc" ? -d : d;
+  });
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
+  // Didactic form modal
+  if (selectedReview && !selectedReview.is_didactic_example && !linkedReviews.length) {
+    return (
+      <div className="animate-fade-in">
+        <button onClick={() => setSelectedReview(null)} className="text-sm text-primary hover:underline mb-4">← Indietro</button>
+        <div className="card-premium p-6">
+          <h3 className="font-medium text-foreground mb-4">
+            <GraduationCap className="h-4 w-4 inline mr-1" /> Salva come esempio didattico
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">{selectedReview.asset} - {selectedReview.timeframe} · {selectedReview.request_type}</p>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-foreground">Titolo personalizzato *</Label>
+              <Input value={didacticTitle} onChange={(e) => setDidacticTitle(e.target.value)} placeholder="Es: Setup SMC su EUR/USD H4" className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-foreground">Descrizione breve</Label>
+              <Textarea value={didacticDesc} onChange={(e) => setDidacticDesc(e.target.value)} placeholder="Perché è un buon esempio..." className="mt-1" rows={3} />
+            </div>
+            <div>
+              <Label className="text-foreground">Tag/Categoria (separati da virgola)</Label>
+              <Input value={didacticTags} onChange={(e) => setDidacticTags(e.target.value)} placeholder="SMC, liquidity sweep, H4" className="mt-1" />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setSelectedReview(null)}>Annulla</Button>
+              <Button onClick={saveDidactic} disabled={!didacticTitle.trim()}>
+                <Save className="h-4 w-4 mr-1" /> Salva
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Detail view with linked reviews
+  if (selectedReview && linkedReviews.length > 0) {
+    return (
+      <div className="animate-fade-in">
+        <button onClick={() => { setSelectedReview(null); setLinkedReviews([]); }} className="text-sm text-primary hover:underline mb-4">← Indietro</button>
+        <h3 className="font-medium text-foreground mb-2">{selectedReview.asset} - {selectedReview.timeframe}</h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          {profiles[selectedReview.user_id] || "N/A"} · {new Date(selectedReview.created_at).toLocaleString("it-IT")}
+        </p>
+        {selectedReview.user_note && (
+          <div className="card-premium p-3 mb-4 border-primary/20">
+            <p className="text-xs text-muted-foreground mb-1"><MessageSquare className="h-3 w-3 inline mr-1" />Nota utente</p>
+            <p className="text-sm text-foreground">{selectedReview.user_note}</p>
+          </div>
+        )}
+        <div className="flex items-center gap-2 mb-3">
+          <Link2 className="h-4 w-4 text-primary" />
+          <h4 className="text-sm font-semibold text-foreground">Review collegate ({linkedReviews.length})</h4>
+        </div>
+        <div className="space-y-2">
+          {linkedReviews.map(lr => (
+            <div key={lr.id} className="card-premium p-3">
+              <p className="text-sm text-foreground">
+                {lr.id === selectedReview.parent_review_id ? "⬆ Originale" : "⬇ Riesame"} · {lr.asset} - {lr.timeframe}
+              </p>
+              <p className="text-xs text-muted-foreground">{new Date(lr.created_at).toLocaleDateString("it-IT")}</p>
+              {lr.user_note && <p className="text-xs text-muted-foreground mt-1">📝 {lr.user_note}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-2">
-      {reviews.length === 0 ? (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex-1 min-w-[200px]">
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cerca per asset, utente, nota..." className="h-8 text-xs" />
+        </div>
+        <Select value={filterAsset} onValueChange={setFilterAsset}>
+          <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue placeholder="Asset" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti</SelectItem>
+            {["EUR/USD","GBP/USD","USD/JPY","XAU/USD","BTC/USD","ETH/USD","US30","NAS100","SPX500"].map(a => (
+              <SelectItem key={a} value={a}>{a}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[110px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti</SelectItem>
+            <SelectItem value="completed">Completata</SelectItem>
+            <SelectItem value="pending">In attesa</SelectItem>
+            <SelectItem value="failed">Fallita</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterRating} onValueChange={setFilterRating}>
+          <SelectTrigger className="w-[120px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti</SelectItem>
+            <SelectItem value="useful">Più utili</SelectItem>
+            <SelectItem value="not_useful">Meno utili</SelectItem>
+            <SelectItem value="didactic">Didattici</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSortOrder(s => s === "desc" ? "asc" : "desc")}>
+          <ArrowUpDown className="h-3 w-3 mr-1" />{sortOrder === "desc" ? "Recenti" : "Vecchie"}
+        </Button>
+      </div>
+
+      <p className="text-xs text-muted-foreground">{filtered.length} review trovate</p>
+
+      {filtered.length === 0 ? (
         <p className="text-muted-foreground text-center p-8">Nessuna review</p>
-      ) : reviews.map(r => (
+      ) : filtered.map(r => (
         <div key={r.id} className="card-premium p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">{r.asset} - {r.timeframe}</p>
-              <p className="text-xs text-muted-foreground">{r.request_type} · {new Date(r.created_at).toLocaleDateString("it-IT")}</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-foreground">{r.asset} - {r.timeframe}</p>
+                {r.is_didactic_example && <Badge className="bg-primary/10 text-primary text-[10px]"><GraduationCap className="h-2.5 w-2.5 mr-0.5" />Didattico</Badge>}
+                {r.parent_review_id && <Badge variant="secondary" className="text-[10px]">🔗 Riesame</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {profiles[r.user_id] || r.user_id.slice(0, 8)} · {r.request_type} · {new Date(r.created_at).toLocaleDateString("it-IT")}
+              </p>
+              {r.user_note && <p className="text-xs text-muted-foreground mt-1 italic">📝 {r.user_note.slice(0, 80)}{r.user_note.length > 80 ? "..." : ""}</p>}
             </div>
-            <Badge className={r.status === "completed" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}>{r.status}</Badge>
+            <div className="flex items-center gap-2">
+              {ratings[r.id] && (
+                <div className="flex items-center gap-1 text-[10px]">
+                  <ThumbsUp className="h-2.5 w-2.5 text-success" />{ratings[r.id].useful}
+                  <ThumbsDown className="h-2.5 w-2.5 text-destructive ml-1" />{ratings[r.id].notUseful}
+                </div>
+              )}
+              {r.analysis?.qualita_setup != null && (
+                <Badge variant="secondary" className="text-[10px]"><Star className="h-2.5 w-2.5 mr-0.5" />{r.analysis.qualita_setup}/10</Badge>
+              )}
+              <Badge className={r.status === "completed" ? "bg-success/10 text-success" : r.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}>
+                {r.status}
+              </Badge>
+              {(r.parent_review_id || reviews.some(x => x.parent_review_id === r.id)) && (
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => viewLinked(r.id)}>
+                  <Link2 className="h-3 w-3" />
+                </Button>
+              )}
+              <Button size="sm" variant={r.is_didactic_example ? "default" : "outline"} className="h-7 text-xs" onClick={() => toggleDidactic(r)}>
+                <GraduationCap className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         </div>
       ))}
