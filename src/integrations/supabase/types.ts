@@ -19,39 +19,68 @@ export type Database = {
           analysis: Json | null
           asset: string
           created_at: string
+          didactic_description: string | null
+          didactic_tags: string[] | null
+          didactic_title: string | null
+          didactic_visible: boolean
           id: string
+          is_didactic_example: boolean
+          parent_review_id: string | null
           request_type: string
           screenshot_url: string | null
           status: Database["public"]["Enums"]["review_status"]
           timeframe: string
           updated_at: string
           user_id: string
+          user_note: string | null
         }
         Insert: {
           analysis?: Json | null
           asset: string
           created_at?: string
+          didactic_description?: string | null
+          didactic_tags?: string[] | null
+          didactic_title?: string | null
+          didactic_visible?: boolean
           id?: string
+          is_didactic_example?: boolean
+          parent_review_id?: string | null
           request_type: string
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["review_status"]
           timeframe: string
           updated_at?: string
           user_id: string
+          user_note?: string | null
         }
         Update: {
           analysis?: Json | null
           asset?: string
           created_at?: string
+          didactic_description?: string | null
+          didactic_tags?: string[] | null
+          didactic_title?: string | null
+          didactic_visible?: boolean
           id?: string
+          is_didactic_example?: boolean
+          parent_review_id?: string | null
           request_type?: string
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["review_status"]
           timeframe?: string
           updated_at?: string
           user_id?: string
+          user_note?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_chart_reviews_parent_review_id_fkey"
+            columns: ["parent_review_id"]
+            isOneToOne: false
+            referencedRelation: "ai_chart_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ai_chat_conversations: {
         Row: {
@@ -111,6 +140,38 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "ai_chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_review_ratings: {
+        Row: {
+          created_at: string
+          id: string
+          is_useful: boolean
+          review_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_useful: boolean
+          review_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_useful?: boolean
+          review_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_review_ratings_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "ai_chart_reviews"
             referencedColumns: ["id"]
           },
         ]
