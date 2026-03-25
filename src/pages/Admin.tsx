@@ -596,6 +596,7 @@ function AdminReviews() {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium text-foreground">{r.asset} - {r.timeframe}</p>
+                {(r.review_tier || "standard") === "premium" && <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">👑 Premium</Badge>}
                 {(r.review_mode || "pro") === "easy" && <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">⚡ Easy</Badge>}
                 {(r.review_mode || "pro") === "pro" && <Badge variant="outline" className="text-[10px]">Pro</Badge>}
                 {r.is_didactic_example && <Badge className="bg-primary/10 text-primary text-[10px]"><GraduationCap className="h-2.5 w-2.5 mr-0.5" />Didattico</Badge>}
