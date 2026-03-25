@@ -174,7 +174,7 @@ export default function AIReview() {
             <ModeSelector mode={reviewMode} onChange={setReviewMode} />
 
             {/* Selection summary */}
-            <div className="my-8">
+            <div className="mt-10 mb-10">
               <div className={cn(
                 "rounded-xl border px-5 py-4",
                 reviewTier === "premium"
