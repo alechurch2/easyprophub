@@ -137,7 +137,7 @@ export default function Support() {
   if (selectedTicket) {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-3xl mx-auto animate-fade-in">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto animate-fade-in">
           <button onClick={() => setSelectedTicket(null)} className="text-sm text-primary hover:underline mb-4">
             ← Torna ai ticket
           </button>
@@ -193,15 +193,15 @@ export default function Support() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
-        <div className="flex items-center justify-between mb-8">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center shrink-0">
               <HeadphonesIcon className="h-5 w-5 text-info" />
             </div>
             <div>
-              <h1 className="font-heading text-2xl font-bold text-foreground">Supporto</h1>
-              <p className="text-sm text-muted-foreground">Assistenza dedicata EasyProp — FAQ e ticket</p>
+              <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground">Supporto</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">Assistenza dedicata EasyProp</p>
             </div>
           </div>
           <Button onClick={() => setShowForm(!showForm)} size="sm">

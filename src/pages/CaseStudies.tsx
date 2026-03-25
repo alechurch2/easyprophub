@@ -81,7 +81,7 @@ export default function CaseStudies() {
   if (selected) {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
           <button onClick={() => setSelected(null)} className="text-sm text-primary hover:underline mb-4 flex items-center gap-1">
             <ArrowLeft className="h-3 w-3" /> Torna alla libreria
           </button>
@@ -139,7 +139,7 @@ export default function CaseStudies() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">

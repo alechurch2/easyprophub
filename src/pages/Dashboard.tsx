@@ -101,10 +101,10 @@ export default function Dashboard() {
       bg: "bg-primary/10",
     },
     {
-      title: "Supporto",
-      description: "Assistenza dedicata e FAQ",
-      icon: HeadphonesIcon,
-      path: "/support",
+      title: "Libreria Didattica",
+      description: "Esempi selezionati di analisi AI",
+      icon: GraduationCap,
+      path: "/case-studies",
       color: "text-info",
       bg: "bg-info/10",
     },
@@ -125,14 +125,6 @@ export default function Dashboard() {
       bg: "bg-primary/10",
     },
     {
-      title: "Libreria Didattica",
-      description: "Esempi selezionati di analisi AI",
-      icon: GraduationCap,
-      path: "/case-studies",
-      color: "text-info",
-      bg: "bg-info/10",
-    },
-    {
       title: "Account Center",
       description: "Monitora i tuoi conti trading",
       icon: Wallet,
@@ -140,11 +132,19 @@ export default function Dashboard() {
       color: "text-success",
       bg: "bg-success/10",
     },
+    {
+      title: "Supporto",
+      description: "Assistenza dedicata e FAQ",
+      icon: HeadphonesIcon,
+      path: "/support",
+      color: "text-info",
+      bg: "bg-info/10",
+    },
   ];
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Welcome */}
         <div className="mb-8">
           <h1 className="font-heading text-2xl lg:text-3xl font-bold text-foreground">
@@ -154,45 +154,41 @@ export default function Dashboard() {
         </div>
 
         {/* License & Status */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <div className="card-premium p-4 flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-success" />
-            <span className="text-sm text-foreground">Stato account:</span>
+        <div className="grid grid-cols-1 gap-3 mb-6">
+          <div className="card-premium p-4 flex items-center gap-3 min-w-0">
+            <div className="h-2 w-2 rounded-full bg-success shrink-0" />
+            <span className="text-sm text-foreground whitespace-nowrap">Stato:</span>
             <Badge variant="secondary" className="text-xs">
               {isAdmin ? "Amministratore" : "Attivo"}
             </Badge>
           </div>
-          <div className="card-premium p-4 flex items-center gap-3">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <span className="text-xs text-muted-foreground">Licenza: </span>
-              <Badge className={cn("text-xs",
-                licenseStatus === "lifetime" ? "bg-primary/10 text-primary" :
-                daysRemaining !== null && daysRemaining <= 7 ? "bg-amber-500/10 text-amber-600" :
-                "bg-success/10 text-success"
-              )}>
-                {licenseStatus === "lifetime" ? "♾️ Lifetime" :
-                 daysRemaining !== null ? `${daysRemaining}g rimanenti` : "Attiva"}
-              </Badge>
-            </div>
+          <div className="card-premium p-4 flex flex-wrap items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground">Licenza:</span>
+            <Badge className={cn("text-xs",
+              licenseStatus === "lifetime" ? "bg-primary/10 text-primary" :
+              daysRemaining !== null && daysRemaining <= 7 ? "bg-amber-500/10 text-amber-600" :
+              "bg-success/10 text-success"
+            )}>
+              {licenseStatus === "lifetime" ? "♾️ Lifetime" :
+               daysRemaining !== null ? `${daysRemaining}g rimanenti` : "Attiva"}
+            </Badge>
             {accessExpiresAt && licenseStatus !== "lifetime" && (
-              <span className="text-[10px] text-muted-foreground ml-auto">
+              <span className="text-[10px] text-muted-foreground">
                 Scade: {new Date(accessExpiresAt).toLocaleDateString("it-IT")}
               </span>
             )}
           </div>
-          <div className="card-premium p-4 flex items-center gap-3">
-            <Crown className="h-4 w-4 text-amber-500" />
-            <div>
-              <span className="text-xs text-muted-foreground">Premium review: </span>
-              {premiumUsage ? (
-                <Badge variant="outline" className="text-xs">
-                  {Math.max(0, premiumUsage.limit - premiumUsage.used)}/{premiumUsage.limit} disponibili
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-xs">3/3 disponibili</Badge>
-              )}
-            </div>
+          <div className="card-premium p-4 flex flex-wrap items-center gap-2">
+            <Crown className="h-4 w-4 text-amber-500 shrink-0" />
+            <span className="text-xs text-muted-foreground">Premium:</span>
+            {premiumUsage ? (
+              <Badge variant="outline" className="text-xs">
+                {Math.max(0, premiumUsage.limit - premiumUsage.used)}/{premiumUsage.limit} disponibili
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs">3/3 disponibili</Badge>
+            )}
           </div>
         </div>
 
@@ -258,7 +254,7 @@ export default function Dashboard() {
         )}
 
         {/* Quick cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {cards.map((card) => (
             <Link
               key={card.path}

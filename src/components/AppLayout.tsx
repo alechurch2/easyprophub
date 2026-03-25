@@ -30,11 +30,11 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Formazione", icon: BookOpen, path: "/training" },
-  { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
+  { label: "Libreria Didattica", icon: GraduationCap, path: "/case-studies" },
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
   { label: "AI Assistant", icon: Bot, path: "/ai-assistant" },
-  { label: "Libreria Didattica", icon: GraduationCap, path: "/case-studies" },
   { label: "Account Center", icon: Wallet, path: "/account-center" },
+  { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
   { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
@@ -106,11 +106,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-border flex items-center px-4">
-        <button onClick={() => setMobileOpen(true)} className="text-foreground">
-          <Menu className="h-5 w-5" />
-        </button>
-        <div className="ml-3">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-border flex items-center justify-between px-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setMobileOpen(true)} className="text-foreground p-1.5 -ml-1.5 rounded-lg active:bg-secondary">
+            <Menu className="h-5 w-5" />
+          </button>
           <BrandLogo size="sm" />
         </div>
       </div>
@@ -126,7 +126,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <nav className="flex-1 px-3 py-4 space-y-1">
+            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
               {filteredItems.map((item) => {
                 const active = location.pathname.startsWith(item.path);
                 return (
@@ -135,13 +135,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     to={item.path}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
                       active
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                     )}
                   >
-                    <item.icon className="h-4 w-4" />
+                    <item.icon className="h-5 w-5" />
                     {item.label}
                   </Link>
                 );

@@ -54,6 +54,7 @@ export default function AIAssistant() {
   const [mode, setMode] = useState<ChatMode>("trading_questions");
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [pendingImage, setPendingImage] = useState<File | null>(null);
   const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -337,9 +338,9 @@ export default function AIAssistant() {
   return (
     <AppLayout>
       <div className="flex h-[calc(100vh-3.5rem)] lg:h-screen">
-        {/* Sidebar - Conversation History */}
+        {/* Desktop Sidebar - Conversation History */}
         <div className={cn(
-          "border-r border-border bg-card flex flex-col transition-all duration-200",
+          "border-r border-border bg-card flex-col transition-all duration-200",
           sidebarOpen ? "w-72" : "w-0 overflow-hidden",
           "hidden md:flex"
         )}>
@@ -380,6 +381,56 @@ export default function AIAssistant() {
           </div>
         </div>
 
+        {/* Mobile Sidebar Overlay */}
+        {mobileSidebarOpen && (
+          <div className="md:hidden fixed inset-0 z-50">
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setMobileSidebarOpen(false)} />
+            <aside className="relative w-72 h-full bg-card border-r border-border flex flex-col">
+              <div className="flex h-14 items-center justify-between px-4 border-b border-border">
+                <span className="font-heading font-semibold text-sm text-foreground">Conversazioni</span>
+                <button onClick={() => setMobileSidebarOpen(false)} className="text-muted-foreground p-1">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-3 border-b border-border">
+                <Button onClick={() => { startNewConversation(); setMobileSidebarOpen(false); }} className="w-full" size="sm">
+                  <Plus className="h-4 w-4 mr-2" /> Nuova conversazione
+                </Button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {conversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => { openConversation(conv); setMobileSidebarOpen(false); }}
+                    className={cn(
+                      "w-full text-left px-3 py-3 rounded-lg text-sm transition-colors flex items-start justify-between gap-2",
+                      activeConv === conv.id
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium text-xs">{conv.title}</p>
+                      <p className="text-[10px] mt-0.5 opacity-60">
+                        {MODES.find(m => m.value === conv.mode)?.label} · {new Date(conv.updated_at).toLocaleDateString("it-IT")}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => deleteConversation(conv.id, e)}
+                      className="p-1 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </button>
+                ))}
+                {conversations.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center p-4">Nessuna conversazione</p>
+                )}
+              </div>
+            </aside>
+          </div>
+        )}
+
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
@@ -387,9 +438,14 @@ export default function AIAssistant() {
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:block text-muted-foreground hover:text-foreground">
               <ChevronLeft className={cn("h-4 w-4 transition-transform", !sidebarOpen && "rotate-180")} />
             </button>
-            <button onClick={startNewConversation} className="md:hidden text-muted-foreground hover:text-foreground">
-              <Plus className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2 md:hidden">
+              <button onClick={() => setMobileSidebarOpen(true)} className="text-muted-foreground hover:text-foreground p-1">
+                <MessageSquare className="h-5 w-5" />
+              </button>
+              <button onClick={startNewConversation} className="text-muted-foreground hover:text-foreground p-1">
+                <Plus className="h-5 w-5" />
+              </button>
+            </div>
             <Bot className="h-5 w-5 text-primary" />
             <div className="flex-1 min-w-0">
               <h2 className="font-heading font-semibold text-sm text-foreground">AI Trading Assistant</h2>
@@ -398,7 +454,7 @@ export default function AIAssistant() {
               )}
             </div>
             {activeConv && (
-              <Badge variant="secondary" className="text-[10px]">{currentMode?.label}</Badge>
+              <Badge variant="secondary" className="text-[10px] hidden sm:inline-flex">{currentMode?.label}</Badge>
             )}
           </div>
 

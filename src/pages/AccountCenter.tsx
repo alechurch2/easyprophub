@@ -218,7 +218,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
           </Select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-foreground">Broker</Label>
             <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Es: ICMarkets" className="mt-1" />
@@ -229,7 +229,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-foreground">Login (numero conto) *</Label>
             <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Es: 12345678" className="mt-1" />
@@ -328,18 +328,18 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
   return (
     <div className="space-y-4">
       {accounts.map((acc) => (
-        <div key={acc.id} className="card-premium p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div key={acc.id} className="card-premium p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Wallet className="h-5 w-5 text-primary" />
               </div>
-              <div>
-                <h3 className="font-heading font-semibold text-foreground">{acc.account_name}</h3>
-                <p className="text-xs text-muted-foreground">{acc.platform} · {acc.broker || "—"} · {acc.server || "—"}</p>
+              <div className="min-w-0">
+                <h3 className="font-heading font-semibold text-foreground truncate">{acc.account_name}</h3>
+                <p className="text-xs text-muted-foreground truncate">{acc.platform} · {acc.broker || "—"} · {acc.server || "—"}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant="outline" className="text-[10px]">
                 <Eye className="h-2.5 w-2.5 mr-1" />Read-only
               </Badge>
@@ -385,10 +385,10 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
             <MetricCard label="Profit Factor" value={acc.profit_factor > 0 ? acc.profit_factor.toFixed(2) : "—"} small />
           </div>
 
-          <div className="flex items-center justify-between mt-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mt-3">
             {acc.last_sync_at ? (
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <RefreshCw className="h-2.5 w-2.5" />
+                <RefreshCw className="h-2.5 w-2.5 shrink-0" />
                 Ultimo aggiornamento: {new Date(acc.last_sync_at).toLocaleString("it-IT")}
               </p>
             ) : (
@@ -396,7 +396,7 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
             )}
             {acc.last_successful_sync_at && acc.last_successful_sync_at !== acc.last_sync_at && (
               <p className="text-[10px] text-success flex items-center gap-1">
-                <CheckCircle2 className="h-2.5 w-2.5" />
+                <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
                 Ultimo sync riuscito: {new Date(acc.last_successful_sync_at).toLocaleString("it-IT")}
               </p>
             )}
@@ -951,7 +951,7 @@ export default function AccountCenter() {
   if (selectedTrade) {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
           <TradeDetail trade={selectedTrade} onBack={() => setSelectedTrade(null)} />
         </div>
       </AppLayout>
@@ -960,19 +960,19 @@ export default function AccountCenter() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Wallet className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="font-heading text-2xl font-bold text-foreground">Account Center</h1>
-              <p className="text-sm text-muted-foreground">Monitora i tuoi conti trading in sola lettura</p>
+              <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground">Account Center</h1>
+              <p className="text-sm text-muted-foreground">Monitora i tuoi conti trading</p>
             </div>
           </div>
-          <Button onClick={() => setShowConnect(true)}>
+          <Button onClick={() => setShowConnect(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Collega conto
           </Button>
         </div>
@@ -996,13 +996,13 @@ export default function AccountCenter() {
 
         {/* Tabs */}
         <Tabs defaultValue="overview">
-          <TabsList className="mb-6 w-full flex flex-wrap gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
-            <TabsTrigger value="overview" className="flex-1 min-w-[80px]"><Wallet className="h-3 w-3 mr-1" />Overview</TabsTrigger>
-            <TabsTrigger value="positions" className="flex-1 min-w-[80px]"><Activity className="h-3 w-3 mr-1" />Posizioni</TabsTrigger>
-            <TabsTrigger value="history" className="flex-1 min-w-[80px]"><BarChart3 className="h-3 w-3 mr-1" />Storico</TabsTrigger>
-            <TabsTrigger value="journal" className="flex-1 min-w-[80px]"><BookOpen className="h-3 w-3 mr-1" />Journaling</TabsTrigger>
-            <TabsTrigger value="metrics" className="flex-1 min-w-[80px]"><TrendingUp className="h-3 w-3 mr-1" />Metriche</TabsTrigger>
-            <TabsTrigger value="sync-logs" className="flex-1 min-w-[80px]"><RefreshCw className="h-3 w-3 mr-1" />Sync</TabsTrigger>
+          <TabsList className="mb-6 w-full grid grid-cols-3 sm:grid-cols-6 gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
+            <TabsTrigger value="overview" className="text-xs px-2"><Wallet className="h-3 w-3 mr-1 hidden sm:inline" />Overview</TabsTrigger>
+            <TabsTrigger value="positions" className="text-xs px-2"><Activity className="h-3 w-3 mr-1 hidden sm:inline" />Posizioni</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs px-2"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Storico</TabsTrigger>
+            <TabsTrigger value="journal" className="text-xs px-2"><BookOpen className="h-3 w-3 mr-1 hidden sm:inline" />Journal</TabsTrigger>
+            <TabsTrigger value="metrics" className="text-xs px-2"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Metriche</TabsTrigger>
+            <TabsTrigger value="sync-logs" className="text-xs px-2"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} /></TabsContent>
