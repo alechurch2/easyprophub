@@ -1371,6 +1371,318 @@ function AdminAccounts() {
   );
 }
 
+// ---- AI Costs & Limits Tab ----
+function AdminAICosts() {
+  const [usageLogs, setUsageLogs] = useState<any[]>([]);
+  const [limits, setLimits] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<"month" | "week" | "today">("month");
+
+  const getPeriodStart = () => {
+    const now = new Date();
+    if (period === "today") return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    if (period === "week") return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  };
+
+  const load = async () => {
+    setLoading(true);
+    const since = getPeriodStart();
+
+    const { data: logs } = await supabase
+      .from("ai_usage_log")
+      .select("*")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false });
+
+    if (logs) {
+      setUsageLogs(logs);
+      const userIds = [...new Set(logs.map((l: any) => l.user_id))];
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+        if (profs) {
+          const map: Record<string, string> = {};
+          profs.forEach((p: any) => { map[p.user_id] = p.full_name || "N/A"; });
+          setProfiles(map);
+        }
+      }
+    }
+
+    const { data: limitsData } = await supabase.from("ai_usage_limits").select("*").order("limit_type");
+    if (limitsData) setLimits(limitsData);
+
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [period]);
+
+  // Computed stats
+  const totalRequests = usageLogs.length;
+  const totalCost = usageLogs.reduce((sum, l) => sum + Number(l.estimated_cost || 0), 0);
+
+  const byFunction: Record<string, { count: number; cost: number }> = {};
+  const byModel: Record<string, { count: number; cost: number }> = {};
+  const byUser: Record<string, { count: number; cost: number }> = {};
+
+  usageLogs.forEach((l) => {
+    const fn = l.function_type;
+    if (!byFunction[fn]) byFunction[fn] = { count: 0, cost: 0 };
+    byFunction[fn].count++;
+    byFunction[fn].cost += Number(l.estimated_cost || 0);
+
+    const m = l.model;
+    if (!byModel[m]) byModel[m] = { count: 0, cost: 0 };
+    byModel[m].count++;
+    byModel[m].cost += Number(l.estimated_cost || 0);
+
+    const u = l.user_id;
+    if (!byUser[u]) byUser[u] = { count: 0, cost: 0 };
+    byUser[u].count++;
+    byUser[u].cost += Number(l.estimated_cost || 0);
+  });
+
+  const topUsers = Object.entries(byUser)
+    .sort(([, a], [, b]) => b.cost - a.cost)
+    .slice(0, 10);
+
+  const functionLabels: Record<string, string> = {
+    chat: "AI Assistant",
+    chart_review_standard: "Chart Review Standard",
+    chart_review_premium: "Chart Review Premium",
+  };
+
+  const modelShort = (m: string) => m.replace("google/", "").replace("openai/", "");
+
+  // Limits management
+  const globalLimits = limits.filter(l => !l.user_id);
+  const userLimits = limits.filter(l => l.user_id);
+
+  const updateLimit = async (id: string, value: number) => {
+    await supabase.from("ai_usage_limits").update({ limit_value: value, updated_at: new Date().toISOString() } as any).eq("id", id);
+    toast.success("Limite aggiornato");
+    load();
+  };
+
+  const toggleLimit = async (id: string, active: boolean) => {
+    await supabase.from("ai_usage_limits").update({ is_active: !active, updated_at: new Date().toISOString() } as any).eq("id", id);
+    toast.success(active ? "Limite disattivato" : "Limite attivato");
+    load();
+  };
+
+  const limitTypeLabels: Record<string, string> = {
+    chat_daily: "Chat AI / giorno",
+    chart_review_standard_daily: "Review Standard / giorno",
+    chart_review_standard_monthly: "Review Standard / mese",
+    chart_review_premium_monthly: "Review Premium / mese",
+  };
+
+  // Check which users hit limits today
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const todayLogs = usageLogs.filter(l => l.created_at >= todayStart);
+  const todayByUser: Record<string, Record<string, number>> = {};
+  todayLogs.forEach(l => {
+    if (!todayByUser[l.user_id]) todayByUser[l.user_id] = {};
+    todayByUser[l.user_id][l.function_type] = (todayByUser[l.user_id][l.function_type] || 0) + 1;
+  });
+
+  const usersAtLimit: { userId: string; limitType: string; used: number; max: number }[] = [];
+  globalLimits.forEach(gl => {
+    if (!gl.is_active) return;
+    Object.entries(todayByUser).forEach(([uid, fns]) => {
+      if (gl.limit_type === "chat_daily" && (fns["chat"] || 0) >= gl.limit_value) {
+        usersAtLimit.push({ userId: uid, limitType: gl.limit_type, used: fns["chat"], max: gl.limit_value });
+      }
+      if (gl.limit_type === "chart_review_standard_daily" && (fns["chart_review_standard"] || 0) >= gl.limit_value) {
+        usersAtLimit.push({ userId: uid, limitType: gl.limit_type, used: fns["chart_review_standard"], max: gl.limit_value });
+      }
+    });
+  });
+
+  if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Period selector */}
+      <div className="flex gap-2">
+        {(["today", "week", "month"] as const).map(p => (
+          <Button key={p} size="sm" variant={period === p ? "default" : "outline"} onClick={() => setPeriod(p)}>
+            {p === "today" ? "Oggi" : p === "week" ? "7 giorni" : "Mese"}
+          </Button>
+        ))}
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Richieste totali</p>
+          <p className="text-xl font-bold text-foreground">{totalRequests}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Costo stimato</p>
+          <p className="text-xl font-bold text-primary">${totalCost.toFixed(4)}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Utenti attivi</p>
+          <p className="text-xl font-bold text-foreground">{Object.keys(byUser).length}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Costo medio/utente</p>
+          <p className="text-xl font-bold text-foreground">
+            ${Object.keys(byUser).length > 0 ? (totalCost / Object.keys(byUser).length).toFixed(4) : "0"}
+          </p>
+        </div>
+      </div>
+
+      {/* By function */}
+      <div className="card-premium p-4">
+        <h4 className="text-sm font-semibold text-foreground mb-3">📊 Per funzione</h4>
+        <div className="space-y-2">
+          {Object.entries(byFunction).map(([fn, stats]) => (
+            <div key={fn} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">{functionLabels[fn] || fn}</Badge>
+              </div>
+              <div className="text-right text-xs">
+                <span className="text-foreground font-medium">{stats.count} richieste</span>
+                <span className="text-muted-foreground ml-2">${stats.cost.toFixed(4)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* By model */}
+      <div className="card-premium p-4">
+        <h4 className="text-sm font-semibold text-foreground mb-3">🤖 Per modello</h4>
+        <div className="space-y-2">
+          {Object.entries(byModel).map(([model, stats]) => (
+            <div key={model} className="flex items-center justify-between">
+              <Badge variant="secondary" className="text-xs">{modelShort(model)}</Badge>
+              <div className="text-right text-xs">
+                <span className="text-foreground font-medium">{stats.count} richieste</span>
+                <span className="text-muted-foreground ml-2">${stats.cost.toFixed(4)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Top users */}
+      <div className="card-premium p-4">
+        <h4 className="text-sm font-semibold text-foreground mb-3">👤 Top utenti per costo</h4>
+        <div className="space-y-2">
+          {topUsers.map(([uid, stats], i) => (
+            <div key={uid} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground w-4">{i + 1}.</span>
+                <span className="text-sm text-foreground">{profiles[uid] || uid.slice(0, 12)}</span>
+              </div>
+              <div className="text-right text-xs">
+                <span className="text-foreground font-medium">{stats.count} req</span>
+                <span className="text-muted-foreground ml-2">${stats.cost.toFixed(4)}</span>
+              </div>
+            </div>
+          ))}
+          {topUsers.length === 0 && <p className="text-xs text-muted-foreground">Nessun dato</p>}
+        </div>
+      </div>
+
+      {/* Users at limit */}
+      {usersAtLimit.length > 0 && (
+        <div className="card-premium p-4 border-amber-500/20">
+          <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" /> Utenti al limite (oggi)
+          </h4>
+          <div className="space-y-2">
+            {usersAtLimit.map((ul, i) => (
+              <div key={i} className="flex items-center justify-between text-xs">
+                <span className="text-foreground">{profiles[ul.userId] || ul.userId.slice(0, 12)}</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px]">{limitTypeLabels[ul.limitType] || ul.limitType}</Badge>
+                  <span className="text-destructive font-medium">{ul.used}/{ul.max}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Global limits management */}
+      <div className="card-premium p-4">
+        <h4 className="text-sm font-semibold text-foreground mb-3">⚙️ Limiti globali</h4>
+        <div className="space-y-3">
+          {globalLimits.map(gl => (
+            <div key={gl.id} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-1">
+                <Badge className={gl.is_active ? "bg-success/10 text-success" : "bg-secondary text-muted-foreground"} >
+                  {gl.is_active ? "ON" : "OFF"}
+                </Badge>
+                <span className="text-sm text-foreground">{limitTypeLabels[gl.limit_type] || gl.limit_type}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  className="w-20 h-8 text-xs"
+                  defaultValue={gl.limit_value}
+                  onBlur={(e) => {
+                    const v = parseInt(e.target.value);
+                    if (v > 0 && v !== gl.limit_value) updateLimit(gl.id, v);
+                  }}
+                />
+                <Button size="sm" variant="ghost" className="h-8" onClick={() => toggleLimit(gl.id, gl.is_active)}>
+                  {gl.is_active ? <Pause className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Per-user limit overrides */}
+      <div className="card-premium p-4">
+        <h4 className="text-sm font-semibold text-foreground mb-3">👤 Limiti personalizzati per utente</h4>
+        {userLimits.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nessun limite personalizzato. I limiti globali si applicano a tutti.</p>
+        ) : (
+          <div className="space-y-2">
+            {userLimits.map(ul => (
+              <div key={ul.id} className="flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-foreground">{profiles[ul.user_id] || ul.user_id.slice(0, 12)}</span>
+                  <Badge variant="outline" className="text-[10px]">{limitTypeLabels[ul.limit_type] || ul.limit_type}</Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    className="w-20 h-7 text-xs"
+                    defaultValue={ul.limit_value}
+                    onBlur={(e) => {
+                      const v = parseInt(e.target.value);
+                      if (v > 0 && v !== ul.limit_value) updateLimit(ul.id, v);
+                    }}
+                  />
+                  <Button size="sm" variant="ghost" className="h-7" onClick={() => toggleLimit(ul.id, ul.is_active)}>
+                    {ul.is_active ? <Pause className="h-3 w-3" /> : <Check className="h-3 w-3" />}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7" onClick={async () => {
+                    await supabase.from("ai_usage_limits").delete().eq("id", ul.id);
+                    toast.success("Limite rimosso");
+                    load();
+                  }}>
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---- Main Admin Page ----
 export default function Admin() {
   return (
@@ -1389,15 +1701,17 @@ export default function Admin() {
         <Tabs defaultValue="users">
           <TabsList className="mb-6 w-full flex flex-wrap gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
             <TabsTrigger value="users" className="flex-1 min-w-[80px]"><Users className="h-3 w-3 mr-1" />Utenti</TabsTrigger>
+            <TabsTrigger value="ai-costs" className="flex-1 min-w-[80px]"><BarChart3 className="h-3 w-3 mr-1" />Costi AI</TabsTrigger>
             <TabsTrigger value="courses" className="flex-1 min-w-[80px]"><BookOpen className="h-3 w-3 mr-1" />Corsi</TabsTrigger>
             <TabsTrigger value="support" className="flex-1 min-w-[80px]"><HeadphonesIcon className="h-3 w-3 mr-1" />Supporto</TabsTrigger>
-            <TabsTrigger value="reviews" className="flex-1 min-w-[80px]"><BarChart3 className="h-3 w-3 mr-1" />Reviews</TabsTrigger>
+            <TabsTrigger value="reviews" className="flex-1 min-w-[80px]"><Star className="h-3 w-3 mr-1" />Reviews</TabsTrigger>
             <TabsTrigger value="ai-chat" className="flex-1 min-w-[80px]"><Bot className="h-3 w-3 mr-1" />AI Chat</TabsTrigger>
             <TabsTrigger value="accounts" className="flex-1 min-w-[80px]"><Wallet className="h-3 w-3 mr-1" />Conti</TabsTrigger>
             <TabsTrigger value="announcements" className="flex-1 min-w-[80px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><AdminUsers /></TabsContent>
+          <TabsContent value="ai-costs"><AdminAICosts /></TabsContent>
           <TabsContent value="courses"><AdminCourses /></TabsContent>
           <TabsContent value="support"><AdminSupport /></TabsContent>
           <TabsContent value="reviews"><AdminReviews /></TabsContent>
