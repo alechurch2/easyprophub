@@ -18,6 +18,8 @@ export interface Review {
   review_mode: string;
   account_size: number | null;
   custom_account_size: number | null;
+  review_tier: string;
+  ai_model_used: string | null;
 }
 
 export interface ReviewRating {
@@ -26,6 +28,14 @@ export interface ReviewRating {
   user_id: string;
   is_useful: boolean;
   created_at: string;
+}
+
+export interface PremiumUsage {
+  id: string;
+  user_id: string;
+  month_year: string;
+  reviews_used: number;
+  quota_limit: number;
 }
 
 export const ASSETS = ["EUR/USD", "GBP/USD", "USD/JPY", "XAU/USD", "BTC/USD", "ETH/USD", "US30", "NAS100", "SPX500"];

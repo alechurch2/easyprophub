@@ -8,6 +8,14 @@ const corsHeaders = {
 };
 
 // ============================================================
+// 🔧 CONFIGURAZIONE MODELLI AI — Centralizzata
+// Modifica qui per cambiare i modelli usati da ciascuna funzione
+// ============================================================
+const CHART_REVIEW_MODEL_STANDARD = "google/gemini-2.5-flash";
+const CHART_REVIEW_MODEL_PREMIUM = "google/gemini-2.5-pro";
+// ============================================================
+
+// ============================================================
 // 🔧 STRATEGIA PRO — Analisi tecnica completa
 // ============================================================
 const CUSTOM_STRATEGY_PRO = `
@@ -127,7 +135,6 @@ INTERPRETAZIONE DEI CAMPI
 
 // ============================================================
 // 🔧 STRATEGIA EASY — Analisi semplificata e operativa
-// Modifica qui per cambiare il comportamento della modalità Easy
 // ============================================================
 const CUSTOM_STRATEGY_EASY = `
 
@@ -174,6 +181,33 @@ STILE:
 `;
 
 // ============================================================
+// 🔧 STRATEGIA PREMIUM — Analisi approfondita e ragionata
+// ============================================================
+const PREMIUM_ENHANCEMENT = `
+
+ISTRUZIONI AGGIUNTIVE PER ANALISI PREMIUM:
+Questa è un'analisi PREMIUM. Rispetto all'analisi standard, devi:
+
+1. APPROFONDIMENTO MAGGIORE: ogni sezione deve essere più dettagliata e ragionata, con spiegazioni articolate e contestualizzate.
+
+2. MULTI-TIMEFRAME REASONING: anche se hai solo uno screenshot, ragiona su come il contesto potrebbe inserirsi in timeframe superiori e inferiori in base alla price action visibile.
+
+3. ANALISI DELLA CONFLUENZA: cerca attivamente confluenze tra struttura, liquidità, Wyckoff e zone di interesse. Valuta quante conferme convergono.
+
+4. SCORING DETTAGLIATO: nella qualità del setup, spiega anche il ragionamento dietro il punteggio assegnato.
+
+5. SCENARI ALTERNATIVI ELABORATI: per ogni scenario (bullish/bearish), descrivi anche le condizioni di transizione dall'uno all'altro.
+
+6. GESTIONE DEL RISCHIO: aggiungi considerazioni sulla gestione del rischio coerenti con il contesto.
+
+7. CONTESTUALIZZAZIONE TEMPORALE: se possibile, indica anche finestre temporali coerenti con il timeframe per la validità dell'analisi.
+
+8. SINTESI STRATEGICA: nella conclusione, fornisci una sintesi strategica più elaborata che integri tutti gli elementi analizzati.
+
+Mantieni sempre prudenza, nessuna promessa di risultato, nessuna esecuzione automatica.
+`;
+
+// ============================================================
 // System prompts
 // ============================================================
 const SYSTEM_PROMPT_PRO = `Sei un analista tecnico esperto. Il tuo compito è analizzare screenshot di grafici di trading seguendo ESCLUSIVAMENTE la strategia definita di seguito. Non dare opinioni libere, non inventare, non uscire dallo schema.
@@ -193,6 +227,25 @@ REGOLE FERREE:
 
 CONTESTO AGGIUNTIVO: ti verranno forniti asset, timeframe e tipo di richiesta dell'utente. Usa questi metadati per contestualizzare la tua analisi.`;
 
+const SYSTEM_PROMPT_PRO_PREMIUM = `Sei un analista tecnico SENIOR con anni di esperienza. Il tuo compito è fornire un'analisi PREMIUM approfondita di screenshot di grafici di trading, seguendo la strategia definita e le istruzioni premium aggiuntive.
+
+STRATEGIA DI RIFERIMENTO:
+${CUSTOM_STRATEGY_PRO}
+
+${PREMIUM_ENHANCEMENT}
+
+REGOLE FERREE:
+1. Analizza SOLO ciò che vedi nell'immagine.
+2. Se l'immagine non è leggibile o non mostra un grafico valido, dichiaralo nel campo "leggibilita_immagine".
+3. Se mancano elementi chiave della strategia, segnalalo.
+4. NON promettere risultati o profitti.
+5. NON suggerire di eseguire operazioni.
+6. Rispondi SOLO tramite la funzione "chart_analysis" con i campi strutturati richiesti.
+7. Ogni campo deve essere compilato in modo DETTAGLIATO, professionale, approfondito e coerente con la strategia.
+8. Se non puoi valutare un campo, scrivi "Non valutabile dall'immagine fornita" e spiega il motivo.
+
+CONTESTO AGGIUNTIVO: ti verranno forniti asset, timeframe e tipo di richiesta dell'utente. Usa questi metadati per contestualizzare la tua analisi.`;
+
 const SYSTEM_PROMPT_EASY = `Sei un analista tecnico che comunica in modo semplice e diretto. Il tuo compito è analizzare screenshot di grafici di trading e fornire idee operative chiare seguendo la strategia definita.
 
 STRATEGIA DI RIFERIMENTO:
@@ -205,6 +258,24 @@ REGOLE:
 4. Massimo 2 setup. Se non c'è un setup valido, restituisci un array vuoto per "setups" e compila "no_setup_reason".
 5. Linguaggio semplice e comprensibile.
 6. I pip values (sl_pips, tp_pips) devono essere numeri coerenti con l'asset e il timeframe.
+
+CONTESTO AGGIUNTIVO: ti verranno forniti asset, timeframe e dimensione del conto. Adatta la tua risposta al timeframe.`;
+
+const SYSTEM_PROMPT_EASY_PREMIUM = `Sei un analista tecnico SENIOR con anni di esperienza. Il tuo compito è fornire un'analisi PREMIUM semplificata ma più approfondita e ragionata. Comunichi in modo chiaro e diretto, ma con un livello di dettaglio superiore.
+
+STRATEGIA DI RIFERIMENTO:
+${CUSTOM_STRATEGY_EASY}
+
+${PREMIUM_ENHANCEMENT}
+
+REGOLE:
+1. Analizza SOLO ciò che vedi nell'immagine.
+2. Se l'immagine non è leggibile, dichiaralo e NON proporre setup.
+3. Rispondi SOLO tramite la funzione "easy_chart_analysis".
+4. Massimo 2 setup. Se non c'è un setup valido, restituisci un array vuoto per "setups" e compila "no_setup_reason".
+5. Linguaggio chiaro e comprensibile ma più dettagliato.
+6. I pip values (sl_pips, tp_pips) devono essere numeri coerenti con l'asset e il timeframe.
+7. Le spiegazioni devono essere più articolate e ragionate rispetto alla versione standard.
 
 CONTESTO AGGIUNTIVO: ti verranno forniti asset, timeframe e dimensione del conto. Adatta la tua risposta al timeframe.`;
 
@@ -309,7 +380,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { asset, timeframe, request_type, screenshot_url, user_note, parent_review_id, review_mode, account_size } = body;
+    const { asset, timeframe, request_type, screenshot_url, user_note, parent_review_id, review_mode, account_size, review_tier } = body;
 
     if (!asset || !timeframe || !request_type) {
       return new Response(
@@ -319,6 +390,30 @@ serve(async (req) => {
     }
 
     const isEasy = review_mode === "easy";
+    const isPremium = review_tier === "premium";
+
+    // Check premium quota if premium
+    if (isPremium) {
+      const now = new Date();
+      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      const { data: usage } = await supabase
+        .from("premium_review_usage")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("month_year", monthYear)
+        .single();
+
+      if (usage && usage.reviews_used >= usage.quota_limit) {
+        return new Response(
+          JSON.stringify({ error: "Hai esaurito le review premium disponibili per questo mese.", quota_exceeded: true }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Select model based on tier
+    const model = isPremium ? CHART_REVIEW_MODEL_PREMIUM : CHART_REVIEW_MODEL_STANDARD;
 
     // Create pending review
     const insertData: any = {
@@ -331,6 +426,8 @@ serve(async (req) => {
       user_note: user_note || null,
       parent_review_id: parent_review_id || null,
       review_mode: isEasy ? "easy" : "pro",
+      review_tier: isPremium ? "premium" : "standard",
+      ai_model_used: model,
     };
     if (isEasy && account_size) {
       insertData.account_size = account_size;
@@ -350,8 +447,9 @@ serve(async (req) => {
     }
 
     // Build user prompt
+    const tierLabel = isPremium ? " (ANALISI PREMIUM — massimo dettaglio e approfondimento)" : "";
     const userText = isEasy
-      ? `Analizza questo grafico in modalità Easy.
+      ? `Analizza questo grafico in modalità Easy.${tierLabel}
 
 METADATI:
 - Asset: ${asset}
@@ -361,7 +459,7 @@ METADATI:
 ${user_note ? `NOTA UTENTE: ${user_note}` : ""}
 
 Usa ESCLUSIVAMENTE la funzione "easy_chart_analysis" per restituire l'output.`
-      : `Analizza questo grafico secondo la strategia predefinita.
+      : `Analizza questo grafico secondo la strategia predefinita.${tierLabel}
 
 METADATI:
 - Asset: ${asset}
@@ -404,9 +502,17 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       }
     }
 
-    const systemPrompt = isEasy ? SYSTEM_PROMPT_EASY : SYSTEM_PROMPT_PRO;
+    // Select system prompt based on mode + tier
+    let systemPrompt: string;
+    if (isEasy) {
+      systemPrompt = isPremium ? SYSTEM_PROMPT_EASY_PREMIUM : SYSTEM_PROMPT_EASY;
+    } else {
+      systemPrompt = isPremium ? SYSTEM_PROMPT_PRO_PREMIUM : SYSTEM_PROMPT_PRO;
+    }
     const analysisTool = isEasy ? ANALYSIS_TOOL_EASY : ANALYSIS_TOOL_PRO;
     const toolName = isEasy ? "easy_chart_analysis" : "chart_analysis";
+
+    console.log(`[AI Chart Review] Mode: ${isEasy ? "easy" : "pro"}, Tier: ${isPremium ? "premium" : "standard"}, Model: ${model}`);
 
     // Call AI
     const aiResponse = await fetch(
@@ -418,7 +524,7 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userContent },
@@ -469,10 +575,8 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       if (!analysis.setups) analysis.setups = [];
       if (!analysis.signal_quality) analysis.signal_quality = "media";
       if (!analysis.expected_duration) analysis.expected_duration = "Non determinabile";
-      // Ensure max 2 setups
       if (analysis.setups.length > 2) analysis.setups = analysis.setups.slice(0, 2);
     } else {
-      // Pro mode validation
       const requiredFields = [
         "leggibilita_immagine", "contesto", "bias", "struttura", "liquidita",
         "zona_interessante", "conferma_richiesta", "invalidazione",
@@ -498,8 +602,32 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       console.error("Update error:", updateError);
     }
 
+    // Increment premium usage if premium
+    if (isPremium) {
+      const now = new Date();
+      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      
+      const { data: existing } = await supabase
+        .from("premium_review_usage")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("month_year", monthYear)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from("premium_review_usage")
+          .update({ reviews_used: existing.reviews_used + 1, updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+      } else {
+        await supabase
+          .from("premium_review_usage")
+          .insert({ user_id: user.id, month_year: monthYear, reviews_used: 1, quota_limit: 3 });
+      }
+    }
+
     return new Response(
-      JSON.stringify({ id: review.id, analysis, status: "completed" }),
+      JSON.stringify({ id: review.id, analysis, status: "completed", review_tier: isPremium ? "premium" : "standard" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
