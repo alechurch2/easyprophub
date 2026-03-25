@@ -95,9 +95,10 @@ async function createMetaApiAccount(account: any): Promise<string> {
   // Configurable reliability: defaults to "regular" to avoid 403 on demo/test accounts
   // Set METAAPI_RELIABILITY_DEFAULT=high in secrets when ready for production
   const reliability = Deno.env.get("METAAPI_RELIABILITY_DEFAULT") || "regular";
-  console.log("[MetaApi] Using reliability:", reliability);
+  const provisioningProfileId = Deno.env.get("METAAPI_PROVISIONING_PROFILE_ID");
+  console.log("[MetaApi] Using reliability:", reliability, "provisioningProfileId:", provisioningProfileId || "none");
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     login: String(account.account_number),
     password: account.investor_password,
     name: account.account_name || `EasyProp-${account.account_number}`,
@@ -107,6 +108,11 @@ async function createMetaApiAccount(account: any): Promise<string> {
     magic: 0,
     reliability,
   };
+
+  // Use provisioning profile when available (required for some brokers)
+  if (provisioningProfileId) {
+    payload.provisioningProfileId = provisioningProfileId;
+  }
 
   console.log("[MetaApi] Creating account with payload:", JSON.stringify({ ...payload, password: "***" }));
 
