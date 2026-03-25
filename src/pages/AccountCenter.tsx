@@ -1006,6 +1006,46 @@ export default function AccountCenter() {
     loadData();
   };
 
+  const handleDelete = async (accountId: string) => {
+    setDeleting(accountId);
+    toast.info("Eliminazione conto in corso...");
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/account-sync`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: JSON.stringify({ action: "delete_account", account_id: accountId }),
+        }
+      );
+      let result: any;
+      try {
+        const rawText = await res.text();
+        result = rawText ? JSON.parse(rawText) : { success: false, error: "Empty response" };
+      } catch {
+        result = { success: false, error: `Risposta non valida (status ${res.status})` };
+      }
+      if (result.success) {
+        if (result.metaapi_cleanup === "partial") {
+          toast.warning("Conto eliminato. Nota: la rimozione lato provider non è completa, ma il conto è stato rimosso localmente.");
+        } else {
+          toast.success("Conto eliminato con successo.");
+        }
+      } else {
+        toast.error(`Errore eliminazione: ${result.error || "Sconosciuto"}`);
+      }
+    } catch (err: any) {
+      toast.error(`Errore: ${err.message || "Sconosciuto"}`);
+    }
+    setDeleting(null);
+    loadData();
+  };
+
   if (loading) {
     return (
       <AppLayout>
