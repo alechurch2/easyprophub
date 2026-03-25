@@ -353,7 +353,8 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
                 variant="outline"
                 className="h-7 text-xs"
                 onClick={() => onSync(acc.id)}
-                disabled={syncing === acc.id || acc.sync_status === "running"}
+                disabled={syncing === acc.id || acc.sync_status === "running" || !acc.provider_account_id}
+                title={!acc.provider_account_id ? "Connessione MetaApi non completata" : "Aggiorna dati"}
               >
                 <RefreshCw className={cn("h-3 w-3 mr-1", syncing === acc.id && "animate-spin")} />
                 Aggiorna
