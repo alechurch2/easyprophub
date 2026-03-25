@@ -328,18 +328,18 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
   return (
     <div className="space-y-4">
       {accounts.map((acc) => (
-        <div key={acc.id} className="card-premium p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div key={acc.id} className="card-premium p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Wallet className="h-5 w-5 text-primary" />
               </div>
-              <div>
-                <h3 className="font-heading font-semibold text-foreground">{acc.account_name}</h3>
-                <p className="text-xs text-muted-foreground">{acc.platform} · {acc.broker || "—"} · {acc.server || "—"}</p>
+              <div className="min-w-0">
+                <h3 className="font-heading font-semibold text-foreground truncate">{acc.account_name}</h3>
+                <p className="text-xs text-muted-foreground truncate">{acc.platform} · {acc.broker || "—"} · {acc.server || "—"}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant="outline" className="text-[10px]">
                 <Eye className="h-2.5 w-2.5 mr-1" />Read-only
               </Badge>
