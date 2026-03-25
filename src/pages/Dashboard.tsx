@@ -4,8 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet } from "lucide-react";
+import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface Announcement {
   id: string;
@@ -22,9 +23,10 @@ interface ReviewStats {
 }
 
 export default function Dashboard() {
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, licenseStatus, accessExpiresAt, daysRemaining, user } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stats, setStats] = useState<ReviewStats>({ totalPro: 0, totalEasy: 0, avgQuality: null, topAssets: [] });
+  const [premiumUsage, setPremiumUsage] = useState<{ used: number; limit: number } | null>(null);
 
   useEffect(() => {
     supabase
@@ -47,14 +49,11 @@ export default function Dashboard() {
         const totalPro = data.filter((r) => r.review_mode === "pro").length;
         const totalEasy = data.filter((r) => r.review_mode === "easy").length;
 
-        // Average quality from analysis JSON
         const qualities = data
           .map((r) => {
             const a = r.analysis as any;
             if (!a) return null;
-            // Pro mode quality
             if (a.qualita_setup != null) return Number(a.qualita_setup);
-            // Easy mode quality from setups
             if (a.setups?.length) {
               const q = a.setups.map((s: any) =>
                 s.signal_quality === "alta" ? 9 : s.signal_quality === "media" ? 6 : 3
@@ -66,7 +65,6 @@ export default function Dashboard() {
           .filter((v): v is number => v !== null);
         const avgQuality = qualities.length ? Math.round((qualities.reduce((a, b) => a + b, 0) / qualities.length) * 10) / 10 : null;
 
-        // Top assets
         const assetCounts: Record<string, number> = {};
         data.forEach((r) => { assetCounts[r.asset] = (assetCounts[r.asset] || 0) + 1; });
         const topAssets = Object.entries(assetCounts)
@@ -76,7 +74,22 @@ export default function Dashboard() {
 
         setStats({ totalPro, totalEasy, avgQuality, topAssets });
       });
-  }, []);
+
+    // Premium usage
+    if (user) {
+      const now = new Date();
+      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      supabase
+        .from("premium_review_usage")
+        .select("reviews_used, quota_limit")
+        .eq("user_id", user.id)
+        .eq("month_year", monthYear)
+        .single()
+        .then(({ data }) => {
+          if (data) setPremiumUsage({ used: (data as any).reviews_used, limit: (data as any).quota_limit });
+        });
+    }
+  }, [user]);
 
   const cards = [
     {
