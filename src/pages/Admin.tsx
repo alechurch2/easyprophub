@@ -538,6 +538,14 @@ function AdminReviews() {
             <SelectItem value="didactic">Didattici</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterMode} onValueChange={setFilterMode}>
+          <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti</SelectItem>
+            <SelectItem value="pro">Pro</SelectItem>
+            <SelectItem value="easy">Easy</SelectItem>
+          </SelectContent>
+        </Select>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSortOrder(s => s === "desc" ? "asc" : "desc")}>
           <ArrowUpDown className="h-3 w-3 mr-1" />{sortOrder === "desc" ? "Recenti" : "Vecchie"}
         </Button>
