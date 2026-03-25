@@ -144,7 +144,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Welcome */}
         <div className="mb-8">
           <h1 className="font-heading text-2xl lg:text-3xl font-bold text-foreground">
