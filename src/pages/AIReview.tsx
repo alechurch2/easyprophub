@@ -164,7 +164,7 @@ export default function AIReview() {
 
         {/* Tier selector + Mode selector + Form */}
         {showForm && (
-          <>
+          <div className="space-y-0">
             <TierSelector
               tier={reviewTier}
               onChange={setReviewTier}
@@ -172,12 +172,30 @@ export default function AIReview() {
               premiumQuota={premiumUsage?.quota_limit ?? 3}
             />
             <ModeSelector mode={reviewMode} onChange={setReviewMode} />
+
+            {/* Selection summary */}
+            <div className="mb-6 flex items-center gap-2 rounded-lg bg-secondary/50 border border-border px-4 py-3">
+              <span className="text-xs text-muted-foreground">Hai selezionato:</span>
+              <span className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold",
+                reviewTier === "premium"
+                  ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                  : "bg-primary/10 text-primary border border-primary/20"
+              )}>
+                {reviewTier === "premium" ? "👑 Premium Review" : "⚡ Standard Review"}
+              </span>
+              <span className="text-xs text-muted-foreground">+</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-xs font-semibold">
+                {reviewMode === "pro" ? "📊 Pro Mode" : "⚡ Easy Mode"}
+              </span>
+            </div>
+
             {reviewMode === "pro" ? (
               <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
             ) : (
               <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
             )}
-          </>
+          </div>
         )}
 
         {/* Filters */}
