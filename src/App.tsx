@@ -14,6 +14,7 @@ import Support from "./pages/Support";
 import AIReview from "./pages/AIReview";
 import AIAssistant from "./pages/AIAssistant";
 import Admin from "./pages/Admin";
+import CaseStudies from "./pages/CaseStudies";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
