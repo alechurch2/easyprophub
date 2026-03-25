@@ -135,6 +135,7 @@ export type Database = {
       ai_chart_reviews: {
         Row: {
           account_size: number | null
+          ai_model_used: string | null
           analysis: Json | null
           asset: string
           created_at: string
@@ -148,6 +149,7 @@ export type Database = {
           parent_review_id: string | null
           request_type: string
           review_mode: string
+          review_tier: string
           screenshot_url: string | null
           status: Database["public"]["Enums"]["review_status"]
           timeframe: string
@@ -157,6 +159,7 @@ export type Database = {
         }
         Insert: {
           account_size?: number | null
+          ai_model_used?: string | null
           analysis?: Json | null
           asset: string
           created_at?: string
@@ -170,6 +173,7 @@ export type Database = {
           parent_review_id?: string | null
           request_type: string
           review_mode?: string
+          review_tier?: string
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["review_status"]
           timeframe: string
@@ -179,6 +183,7 @@ export type Database = {
         }
         Update: {
           account_size?: number | null
+          ai_model_used?: string | null
           analysis?: Json | null
           asset?: string
           created_at?: string
@@ -192,6 +197,7 @@ export type Database = {
           parent_review_id?: string | null
           request_type?: string
           review_mode?: string
+          review_tier?: string
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["review_status"]
           timeframe?: string
@@ -482,6 +488,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      premium_review_usage: {
+        Row: {
+          created_at: string
+          id: string
+          month_year: string
+          quota_limit: number
+          reviews_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month_year: string
+          quota_limit?: number
+          reviews_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month_year?: string
+          quota_limit?: number
+          reviews_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
