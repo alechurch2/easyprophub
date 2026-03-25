@@ -8,7 +8,7 @@ interface Props {
 
 export function ModeSelector({ mode, onChange }: Props) {
   return (
-    <div className="mb-6">
+    <div className="mb-0">
       <div className="flex items-center gap-2 mb-3">
         <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-bold">2</span>
         <h3 className="font-heading text-sm font-semibold text-foreground">Scegli la modalità di analisi</h3>
