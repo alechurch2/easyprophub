@@ -800,6 +800,7 @@ function AdminAccounts() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [journalCount, setJournalCount] = useState<Record<string, number>>({});
+  const [syncLogs, setSyncLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -815,7 +816,6 @@ function AdminAccounts() {
           setProfiles(map);
         }
       }
-      // journal counts per account
       const accIds = data.map((a: any) => a.id);
       if (accIds.length > 0) {
         const { data: journals } = await supabase.from("trade_journal_entries").select("account_id").in("account_id", accIds);
@@ -824,6 +824,8 @@ function AdminAccounts() {
           journals.forEach((j: any) => { counts[j.account_id] = (counts[j.account_id] || 0) + 1; });
           setJournalCount(counts);
         }
+        const { data: logs } = await supabase.from("account_sync_logs").select("*").in("account_id", accIds).order("started_at", { ascending: false }).limit(10);
+        if (logs) setSyncLogs(logs);
       }
     }
     setLoading(false);
@@ -834,6 +836,7 @@ function AdminAccounts() {
   const statusColor = (s: string) => {
     switch (s) {
       case "connected": return "bg-success/10 text-success";
+      case "syncing": return "bg-info/10 text-info";
       case "pending": return "bg-warning/10 text-warning";
       case "failed": return "bg-destructive/10 text-destructive";
       default: return "bg-secondary text-muted-foreground";
@@ -842,14 +845,14 @@ function AdminAccounts() {
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
-  // Stats
   const userCounts: Record<string, number> = {};
   accounts.forEach((a) => { userCounts[a.user_id] = (userCounts[a.user_id] || 0) + 1; });
+  const failedSyncs = syncLogs.filter(l => l.status === "failed").length;
 
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="card-premium p-3">
           <p className="text-xs text-muted-foreground">Conti totali</p>
           <p className="text-xl font-bold text-foreground">{accounts.length}</p>
@@ -863,10 +866,40 @@ function AdminAccounts() {
           <p className="text-xl font-bold text-success">{accounts.filter(a => a.connection_status === "connected").length}</p>
         </div>
         <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Errori sync</p>
+          <p className={cn("text-xl font-bold", failedSyncs > 0 ? "text-destructive" : "text-foreground")}>{failedSyncs}</p>
+        </div>
+        <div className="card-premium p-3">
           <p className="text-xs text-muted-foreground">Journaling totali</p>
           <p className="text-xl font-bold text-foreground">{Object.values(journalCount).reduce((a, b) => a + b, 0)}</p>
         </div>
       </div>
+
+      {/* Recent sync logs */}
+      {syncLogs.length > 0 && (
+        <div className="card-premium p-4">
+          <h4 className="text-sm font-semibold text-foreground mb-2">Ultimi sync</h4>
+          <div className="space-y-1">
+            {syncLogs.slice(0, 5).map(log => (
+              <div key={log.id} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <Badge className={cn("text-[10px]",
+                    log.status === "completed" ? "bg-success/10 text-success" :
+                    log.status === "running" ? "bg-info/10 text-info" :
+                    "bg-destructive/10 text-destructive"
+                  )}>{log.status}</Badge>
+                  <span className="text-muted-foreground">{log.sync_type}</span>
+                </div>
+                <div className="text-muted-foreground">
+                  {new Date(log.started_at).toLocaleString("it-IT")}
+                  {log.trades_synced > 0 && <span className="text-success ml-1">+{log.trades_synced}</span>}
+                  {log.error_message && <span className="text-destructive ml-1">⚠</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {accounts.length === 0 ? (
         <p className="text-muted-foreground text-center p-8">Nessun conto collegato</p>
@@ -878,14 +911,18 @@ function AdminAccounts() {
                 <p className="text-sm font-medium text-foreground">{a.account_name}</p>
                 <Badge className={statusColor(a.connection_status)}>{a.connection_status}</Badge>
                 <Badge variant="outline" className="text-[10px]">{a.platform}</Badge>
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">{a.provider_type || "mock"}</Badge>
+                {a.sync_status === "error" && <Badge className="bg-destructive/10 text-destructive text-[10px]">Sync error</Badge>}
               </div>
               <p className="text-xs text-muted-foreground">
                 {profiles[a.user_id] || a.user_id.slice(0, 8)} · {a.broker || "—"} · {a.account_number || "—"}
               </p>
+              {a.last_sync_error && <p className="text-[10px] text-destructive mt-0.5">⚠ {a.last_sync_error}</p>}
             </div>
             <div className="text-right text-xs text-muted-foreground">
               <p>Balance: ${Number(a.balance).toLocaleString()}</p>
-              {a.last_sync_at && <p>Sync: {new Date(a.last_sync_at).toLocaleDateString("it-IT")}</p>}
+              {a.last_sync_at && <p>Ultimo sync: {new Date(a.last_sync_at).toLocaleString("it-IT")}</p>}
+              {a.last_successful_sync_at && <p className="text-success">OK: {new Date(a.last_successful_sync_at).toLocaleDateString("it-IT")}</p>}
               {journalCount[a.id] && <p>{journalCount[a.id]} journal</p>}
             </div>
           </div>
