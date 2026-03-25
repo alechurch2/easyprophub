@@ -385,10 +385,10 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
             <MetricCard label="Profit Factor" value={acc.profit_factor > 0 ? acc.profit_factor.toFixed(2) : "—"} small />
           </div>
 
-          <div className="flex items-center justify-between mt-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mt-3">
             {acc.last_sync_at ? (
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <RefreshCw className="h-2.5 w-2.5" />
+                <RefreshCw className="h-2.5 w-2.5 shrink-0" />
                 Ultimo aggiornamento: {new Date(acc.last_sync_at).toLocaleString("it-IT")}
               </p>
             ) : (
@@ -396,7 +396,7 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
             )}
             {acc.last_successful_sync_at && acc.last_successful_sync_at !== acc.last_sync_at && (
               <p className="text-[10px] text-success flex items-center gap-1">
-                <CheckCircle2 className="h-2.5 w-2.5" />
+                <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
                 Ultimo sync riuscito: {new Date(acc.last_successful_sync_at).toLocaleString("it-IT")}
               </p>
             )}
