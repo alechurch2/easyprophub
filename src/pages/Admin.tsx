@@ -514,6 +514,25 @@ function AdminReviews() {
 
   return (
     <div className="space-y-4">
+      {/* Premium stats summary */}
+      {premiumStats.total > 0 && (
+        <div className="card-premium p-4 border-amber-500/20">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-medium text-foreground">📊 Statistiche Premium</span>
+            <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+              {premiumStats.total} review premium totali
+            </Badge>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(premiumStats.byUser).map(([uid, count]) => (
+              <Badge key={uid} variant="secondary" className="text-[10px]">
+                {profiles[uid] || uid.slice(0, 8)}: {count}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap gap-2 items-center">
         <div className="flex-1 min-w-[200px]">
@@ -552,6 +571,14 @@ function AdminReviews() {
             <SelectItem value="all">Tutti</SelectItem>
             <SelectItem value="pro">Pro</SelectItem>
             <SelectItem value="easy">Easy</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterTier} onValueChange={setFilterTier}>
+          <SelectTrigger className="w-[110px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti</SelectItem>
+            <SelectItem value="standard">Standard</SelectItem>
+            <SelectItem value="premium">Premium</SelectItem>
           </SelectContent>
         </Select>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSortOrder(s => s === "desc" ? "asc" : "desc")}>
