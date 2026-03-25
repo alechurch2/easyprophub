@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap } from "lucide-react";
+import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Announcement {
@@ -14,9 +14,17 @@ interface Announcement {
   created_at: string;
 }
 
+interface ReviewStats {
+  totalPro: number;
+  totalEasy: number;
+  avgQuality: number | null;
+  topAssets: { asset: string; count: number }[];
+}
+
 export default function Dashboard() {
   const { profile, isAdmin } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [stats, setStats] = useState<ReviewStats>({ totalPro: 0, totalEasy: 0, avgQuality: null, topAssets: [] });
 
   useEffect(() => {
     supabase
@@ -27,6 +35,46 @@ export default function Dashboard() {
       .limit(3)
       .then(({ data }) => {
         if (data) setAnnouncements(data);
+      });
+
+    // Fetch user's review stats
+    supabase
+      .from("ai_chart_reviews")
+      .select("review_mode, asset, analysis, status")
+      .eq("status", "completed")
+      .then(({ data }) => {
+        if (!data) return;
+        const totalPro = data.filter((r) => r.review_mode === "pro").length;
+        const totalEasy = data.filter((r) => r.review_mode === "easy").length;
+
+        // Average quality from analysis JSON
+        const qualities = data
+          .map((r) => {
+            const a = r.analysis as any;
+            if (!a) return null;
+            // Pro mode quality
+            if (a.qualita_setup != null) return Number(a.qualita_setup);
+            // Easy mode quality from setups
+            if (a.setups?.length) {
+              const q = a.setups.map((s: any) =>
+                s.signal_quality === "alta" ? 9 : s.signal_quality === "media" ? 6 : 3
+              );
+              return q.reduce((sum: number, v: number) => sum + v, 0) / q.length;
+            }
+            return null;
+          })
+          .filter((v): v is number => v !== null);
+        const avgQuality = qualities.length ? Math.round((qualities.reduce((a, b) => a + b, 0) / qualities.length) * 10) / 10 : null;
+
+        // Top assets
+        const assetCounts: Record<string, number> = {};
+        data.forEach((r) => { assetCounts[r.asset] = (assetCounts[r.asset] || 0) + 1; });
+        const topAssets = Object.entries(assetCounts)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 3)
+          .map(([asset, count]) => ({ asset, count }));
+
+        setStats({ totalPro, totalEasy, avgQuality, topAssets });
       });
   }, []);
 
