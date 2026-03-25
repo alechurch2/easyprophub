@@ -12,6 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Wallet, Plus, TrendingUp, TrendingDown, Activity, BarChart3, BookOpen,
   Loader2, Eye, ArrowUpRight, ArrowDownRight, Clock, Filter, ChevronLeft,
   Save, Trash2, X, Image, RefreshCw, AlertTriangle, Shield, Wifi, WifiOff,
