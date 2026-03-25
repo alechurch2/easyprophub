@@ -379,6 +379,17 @@ serve(async (req) => {
       });
     }
 
+    // Check license validity server-side
+    const { data: licenseCheck } = await supabase.rpc("is_license_valid", { _user_id: user.id });
+    // Also check admin role (admins bypass license)
+    const { data: isAdminCheck } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    if (!licenseCheck && !isAdminCheck) {
+      return new Response(
+        JSON.stringify({ error: "La tua licenza è scaduta o sospesa. Contatta il supporto.", license_expired: true }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
     const { asset, timeframe, request_type, screenshot_url, user_note, parent_review_id, review_mode, account_size, review_tier } = body;
 
