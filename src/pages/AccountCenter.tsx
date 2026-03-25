@@ -153,7 +153,18 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
           body: JSON.stringify({ action: "connect_metaapi", account_id: (account as any).id }),
         }
       );
-      const result = await res.json();
+
+      let result: any;
+      try {
+        const rawText = await res.text();
+        result = rawText ? JSON.parse(rawText) : { success: false, error: `Server returned ${res.status} with empty body` };
+      } catch (parseErr) {
+        result = { success: false, error: `Risposta non valida dal server (status ${res.status})` };
+      }
+
+      if (!res.ok && result.success === undefined) {
+        result.success = false;
+      }
 
       if (result.success) {
         connectSuccess = true;
@@ -171,7 +182,13 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
             body: JSON.stringify({ action: "sync", account_id: (account as any).id }),
           }
         );
-        const syncResult = await syncRes.json();
+        let syncResult: any;
+        try {
+          const syncRaw = await syncRes.text();
+          syncResult = syncRaw ? JSON.parse(syncRaw) : { success: false, error: "Empty response" };
+        } catch {
+          syncResult = { success: false, error: "Invalid response" };
+        }
         if (syncResult.success) {
           toast.success(`Sincronizzazione completata! ${syncResult.trades_synced} trade importati.`);
         } else {
@@ -180,8 +197,8 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
       } else {
         toast.error(`Errore connessione: ${result.error || "Sconosciuto"}`);
       }
-    } catch {
-      toast.error("Errore durante la connessione al broker");
+    } catch (err: any) {
+      toast.error(`Errore durante la connessione al broker: ${err.message || "Sconosciuto"}`);
     }
 
     // If connect failed, delete orphan record
