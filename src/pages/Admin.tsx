@@ -3,8 +3,8 @@ import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone,
-  Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save
+  Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone, Bot,
+  Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
