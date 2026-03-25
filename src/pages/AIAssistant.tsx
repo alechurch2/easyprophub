@@ -233,7 +233,10 @@ export default function AIAssistant() {
         await supabase.from("ai_chat_conversations").update({ updated_at: new Date().toISOString() }).eq("id", convId);
       }
     } catch (e: any) {
-      toast.error(e.message || "Errore nella risposta AI");
+      const msg = e.message === "Failed to fetch"
+        ? "Impossibile raggiungere il server AI. Verifica la connessione e riprova."
+        : e.message || "Errore nella risposta AI";
+      toast.error(msg);
       if (!assistantContent) {
         setMessages(newMessages);
       }
