@@ -12,6 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Wallet, Plus, TrendingUp, TrendingDown, Activity, BarChart3, BookOpen,
   Loader2, Eye, ArrowUpRight, ArrowDownRight, Clock, Filter, ChevronLeft,
   Save, Trash2, X, Image, RefreshCw, AlertTriangle, Shield, Wifi, WifiOff,
@@ -331,7 +336,7 @@ function MetricCard({ label, value, warn, small }: { label: string; value: React
 }
 
 // ---- Account Overview Cards ----
-function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccount[]; onSync: (id: string) => void; syncing: string | null }) {
+function AccountOverview({ accounts, onSync, syncing, onDelete, deleting }: { accounts: TradingAccount[]; onSync: (id: string) => void; syncing: string | null; onDelete: (id: string) => void; deleting: string | null }) {
   if (accounts.length === 0) {
     return (
       <div className="text-center py-16">
@@ -376,6 +381,45 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
                 <RefreshCw className={cn("h-3 w-3 mr-1", syncing === acc.id && "animate-spin")} />
                 Aggiorna
               </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                    disabled={deleting === acc.id}
+                  >
+                    {deleting === acc.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                    Elimina
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Eliminare questo conto?</AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-2">
+                      <p>Stai per eliminare <strong>{acc.account_name}</strong>. Questa azione è irreversibile.</p>
+                      <ul className="list-disc pl-4 text-xs space-y-1">
+                        <li>Il conto verrà rimosso dall'Account Center</li>
+                        <li>Tutti i trade sincronizzati verranno eliminati</li>
+                        <li>Le note del journal collegate verranno eliminate</li>
+                        <li>I log di sincronizzazione verranno rimossi</li>
+                        {acc.provider_type === "metaapi" && acc.provider_account_id && (
+                          <li>L'account MetaApi verrà disconnesso e rimosso</li>
+                        )}
+                      </ul>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annulla</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => onDelete(acc.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Elimina definitivamente
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
 
@@ -909,6 +953,7 @@ export default function AccountCenter() {
   const [showConnect, setShowConnect] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -958,6 +1003,46 @@ export default function AccountCenter() {
       toast.error(`Errore di connessione durante il sync: ${err.message || "Sconosciuto"}`);
     }
     setSyncing(null);
+    loadData();
+  };
+
+  const handleDelete = async (accountId: string) => {
+    setDeleting(accountId);
+    toast.info("Eliminazione conto in corso...");
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/account-sync`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: JSON.stringify({ action: "delete_account", account_id: accountId }),
+        }
+      );
+      let result: any;
+      try {
+        const rawText = await res.text();
+        result = rawText ? JSON.parse(rawText) : { success: false, error: "Empty response" };
+      } catch {
+        result = { success: false, error: `Risposta non valida (status ${res.status})` };
+      }
+      if (result.success) {
+        if (result.metaapi_cleanup === "partial") {
+          toast.warning("Conto eliminato. Nota: la rimozione lato provider non è completa, ma il conto è stato rimosso localmente.");
+        } else {
+          toast.success("Conto eliminato con successo.");
+        }
+      } else {
+        toast.error(`Errore eliminazione: ${result.error || "Sconosciuto"}`);
+      }
+    } catch (err: any) {
+      toast.error(`Errore: ${err.message || "Sconosciuto"}`);
+    }
+    setDeleting(null);
     loadData();
   };
 
@@ -1028,7 +1113,7 @@ export default function AccountCenter() {
             <TabsTrigger value="sync-logs" className="text-xs px-2"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} /></TabsContent>
+          <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} onDelete={handleDelete} deleting={deleting} /></TabsContent>
           <TabsContent value="positions"><OpenPositions trades={trades} /></TabsContent>
           <TabsContent value="history"><TradeHistory trades={trades} onSelectTrade={setSelectedTrade} /></TabsContent>
           <TabsContent value="journal"><JournalingOverview journalEntries={journalEntries} trades={trades} /></TabsContent>

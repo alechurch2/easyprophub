@@ -889,6 +889,95 @@ Deno.serve(async (req) => {
       }
     }
 
+    // === DELETE ACCOUNT ===
+    if (action === "delete_account") {
+      const { data: account } = await supabase
+        .from("trading_accounts")
+        .select("*")
+        .eq("id", account_id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (!account) {
+        return new Response(JSON.stringify({ error: "Conto non trovato" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      let metaapiCleanupError: string | null = null;
+
+      // 1. Try to remove MetaApi account if connected
+      if (account.provider_type === "metaapi" && account.provider_account_id) {
+        try {
+          console.log("[delete_account] Removing MetaApi account:", account.provider_account_id);
+          // First undeploy, then delete
+          try {
+            await metaapiRequest(`/users/current/accounts/${account.provider_account_id}/undeploy`, {
+              method: "POST",
+            });
+            console.log("[delete_account] MetaApi account undeployed");
+            // Wait a moment for undeploy to process
+            await new Promise((r) => setTimeout(r, 2000));
+          } catch (undeployErr) {
+            console.warn("[delete_account] Undeploy warning (may already be undeployed):", undeployErr.message);
+          }
+
+          await metaapiRequest(`/users/current/accounts/${account.provider_account_id}`, {
+            method: "DELETE",
+          });
+          console.log("[delete_account] MetaApi account deleted successfully");
+        } catch (metaErr) {
+          metaapiCleanupError = metaErr.message;
+          console.error("[delete_account] MetaApi cleanup error (proceeding with local delete):", metaErr.message);
+        }
+      }
+
+      // 2. Delete related data in order (journal entries, trade history, sync logs, then account)
+      console.log("[delete_account] Deleting related data for account:", account_id);
+
+      const { error: journalErr } = await supabase
+        .from("trade_journal_entries")
+        .delete()
+        .eq("account_id", account_id);
+      if (journalErr) console.warn("[delete_account] Journal delete warning:", journalErr.message);
+
+      const { error: tradesErr } = await supabase
+        .from("account_trade_history")
+        .delete()
+        .eq("account_id", account_id);
+      if (tradesErr) console.warn("[delete_account] Trades delete warning:", tradesErr.message);
+
+      const { error: logsErr } = await supabase
+        .from("account_sync_logs")
+        .delete()
+        .eq("account_id", account_id);
+      if (logsErr) console.warn("[delete_account] Sync logs delete warning:", logsErr.message);
+
+      // 3. Delete the account itself
+      const { error: accountErr } = await supabase
+        .from("trading_accounts")
+        .delete()
+        .eq("id", account_id);
+
+      if (accountErr) {
+        return new Response(JSON.stringify({ success: false, error: `Errore eliminazione conto: ${accountErr.message}` }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log("[delete_account] Account deleted successfully:", account_id);
+
+      return new Response(JSON.stringify({
+        success: true,
+        metaapi_cleanup: metaapiCleanupError ? "partial" : "complete",
+        metaapi_error: metaapiCleanupError,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ error: "Azione non valida" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
