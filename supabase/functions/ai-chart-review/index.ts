@@ -572,6 +572,20 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       }
     }
 
+    // Log AI usage
+    const tokensInput = aiData.usage?.prompt_tokens || 0;
+    const tokensOutput = aiData.usage?.completion_tokens || 0;
+    const estimatedCost = estimateAICost(model, tokensInput, tokensOutput);
+    await supabase.from("ai_usage_log").insert({
+      user_id: user.id,
+      function_type: functionType,
+      model,
+      tokens_input: tokensInput,
+      tokens_output: tokensOutput,
+      estimated_cost: estimatedCost,
+      metadata: { review_id: review.id, review_mode: isEasy ? "easy" : "pro" },
+    });
+
     return new Response(
       JSON.stringify({ id: review.id, analysis, status: "completed", review_tier: isPremium ? "premium" : "standard" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
