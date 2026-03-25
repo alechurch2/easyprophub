@@ -93,22 +93,28 @@ async function createMetaApiAccount(account: any): Promise<string> {
   if (!token) throw new Error("METAAPI_TOKEN non configurato");
 
   const payload = {
-    login: account.account_number,
+    login: String(account.account_number),
     password: account.investor_password,
     name: account.account_name || `EasyProp-${account.account_number}`,
     server: account.server,
     platform: (account.platform || "mt5").toLowerCase(),
     type: "cloud-g2",
     reliability: "high",
-    // read-only: we use investor password, MetaApi will detect access type
   };
+
+  console.log("[MetaApi] Creating account with payload:", JSON.stringify({ ...payload, password: "***" }));
 
   const result = await metaapiRequest("/users/current/accounts", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
-  return result.id; // MetaApi account ID
+  console.log("[MetaApi] Account created, id:", result.id);
+  if (!result.id) {
+    throw new Error(`MetaApi non ha restituito un account ID. Risposta: ${JSON.stringify(result)}`);
+  }
+
+  return result.id;
 }
 
 // Deploy the account (start the cloud instance)
