@@ -155,9 +155,9 @@ export default function Dashboard() {
 
         {/* License & Status */}
         <div className="grid grid-cols-1 gap-3 mb-6">
-          <div className="card-premium p-4 flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-success" />
-            <span className="text-sm text-foreground">Stato account:</span>
+          <div className="card-premium p-4 flex items-center gap-3 min-w-0">
+            <div className="h-2 w-2 rounded-full bg-success shrink-0" />
+            <span className="text-sm text-foreground whitespace-nowrap">Stato:</span>
             <Badge variant="secondary" className="text-xs">
               {isAdmin ? "Amministratore" : "Attivo"}
             </Badge>
