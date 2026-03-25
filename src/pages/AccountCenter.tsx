@@ -218,7 +218,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
           </Select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-foreground">Broker</Label>
             <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Es: ICMarkets" className="mt-1" />
