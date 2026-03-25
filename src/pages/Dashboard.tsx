@@ -153,13 +153,47 @@ export default function Dashboard() {
           <p className="text-muted-foreground mt-1">{BRAND.description}</p>
         </div>
 
-        {/* Status */}
-        <div className="card-premium p-4 mb-6 flex items-center gap-3">
-          <div className="h-2 w-2 rounded-full bg-success" />
-          <span className="text-sm text-foreground">Stato account:</span>
-          <Badge variant="secondary" className="text-xs">
-            {isAdmin ? "Amministratore" : "Attivo"}
-          </Badge>
+        {/* License & Status */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          <div className="card-premium p-4 flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-success" />
+            <span className="text-sm text-foreground">Stato account:</span>
+            <Badge variant="secondary" className="text-xs">
+              {isAdmin ? "Amministratore" : "Attivo"}
+            </Badge>
+          </div>
+          <div className="card-premium p-4 flex items-center gap-3">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <span className="text-xs text-muted-foreground">Licenza: </span>
+              <Badge className={cn("text-xs",
+                licenseStatus === "lifetime" ? "bg-primary/10 text-primary" :
+                daysRemaining !== null && daysRemaining <= 7 ? "bg-amber-500/10 text-amber-600" :
+                "bg-success/10 text-success"
+              )}>
+                {licenseStatus === "lifetime" ? "♾️ Lifetime" :
+                 daysRemaining !== null ? `${daysRemaining}g rimanenti` : "Attiva"}
+              </Badge>
+            </div>
+            {accessExpiresAt && licenseStatus !== "lifetime" && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                Scade: {new Date(accessExpiresAt).toLocaleDateString("it-IT")}
+              </span>
+            )}
+          </div>
+          <div className="card-premium p-4 flex items-center gap-3">
+            <Crown className="h-4 w-4 text-amber-500" />
+            <div>
+              <span className="text-xs text-muted-foreground">Premium review: </span>
+              {premiumUsage ? (
+                <Badge variant="outline" className="text-xs">
+                  {Math.max(0, premiumUsage.limit - premiumUsage.used)}/{premiumUsage.limit} disponibili
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">3/3 disponibili</Badge>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Review Stats */}
