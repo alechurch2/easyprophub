@@ -99,6 +99,7 @@ async function createMetaApiAccount(account: any): Promise<string> {
     server: account.server,
     platform: (account.platform || "mt5").toLowerCase(),
     type: "cloud-g2",
+    magic: 0,
     reliability: "high",
   };
 
