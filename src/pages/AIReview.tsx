@@ -2,18 +2,19 @@ import { useEffect, useState, useMemo } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap } from "lucide-react";
+import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { Review } from "@/components/ai-review/types";
+import { Review, PremiumUsage } from "@/components/ai-review/types";
 import { ReviewForm } from "@/components/ai-review/ReviewForm";
 import { EasyReviewForm } from "@/components/ai-review/EasyReviewForm";
 import { ReviewDetail } from "@/components/ai-review/ReviewDetail";
 import { ReviewComparison } from "@/components/ai-review/ReviewComparison";
 import { ReviewFilters } from "@/components/ai-review/ReviewFilters";
 import { ModeSelector } from "@/components/ai-review/ModeSelector";
+import { TierSelector } from "@/components/ai-review/TierSelector";
 
 export default function AIReview() {
   const { user } = useAuth();
@@ -22,6 +23,8 @@ export default function AIReview() {
   const [showForm, setShowForm] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [reviewMode, setReviewMode] = useState<"pro" | "easy">("easy");
+  const [reviewTier, setReviewTier] = useState<"standard" | "premium">("standard");
+  const [premiumUsage, setPremiumUsage] = useState<PremiumUsage | null>(null);
 
   // Filters
   const [search, setSearch] = useState("");
@@ -35,7 +38,7 @@ export default function AIReview() {
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
   const [showComparison, setShowComparison] = useState(false);
 
-  useEffect(() => { loadReviews(); }, []);
+  useEffect(() => { loadReviews(); loadPremiumUsage(); }, []);
 
   const loadReviews = async () => {
     const { data } = await supabase
@@ -45,6 +48,18 @@ export default function AIReview() {
       .order("created_at", { ascending: false });
     if (data) setReviews(data as any[]);
     setLoading(false);
+  };
+
+  const loadPremiumUsage = async () => {
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const { data } = await supabase
+      .from("premium_review_usage" as any)
+      .select("*")
+      .eq("user_id", user!.id)
+      .eq("month_year", monthYear)
+      .single();
+    if (data) setPremiumUsage(data as any);
   };
 
   const filtered = useMemo(() => {
@@ -104,7 +119,7 @@ export default function AIReview() {
           <ReviewDetail
             review={selectedReview}
             onBack={() => setSelectedReview(null)}
-            onRefresh={loadReviews}
+            onRefresh={() => { loadReviews(); loadPremiumUsage(); }}
             onSelectReview={setSelectedReview}
           />
         </div>
@@ -147,14 +162,20 @@ export default function AIReview() {
           </p>
         </div>
 
-        {/* Mode selector + Form */}
+        {/* Tier selector + Mode selector + Form */}
         {showForm && (
           <>
+            <TierSelector
+              tier={reviewTier}
+              onChange={setReviewTier}
+              premiumUsed={premiumUsage?.reviews_used ?? 0}
+              premiumQuota={premiumUsage?.quota_limit ?? 3}
+            />
             <ModeSelector mode={reviewMode} onChange={setReviewMode} />
             {reviewMode === "pro" ? (
-              <ReviewForm onClose={() => setShowForm(false)} onSuccess={loadReviews} />
+              <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
             ) : (
-              <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={loadReviews} />
+              <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
             )}
           </>
         )}
@@ -195,7 +216,10 @@ export default function AIReview() {
           ) : (
             <div className="space-y-2">
               {filtered.map((r) => (
-                <div key={r.id} className="card-premium p-4 hover:border-primary/30 transition-colors flex items-center gap-3">
+                <div key={r.id} className={cn(
+                  "card-premium p-4 hover:border-primary/30 transition-colors flex items-center gap-3",
+                  r.review_tier === "premium" && "border-amber-500/20"
+                )}>
                   <Checkbox
                     checked={compareIds.has(r.id)}
                     onCheckedChange={() => toggleCompare(r.id)}
@@ -216,6 +240,11 @@ export default function AIReview() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {r.review_tier === "premium" && (
+                          <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+                            <Crown className="h-2.5 w-2.5 mr-0.5" />Premium
+                          </Badge>
+                        )}
                         {r.review_mode === "easy" && (
                           <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
                             <Zap className="h-2.5 w-2.5 mr-0.5" />Easy

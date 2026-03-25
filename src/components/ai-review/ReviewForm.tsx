@@ -16,9 +16,10 @@ interface Props {
   parentReviewId?: string | null;
   defaultAsset?: string;
   defaultTimeframe?: string;
+  reviewTier?: "standard" | "premium";
 }
 
-export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, defaultTimeframe }: Props) {
+export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, defaultTimeframe, reviewTier = "standard" }: Props) {
   const { user } = useAuth();
   const [asset, setAsset] = useState(defaultAsset || ASSETS[0]);
   const [timeframe, setTimeframe] = useState(defaultTimeframe || TIMEFRAMES[4]);
@@ -55,14 +56,23 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
             screenshot_url: screenshotUrl,
             user_note: userNote.trim() || null,
             parent_review_id: parentReviewId || null,
+            review_tier: reviewTier,
           }),
         }
       );
 
       const result = await response.json();
-      if (!response.ok) { toast.error(result.error || "Errore nell'analisi AI"); setSubmitting(false); return; }
+      if (!response.ok) {
+        if (result.quota_exceeded) {
+          toast.error("Hai esaurito le review premium disponibili per questo mese.");
+        } else {
+          toast.error(result.error || "Errore nell'analisi AI");
+        }
+        setSubmitting(false);
+        return;
+      }
 
-      toast.success(parentReviewId ? "Riesame completato!" : "Review completata!");
+      toast.success(parentReviewId ? "Riesame completato!" : `Review ${reviewTier === "premium" ? "premium " : ""}completata!`);
       onClose();
       onSuccess();
     } catch (err) {
