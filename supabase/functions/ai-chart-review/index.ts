@@ -420,6 +420,8 @@ serve(async (req) => {
         request_type,
         screenshot_url,
         status: "pending",
+        user_note: user_note || null,
+        parent_review_id: parent_review_id || null,
       })
       .select()
       .single();

@@ -1,49 +1,38 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  BarChart3, Upload, Loader2, AlertTriangle, TrendingUp, TrendingDown,
-  Target, ShieldAlert, Star, Eye, Layers, Droplets, MapPin, CheckCircle2, XCircle, FileText
-} from "lucide-react";
+import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-
-const ASSETS = ["EUR/USD", "GBP/USD", "USD/JPY", "XAU/USD", "BTC/USD", "ETH/USD", "US30", "NAS100", "SPX500"];
-const TIMEFRAMES = ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"];
-const REQUEST_TYPES = ["Analisi completa", "Setup check", "Bias confirmation", "Zone di interesse"];
-
-interface Review {
-  id: string;
-  asset: string;
-  timeframe: string;
-  request_type: string;
-  screenshot_url: string | null;
-  analysis: any;
-  status: string;
-  created_at: string;
-}
+import { Review } from "@/components/ai-review/types";
+import { ReviewForm } from "@/components/ai-review/ReviewForm";
+import { ReviewDetail } from "@/components/ai-review/ReviewDetail";
+import { ReviewComparison } from "@/components/ai-review/ReviewComparison";
+import { ReviewFilters } from "@/components/ai-review/ReviewFilters";
 
 export default function AIReview() {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [asset, setAsset] = useState(ASSETS[0]);
-  const [timeframe, setTimeframe] = useState(TIMEFRAMES[4]);
-  const [requestType, setRequestType] = useState(REQUEST_TYPES[0]);
-  const [file, setFile] = useState<File | null>(null);
-  const [submitting, setSubmitting] = useState(false);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
 
-  useEffect(() => {
-    loadReviews();
-  }, []);
+  // Filters
+  const [search, setSearch] = useState("");
+  const [filterAsset, setFilterAsset] = useState("all");
+  const [filterTimeframe, setFilterTimeframe] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterQuality, setFilterQuality] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+
+  // Comparison
+  const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
+  const [showComparison, setShowComparison] = useState(false);
+
+  useEffect(() => { loadReviews(); }, []);
 
   const loadReviews = async () => {
     const { data } = await supabase
@@ -51,175 +40,73 @@ export default function AIReview() {
       .select("*")
       .eq("user_id", user!.id)
       .order("created_at", { ascending: false });
-    if (data) setReviews(data);
+    if (data) setReviews(data as any[]);
     setLoading(false);
   };
 
-  const submitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!file) {
-      toast.error("Carica uno screenshot del grafico");
-      return;
+  const filtered = useMemo(() => {
+    let result = [...reviews];
+    if (filterAsset !== "all") result = result.filter(r => r.asset === filterAsset);
+    if (filterTimeframe !== "all") result = result.filter(r => r.timeframe === filterTimeframe);
+    if (filterStatus !== "all") result = result.filter(r => r.status === filterStatus);
+    if (filterQuality !== "all") {
+      result = result.filter(r => {
+        const q = r.analysis?.qualita_setup;
+        if (typeof q !== "number") return false;
+        if (filterQuality === "high") return q >= 8;
+        if (filterQuality === "medium") return q >= 5 && q <= 7;
+        if (filterQuality === "low") return q <= 4;
+        return true;
+      });
     }
-    setSubmitting(true);
-
-    try {
-      // Upload screenshot
-      let screenshotUrl: string | null = null;
-      const filePath = `${user!.id}/${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("chart-screenshots").upload(filePath, file);
-      if (uploadError) {
-        toast.error("Errore nel caricamento dell'immagine");
-        setSubmitting(false);
-        return;
-      }
-      const { data: urlData } = supabase.storage.from("chart-screenshots").getPublicUrl(filePath);
-      screenshotUrl = urlData.publicUrl;
-
-      // Call edge function
-      const { data: session } = await supabase.auth.getSession();
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chart-review`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.session?.access_token}`,
-          },
-          body: JSON.stringify({
-            asset,
-            timeframe,
-            request_type: requestType,
-            screenshot_url: screenshotUrl,
-          }),
-        }
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      result = result.filter(r =>
+        r.asset.toLowerCase().includes(s) ||
+        r.request_type.toLowerCase().includes(s) ||
+        r.user_note?.toLowerCase().includes(s) ||
+        r.analysis?.conclusione?.toLowerCase().includes(s)
       );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast.error(result.error || "Errore nell'analisi AI");
-        setSubmitting(false);
-        return;
-      }
-
-      toast.success("Review completata!");
-      setShowForm(false);
-      setFile(null);
-      loadReviews();
-    } catch (err) {
-      console.error(err);
-      toast.error("Errore di connessione");
     }
-    setSubmitting(false);
+    result.sort((a, b) => {
+      const d = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortOrder === "desc" ? -d : d;
+    });
+    return result;
+  }, [reviews, filterAsset, filterTimeframe, filterStatus, filterQuality, search, sortOrder]);
+
+  const toggleCompare = (id: string) => {
+    const next = new Set(compareIds);
+    if (next.has(id)) next.delete(id);
+    else if (next.size < 2) next.add(id);
+    setCompareIds(next);
   };
 
-  const AnalysisField = ({ icon: Icon, label, value, iconColor = "text-primary", borderColor = "" }: {
-    icon: any; label: string; value: string | number; iconColor?: string; borderColor?: string;
-  }) => (
-    <div className={cn("card-premium p-4", borderColor)}>
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={cn("h-4 w-4", iconColor)} />
-        <span className="text-xs font-medium text-muted-foreground uppercase">{label}</span>
-      </div>
-      <p className="text-sm font-medium text-foreground">{value}</p>
-    </div>
-  );
-
-  const renderAnalysis = (analysis: any) => {
-    if (!analysis) return null;
+  // Show comparison view
+  if (showComparison && compareIds.size === 2) {
+    const ids = Array.from(compareIds);
+    const a = reviews.find(r => r.id === ids[0])!;
+    const b = reviews.find(r => r.id === ids[1])!;
     return (
-      <div className="space-y-4">
-        {/* Image readability + quality */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AnalysisField icon={Eye} label="Leggibilità immagine" value={analysis.leggibilita_immagine} />
-          <AnalysisField icon={Star} label="Qualità Setup" value={`${analysis.qualita_setup}/10`} iconColor="text-primary" />
+      <AppLayout>
+        <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+          <ReviewComparison reviewA={a} reviewB={b} onClose={() => { setShowComparison(false); setCompareIds(new Set()); }} />
         </div>
-
-        {/* Context + Bias */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AnalysisField icon={FileText} label="Contesto" value={analysis.contesto} />
-          <AnalysisField icon={Target} label="Bias / Direzione" value={analysis.bias} />
-        </div>
-
-        {/* Structure + Liquidity */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AnalysisField icon={Layers} label="Struttura" value={analysis.struttura} />
-          <AnalysisField icon={Droplets} label="Liquidità" value={analysis.liquidita} />
-        </div>
-
-        {/* Interesting zone + Confirmation */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AnalysisField icon={MapPin} label="Zona interessante" value={analysis.zona_interessante} />
-          <AnalysisField icon={CheckCircle2} label="Conferma richiesta" value={analysis.conferma_richiesta} />
-        </div>
-
-        {/* Scenarios */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <AnalysisField icon={TrendingUp} label="Scenario Bullish" value={analysis.scenario_bullish} iconColor="text-success" />
-          <AnalysisField icon={TrendingDown} label="Scenario Bearish" value={analysis.scenario_bearish} iconColor="text-destructive" />
-        </div>
-
-        {/* Invalidation */}
-        <AnalysisField icon={XCircle} label="Invalidazione" value={analysis.invalidazione} iconColor="text-destructive" borderColor="border-destructive/20" />
-
-        {/* Warning */}
-        {analysis.warning && (
-          <AnalysisField icon={AlertTriangle} label="Warning" value={analysis.warning} iconColor="text-warning" borderColor="border-warning/20" />
-        )}
-
-        {/* Conclusion */}
-        <AnalysisField icon={ShieldAlert} label="Conclusione" value={analysis.conclusione} iconColor="text-primary" borderColor="border-primary/20" />
-      </div>
+      </AppLayout>
     );
-  };
+  }
 
+  // Show detail view
   if (selectedReview) {
     return (
       <AppLayout>
-        <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
-          <button onClick={() => setSelectedReview(null)} className="text-sm text-primary hover:underline mb-4">
-            ← Torna alle review
-          </button>
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="font-heading text-xl font-bold text-foreground">
-                {selectedReview.asset} - {selectedReview.timeframe}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {selectedReview.request_type} · {new Date(selectedReview.created_at).toLocaleString("it-IT")}
-              </p>
-            </div>
-            <Badge className={cn(
-              selectedReview.status === "completed" ? "bg-success/10 text-success" :
-              selectedReview.status === "failed" ? "bg-destructive/10 text-destructive" :
-              "bg-warning/10 text-warning"
-            )}>
-              {selectedReview.status === "completed" ? "Completata" : selectedReview.status === "failed" ? "Fallita" : "In attesa"}
-            </Badge>
-          </div>
-
-          {selectedReview.screenshot_url && (
-            <div className="card-premium p-2 mb-6">
-              <img src={selectedReview.screenshot_url} alt="Chart" className="rounded-lg w-full max-h-80 object-contain" />
-            </div>
-          )}
-
-          {selectedReview.status === "failed" && (
-            <div className="card-premium p-6 text-center border-destructive/20">
-              <XCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
-              <p className="text-muted-foreground">L'analisi non è stata completata. Riprova con un'immagine più chiara.</p>
-            </div>
-          )}
-
-          {renderAnalysis(selectedReview.analysis)}
-
-          <div className="mt-6 p-4 bg-secondary/50 rounded-lg border border-border">
-            <p className="text-xs text-muted-foreground">
-              <strong>Disclaimer:</strong> Questa analisi è generata a scopo educativo e informativo. Non costituisce consulenza finanziaria
-              né raccomandazione operativa. Le decisioni di trading sono sotto la tua esclusiva responsabilità.
-            </p>
-          </div>
+        <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+          <ReviewDetail
+            review={selectedReview}
+            onBack={() => setSelectedReview(null)}
+            onRefresh={loadReviews}
+            onSelectReview={setSelectedReview}
+          />
         </div>
       </AppLayout>
     );
@@ -228,6 +115,7 @@ export default function AIReview() {
   return (
     <AppLayout>
       <div className="p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
@@ -238,10 +126,16 @@ export default function AIReview() {
               <p className="text-sm text-muted-foreground">Analisi strutturata dei tuoi grafici, powered by EasyProp</p>
             </div>
           </div>
-          <Button onClick={() => setShowForm(!showForm)} size="sm">
-            <Upload className="h-4 w-4 mr-1" />
-            Nuova review
-          </Button>
+          <div className="flex gap-2">
+            {compareIds.size === 2 && (
+              <Button onClick={() => setShowComparison(true)} size="sm" variant="outline">
+                <GitCompare className="h-4 w-4 mr-1" /> Confronta
+              </Button>
+            )}
+            <Button onClick={() => setShowForm(!showForm)} size="sm">
+              <Upload className="h-4 w-4 mr-1" /> Nuova review
+            </Button>
+          </div>
         </div>
 
         {/* Disclaimer */}
@@ -254,100 +148,83 @@ export default function AIReview() {
 
         {/* Form */}
         {showForm && (
-          <div className="card-premium p-6 mb-8 animate-fade-in">
-            <h2 className="font-heading font-semibold text-foreground mb-4">Richiedi una review</h2>
-            <form onSubmit={submitReview} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-foreground">Asset</Label>
-                  <Select value={asset} onValueChange={setAsset}>
-                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {ASSETS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-foreground">Timeframe</Label>
-                  <Select value={timeframe} onValueChange={setTimeframe}>
-                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {TIMEFRAMES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-foreground">Tipo di richiesta</Label>
-                  <Select value={requestType} onValueChange={setRequestType}>
-                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {REQUEST_TYPES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label className="text-foreground">Screenshot del grafico</Label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setFile(e.target.files?.[0] || null)}
-                  className="mt-1.5"
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Annulla</Button>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Analisi in corso...
-                    </>
-                  ) : "Invia richiesta"}
-                </Button>
-              </div>
-            </form>
+          <ReviewForm onClose={() => setShowForm(false)} onSuccess={loadReviews} />
+        )}
+
+        {/* Filters */}
+        <ReviewFilters
+          search={search} onSearchChange={setSearch}
+          filterAsset={filterAsset} onFilterAsset={setFilterAsset}
+          filterTimeframe={filterTimeframe} onFilterTimeframe={setFilterTimeframe}
+          filterStatus={filterStatus} onFilterStatus={setFilterStatus}
+          filterQuality={filterQuality} onFilterQuality={setFilterQuality}
+          sortOrder={sortOrder} onSortToggle={() => setSortOrder(s => s === "desc" ? "asc" : "desc")}
+        />
+
+        {compareIds.size > 0 && (
+          <div className="mb-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
+            <p className="text-xs text-primary">
+              <GitCompare className="h-3 w-3 inline mr-1" />
+              {compareIds.size}/2 review selezionate per il confronto
+              {compareIds.size < 2 && " — selezionane un'altra"}
+              <button onClick={() => setCompareIds(new Set())} className="ml-2 underline">Annulla</button>
+            </p>
           </div>
         )}
 
         {/* Reviews list */}
         <div>
-          <h2 className="font-heading text-lg font-semibold text-foreground mb-4">Le tue review</h2>
+          <h2 className="font-heading text-lg font-semibold text-foreground mb-4">
+            Le tue review <span className="text-muted-foreground font-normal text-sm">({filtered.length})</span>
+          </h2>
           {loading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          ) : reviews.length === 0 ? (
+            <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          ) : filtered.length === 0 ? (
             <div className="card-premium p-8 text-center">
               <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">Nessuna review effettuata</p>
+              <p className="text-muted-foreground">Nessuna review trovata</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {reviews.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setSelectedReview(r)}
-                  className="w-full card-premium p-4 text-left hover:border-primary/30 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-medium text-foreground">
-                        {r.asset} - {r.timeframe}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {r.request_type} · {new Date(r.created_at).toLocaleDateString("it-IT")}
-                      </p>
+              {filtered.map((r) => (
+                <div key={r.id} className="card-premium p-4 hover:border-primary/30 transition-colors flex items-center gap-3">
+                  <Checkbox
+                    checked={compareIds.has(r.id)}
+                    onCheckedChange={() => toggleCompare(r.id)}
+                    disabled={compareIds.size >= 2 && !compareIds.has(r.id)}
+                    className="shrink-0"
+                  />
+                  <button onClick={() => setSelectedReview(r)} className="flex-1 text-left">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <h3 className="text-sm font-medium text-foreground">
+                            {r.asset} - {r.timeframe}
+                            {r.parent_review_id && <span className="text-primary text-[10px] ml-2">🔗 Riesame</span>}
+                          </h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {r.request_type} · {new Date(r.created_at).toLocaleDateString("it-IT")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {r.user_note && <MessageSquare className="h-3 w-3 text-muted-foreground" />}
+                        {r.analysis?.qualita_setup != null && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            <Star className="h-2.5 w-2.5 mr-0.5" />{r.analysis.qualita_setup}/10
+                          </Badge>
+                        )}
+                        <Badge className={cn(
+                          r.status === "completed" ? "bg-success/10 text-success" :
+                          r.status === "failed" ? "bg-destructive/10 text-destructive" :
+                          "bg-warning/10 text-warning"
+                        )}>
+                          {r.status === "completed" ? "Completata" : r.status === "failed" ? "Fallita" : "In attesa"}
+                        </Badge>
+                      </div>
                     </div>
-                    <Badge className={cn(
-                      r.status === "completed" ? "bg-success/10 text-success" :
-                      r.status === "failed" ? "bg-destructive/10 text-destructive" :
-                      "bg-warning/10 text-warning"
-                    )}>
-                      {r.status === "completed" ? "Completata" : r.status === "failed" ? "Fallita" : "In attesa"}
-                    </Badge>
-                  </div>
-                </button>
+                  </button>
+                </div>
               ))}
             </div>
           )}
