@@ -206,7 +206,6 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
             <SelectContent>
               <SelectItem value="MT4">MetaTrader 4</SelectItem>
               <SelectItem value="MT5">MetaTrader 5</SelectItem>
-              <SelectItem value="other">Altro</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -217,18 +216,18 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
             <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Es: ICMarkets" className="mt-1" />
           </div>
           <div>
-            <Label className="text-foreground">Server</Label>
-            <Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: ICMarkets-Live" className="mt-1" />
+            <Label className="text-foreground">Server *</Label>
+            <Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: ICMarketsSC-MT5" className="mt-1" />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-foreground">Numero conto</Label>
+            <Label className="text-foreground">Login (numero conto) *</Label>
             <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Es: 12345678" className="mt-1" />
           </div>
           <div>
-            <Label className="text-foreground">Investor Password</Label>
+            <Label className="text-foreground">Investor Password *</Label>
             <Input type="password" value={investorPassword} onChange={(e) => setInvestorPassword(e.target.value)} placeholder="Password read-only" className="mt-1" />
           </div>
         </div>
@@ -241,15 +240,23 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
         <div className="card-premium p-3 border-primary/20 bg-primary/5">
           <div className="flex items-start gap-2">
             <Shield className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              Il conto verrà collegato in <strong>modalità sola lettura</strong>. Non sarà possibile aprire, chiudere o modificare ordini dalla piattaforma.
-            </p>
+            <div className="text-xs text-muted-foreground">
+              <p><strong>Modalità sola lettura.</strong> Usa la tua <strong>investor password</strong> (non la master password). Il portale non può aprire, chiudere o modificare ordini.</p>
+              <p className="mt-1 text-[10px]">Il collegamento avviene tramite MetaApi. La connessione iniziale può richiedere fino a 90 secondi.</p>
+            </div>
           </div>
         </div>
 
+        {connectionStep && (
+          <div className="flex items-center gap-2 text-sm text-primary">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{connectionStep}</span>
+          </div>
+        )}
+
         <div className="flex gap-2 justify-end pt-2">
-          <Button variant="outline" onClick={onClose}>Annulla</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || saving}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Annulla</Button>
+          <Button onClick={handleSave} disabled={!name.trim() || !accountNumber.trim() || !server.trim() || !investorPassword.trim() || saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
             Collega conto
           </Button>
