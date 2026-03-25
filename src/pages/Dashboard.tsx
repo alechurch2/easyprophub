@@ -4,8 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet } from "lucide-react";
+import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface Announcement {
   id: string;
@@ -22,9 +23,10 @@ interface ReviewStats {
 }
 
 export default function Dashboard() {
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, licenseStatus, accessExpiresAt, daysRemaining, user } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stats, setStats] = useState<ReviewStats>({ totalPro: 0, totalEasy: 0, avgQuality: null, topAssets: [] });
+  const [premiumUsage, setPremiumUsage] = useState<{ used: number; limit: number } | null>(null);
 
   useEffect(() => {
     supabase
@@ -47,14 +49,11 @@ export default function Dashboard() {
         const totalPro = data.filter((r) => r.review_mode === "pro").length;
         const totalEasy = data.filter((r) => r.review_mode === "easy").length;
 
-        // Average quality from analysis JSON
         const qualities = data
           .map((r) => {
             const a = r.analysis as any;
             if (!a) return null;
-            // Pro mode quality
             if (a.qualita_setup != null) return Number(a.qualita_setup);
-            // Easy mode quality from setups
             if (a.setups?.length) {
               const q = a.setups.map((s: any) =>
                 s.signal_quality === "alta" ? 9 : s.signal_quality === "media" ? 6 : 3
@@ -66,7 +65,6 @@ export default function Dashboard() {
           .filter((v): v is number => v !== null);
         const avgQuality = qualities.length ? Math.round((qualities.reduce((a, b) => a + b, 0) / qualities.length) * 10) / 10 : null;
 
-        // Top assets
         const assetCounts: Record<string, number> = {};
         data.forEach((r) => { assetCounts[r.asset] = (assetCounts[r.asset] || 0) + 1; });
         const topAssets = Object.entries(assetCounts)
@@ -76,7 +74,22 @@ export default function Dashboard() {
 
         setStats({ totalPro, totalEasy, avgQuality, topAssets });
       });
-  }, []);
+
+    // Premium usage
+    if (user) {
+      const now = new Date();
+      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      supabase
+        .from("premium_review_usage")
+        .select("reviews_used, quota_limit")
+        .eq("user_id", user.id)
+        .eq("month_year", monthYear)
+        .single()
+        .then(({ data }) => {
+          if (data) setPremiumUsage({ used: (data as any).reviews_used, limit: (data as any).quota_limit });
+        });
+    }
+  }, [user]);
 
   const cards = [
     {
@@ -140,13 +153,47 @@ export default function Dashboard() {
           <p className="text-muted-foreground mt-1">{BRAND.description}</p>
         </div>
 
-        {/* Status */}
-        <div className="card-premium p-4 mb-6 flex items-center gap-3">
-          <div className="h-2 w-2 rounded-full bg-success" />
-          <span className="text-sm text-foreground">Stato account:</span>
-          <Badge variant="secondary" className="text-xs">
-            {isAdmin ? "Amministratore" : "Attivo"}
-          </Badge>
+        {/* License & Status */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          <div className="card-premium p-4 flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-success" />
+            <span className="text-sm text-foreground">Stato account:</span>
+            <Badge variant="secondary" className="text-xs">
+              {isAdmin ? "Amministratore" : "Attivo"}
+            </Badge>
+          </div>
+          <div className="card-premium p-4 flex items-center gap-3">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <span className="text-xs text-muted-foreground">Licenza: </span>
+              <Badge className={cn("text-xs",
+                licenseStatus === "lifetime" ? "bg-primary/10 text-primary" :
+                daysRemaining !== null && daysRemaining <= 7 ? "bg-amber-500/10 text-amber-600" :
+                "bg-success/10 text-success"
+              )}>
+                {licenseStatus === "lifetime" ? "♾️ Lifetime" :
+                 daysRemaining !== null ? `${daysRemaining}g rimanenti` : "Attiva"}
+              </Badge>
+            </div>
+            {accessExpiresAt && licenseStatus !== "lifetime" && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                Scade: {new Date(accessExpiresAt).toLocaleDateString("it-IT")}
+              </span>
+            )}
+          </div>
+          <div className="card-premium p-4 flex items-center gap-3">
+            <Crown className="h-4 w-4 text-amber-500" />
+            <div>
+              <span className="text-xs text-muted-foreground">Premium review: </span>
+              {premiumUsage ? (
+                <Badge variant="outline" className="text-xs">
+                  {Math.max(0, premiumUsage.limit - premiumUsage.used)}/{premiumUsage.limit} disponibili
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">3/3 disponibili</Badge>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Review Stats */}
