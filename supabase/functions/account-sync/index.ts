@@ -87,29 +87,65 @@ async function metaapiClientRequest(accountId: string, path: string) {
   if (!token) throw new Error("METAAPI_TOKEN non configurato");
 
   const url = `${METAAPI_CLIENT_BASE}/users/current/accounts/${accountId}${path}`;
-  const res = await fetch(url, {
-    headers: {
-      "auth-token": token,
-      "Content-Type": "application/json",
-    },
-  });
-
-  const rawBody = await res.text();
-  console.log(`[MetaApi Client] GET ${path} -> ${res.status}, body length: ${rawBody.length}`);
-
-  if (!res.ok) {
-    throw new Error(`MetaApi client error ${res.status}: ${rawBody || "empty response"}`);
-  }
-
-  if (!rawBody || rawBody.trim() === "") {
-    return null;
-  }
+  console.log(`[MetaApi Client] Fetching URL: ${url}`);
 
   try {
-    return JSON.parse(rawBody);
-  } catch (e) {
-    console.warn(`[MetaApi Client] Non-JSON response for ${path}: ${rawBody.substring(0, 200)}`);
-    return null;
+    const res = await fetch(url, {
+      headers: {
+        "auth-token": token,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const rawBody = await res.text();
+    console.log(`[MetaApi Client] GET ${path} -> ${res.status}, body length: ${rawBody.length}`);
+
+    if (!res.ok) {
+      throw new Error(`MetaApi client error ${res.status}: ${rawBody || "empty response"}`);
+    }
+
+    if (!rawBody || rawBody.trim() === "") {
+      return null;
+    }
+
+    try {
+      return JSON.parse(rawBody);
+    } catch (e) {
+      console.warn(`[MetaApi Client] Non-JSON response for ${path}: ${rawBody.substring(0, 200)}`);
+      return null;
+    }
+  } catch (err) {
+    // Catch TLS / network errors specifically
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[MetaApi Client] NETWORK ERROR on ${url}: ${msg}`);
+
+    // If TLS error, try to get the account's actual access URL from provisioning API
+    if (msg.includes("certificate") || msg.includes("TLS") || msg.includes("UnknownIssuer") || msg.includes("Expired")) {
+      console.log("[MetaApi Client] TLS error detected. Trying to resolve correct client API URL from provisioning API...");
+      try {
+        const accountMeta = await metaapiRequest(`/users/current/accounts/${accountId}`);
+        const accessUrl = accountMeta?.accessUrls?.httpUrl || accountMeta?.accessUrls?.restApiUrl;
+        if (accessUrl) {
+          console.log(`[MetaApi Client] Found access URL from account metadata: ${accessUrl}`);
+          const altUrl = `${accessUrl}${path}`;
+          console.log(`[MetaApi Client] Retrying with: ${altUrl}`);
+          const res2 = await fetch(altUrl, {
+            headers: { "auth-token": token, "Content-Type": "application/json" },
+          });
+          const rawBody2 = await res2.text();
+          console.log(`[MetaApi Client] ALT GET ${path} -> ${res2.status}, body length: ${rawBody2.length}`);
+          if (!res2.ok) throw new Error(`MetaApi client alt error ${res2.status}: ${rawBody2}`);
+          if (!rawBody2 || rawBody2.trim() === "") return null;
+          try { return JSON.parse(rawBody2); } catch { return null; }
+        } else {
+          console.log("[MetaApi Client] No access URL found in account metadata:", JSON.stringify(accountMeta?.accessUrls || {}));
+        }
+      } catch (fallbackErr) {
+        console.error("[MetaApi Client] Fallback also failed:", fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr));
+      }
+    }
+
+    throw new Error(`MetaApi client network error: ${msg}`);
   }
 }
 
