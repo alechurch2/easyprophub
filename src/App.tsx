@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Training from "./pages/Training";
 import Support from "./pages/Support";
 import AIReview from "./pages/AIReview";
+import AIAssistant from "./pages/AIAssistant";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/training" element={<ProtectedRoute><Training /></ProtectedRoute>} />
             <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
             <Route path="/ai-review" element={<ProtectedRoute><AIReview /></ProtectedRoute>} />
+            <Route path="/ai-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

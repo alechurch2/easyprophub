@@ -3,8 +3,8 @@ import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone,
-  Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save
+  Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone, Bot,
+  Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -417,6 +417,117 @@ function AdminAnnouncements() {
   );
 }
 
+// ---- AI Chat Tab ----
+function AdminAIChat() {
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [selectedConv, setSelectedConv] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [filterMode, setFilterMode] = useState<string>("all");
+
+  const load = async () => {
+    const { data } = await supabase
+      .from("ai_chat_conversations")
+      .select("*")
+      .order("updated_at", { ascending: false });
+    if (data) {
+      setConversations(data);
+      const userIds = [...new Set(data.map((c: any) => c.user_id))];
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", userIds);
+        if (profs) {
+          const map: Record<string, string> = {};
+          profs.forEach((p: any) => { map[p.user_id] = p.full_name || "N/A"; });
+          setProfiles(map);
+        }
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const viewConv = async (conv: any) => {
+    setSelectedConv(conv);
+    const { data } = await supabase
+      .from("ai_chat_messages")
+      .select("*")
+      .eq("conversation_id", conv.id)
+      .order("created_at");
+    if (data) setMessages(data);
+  };
+
+  const modeLabel = (m: string) => {
+    switch (m) {
+      case "trading_questions": return "Trading";
+      case "setup_evaluation": return "Setup";
+      case "method_support": return "Metodo";
+      default: return m;
+    }
+  };
+
+  const filtered = filterMode === "all" ? conversations : conversations.filter(c => c.mode === filterMode);
+
+  if (selectedConv) {
+    return (
+      <div className="animate-fade-in">
+        <button onClick={() => setSelectedConv(null)} className="text-sm text-primary hover:underline mb-4 flex items-center gap-1">
+          <ChevronLeft className="h-3 w-3" /> Torna alle conversazioni
+        </button>
+        <div className="mb-4">
+          <h3 className="font-medium text-foreground">{selectedConv.title}</h3>
+          <p className="text-xs text-muted-foreground">
+            {profiles[selectedConv.user_id] || "N/A"} · {modeLabel(selectedConv.mode)} · {new Date(selectedConv.created_at).toLocaleString("it-IT")}
+          </p>
+        </div>
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+          {messages.map((msg: any) => (
+            <div key={msg.id} className={cn("card-premium p-3", msg.role === "assistant" && "border-primary/20")}>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                {msg.role === "assistant" ? "🤖 AI" : "👤 Utente"} · {new Date(msg.created_at).toLocaleString("it-IT")}
+              </p>
+              <p className="text-sm text-foreground whitespace-pre-wrap">{msg.content}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {["all", "trading_questions", "setup_evaluation", "method_support"].map(m => (
+          <Button key={m} size="sm" variant={filterMode === m ? "default" : "outline"} onClick={() => setFilterMode(m)}>
+            {m === "all" ? "Tutte" : modeLabel(m)}
+          </Button>
+        ))}
+      </div>
+      {filtered.length === 0 ? (
+        <p className="text-muted-foreground text-center p-8">Nessuna conversazione AI</p>
+      ) : filtered.map(c => (
+        <button key={c.id} onClick={() => viewConv(c)} className="w-full card-premium p-4 text-left hover:border-primary/30 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">{c.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {profiles[c.user_id] || c.user_id.slice(0, 8)} · {modeLabel(c.mode)} · {new Date(c.updated_at).toLocaleDateString("it-IT")}
+              </p>
+            </div>
+            <Badge variant="secondary" className="text-[10px]">{modeLabel(c.mode)}</Badge>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ---- Main Admin Page ----
 export default function Admin() {
   return (
@@ -438,6 +549,7 @@ export default function Admin() {
             <TabsTrigger value="courses" className="flex-1 min-w-[100px]"><BookOpen className="h-3 w-3 mr-1" />Corsi</TabsTrigger>
             <TabsTrigger value="support" className="flex-1 min-w-[100px]"><HeadphonesIcon className="h-3 w-3 mr-1" />Supporto</TabsTrigger>
             <TabsTrigger value="reviews" className="flex-1 min-w-[100px]"><BarChart3 className="h-3 w-3 mr-1" />Reviews</TabsTrigger>
+            <TabsTrigger value="ai-chat" className="flex-1 min-w-[100px]"><Bot className="h-3 w-3 mr-1" />AI Chat</TabsTrigger>
             <TabsTrigger value="announcements" className="flex-1 min-w-[100px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
           </TabsList>
 
@@ -445,6 +557,7 @@ export default function Admin() {
           <TabsContent value="courses"><AdminCourses /></TabsContent>
           <TabsContent value="support"><AdminSupport /></TabsContent>
           <TabsContent value="reviews"><AdminReviews /></TabsContent>
+          <TabsContent value="ai-chat"><AdminAIChat /></TabsContent>
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
         </Tabs>
       </div>

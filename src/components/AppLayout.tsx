@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { label: "Formazione", icon: BookOpen, path: "/training" },
   { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
+  { label: "AI Assistant", icon: Bot, path: "/ai-assistant" },
   { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
