@@ -141,6 +141,67 @@ export default function Dashboard() {
           </Badge>
         </div>
 
+        {/* Review Stats */}
+        {(stats.totalPro > 0 || stats.totalEasy > 0) && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            {/* Pro vs Easy */}
+            <div className="card-premium p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                </div>
+                <span className="text-sm font-medium text-foreground">Le tue Review</span>
+              </div>
+              <div className="flex items-end gap-4">
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stats.totalPro + stats.totalEasy}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">totali completate</p>
+                </div>
+                <div className="flex gap-2 mb-1">
+                  <Badge variant="outline" className="text-xs">{stats.totalPro} Pro</Badge>
+                  <Badge variant="secondary" className="text-xs">{stats.totalEasy} Easy</Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Average Quality */}
+            <div className="card-premium p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
+                  <Zap className="h-4 w-4 text-success" />
+                </div>
+                <span className="text-sm font-medium text-foreground">Qualità Media</span>
+              </div>
+              <p className="text-2xl font-bold text-foreground">
+                {stats.avgQuality != null ? `${stats.avgQuality}/10` : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">su tutte le review</p>
+            </div>
+
+            {/* Top Assets */}
+            <div className="card-premium p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-8 w-8 rounded-lg bg-info/10 flex items-center justify-center">
+                  <Target className="h-4 w-4 text-info" />
+                </div>
+                <span className="text-sm font-medium text-foreground">Asset più analizzati</span>
+              </div>
+              {stats.topAssets.length > 0 ? (
+                <div className="space-y-1.5">
+                  {stats.topAssets.map((a) => (
+                    <div key={a.asset} className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">{a.asset}</span>
+                      <span className="text-xs text-muted-foreground">{a.count} review</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">—</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Quick cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {cards.map((card) => (
