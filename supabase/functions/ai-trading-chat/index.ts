@@ -140,6 +140,16 @@ serve(async (req) => {
       });
     }
 
+    // Check admin status and usage limits
+    const { data: isAdminCheck } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    const limitError = await checkChatLimits(supabase, user.id, !!isAdminCheck);
+    if (limitError) {
+      return new Response(JSON.stringify({ error: limitError, limit_exceeded: true }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { messages, conversation_id, mode } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
