@@ -962,17 +962,17 @@ export default function AccountCenter() {
     <AppLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Wallet className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="font-heading text-2xl font-bold text-foreground">Account Center</h1>
-              <p className="text-sm text-muted-foreground">Monitora i tuoi conti trading in sola lettura</p>
+              <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground">Account Center</h1>
+              <p className="text-sm text-muted-foreground">Monitora i tuoi conti trading</p>
             </div>
           </div>
-          <Button onClick={() => setShowConnect(true)}>
+          <Button onClick={() => setShowConnect(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Collega conto
           </Button>
         </div>
