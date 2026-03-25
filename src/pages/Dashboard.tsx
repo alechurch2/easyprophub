@@ -162,37 +162,33 @@ export default function Dashboard() {
               {isAdmin ? "Amministratore" : "Attivo"}
             </Badge>
           </div>
-          <div className="card-premium p-4 flex items-center gap-3">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <span className="text-xs text-muted-foreground">Licenza: </span>
-              <Badge className={cn("text-xs",
-                licenseStatus === "lifetime" ? "bg-primary/10 text-primary" :
-                daysRemaining !== null && daysRemaining <= 7 ? "bg-amber-500/10 text-amber-600" :
-                "bg-success/10 text-success"
-              )}>
-                {licenseStatus === "lifetime" ? "♾️ Lifetime" :
-                 daysRemaining !== null ? `${daysRemaining}g rimanenti` : "Attiva"}
-              </Badge>
-            </div>
+          <div className="card-premium p-4 flex flex-wrap items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-xs text-muted-foreground">Licenza:</span>
+            <Badge className={cn("text-xs",
+              licenseStatus === "lifetime" ? "bg-primary/10 text-primary" :
+              daysRemaining !== null && daysRemaining <= 7 ? "bg-amber-500/10 text-amber-600" :
+              "bg-success/10 text-success"
+            )}>
+              {licenseStatus === "lifetime" ? "♾️ Lifetime" :
+               daysRemaining !== null ? `${daysRemaining}g rimanenti` : "Attiva"}
+            </Badge>
             {accessExpiresAt && licenseStatus !== "lifetime" && (
-              <span className="text-[10px] text-muted-foreground ml-auto">
+              <span className="text-[10px] text-muted-foreground">
                 Scade: {new Date(accessExpiresAt).toLocaleDateString("it-IT")}
               </span>
             )}
           </div>
-          <div className="card-premium p-4 flex items-center gap-3">
-            <Crown className="h-4 w-4 text-amber-500" />
-            <div>
-              <span className="text-xs text-muted-foreground">Premium review: </span>
-              {premiumUsage ? (
-                <Badge variant="outline" className="text-xs">
-                  {Math.max(0, premiumUsage.limit - premiumUsage.used)}/{premiumUsage.limit} disponibili
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-xs">3/3 disponibili</Badge>
-              )}
-            </div>
+          <div className="card-premium p-4 flex flex-wrap items-center gap-2">
+            <Crown className="h-4 w-4 text-amber-500 shrink-0" />
+            <span className="text-xs text-muted-foreground">Premium:</span>
+            {premiumUsage ? (
+              <Badge variant="outline" className="text-xs">
+                {Math.max(0, premiumUsage.limit - premiumUsage.used)}/{premiumUsage.limit} disponibili
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs">3/3 disponibili</Badge>
+            )}
           </div>
         </div>
 
