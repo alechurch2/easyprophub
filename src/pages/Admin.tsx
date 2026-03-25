@@ -795,6 +795,106 @@ function AdminAIChat() {
   );
 }
 
+// ---- Admin Trading Accounts Tab ----
+function AdminAccounts() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [journalCount, setJournalCount] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    const { data } = await supabase.from("trading_accounts").select("*").order("created_at", { ascending: false });
+    if (data) {
+      setAccounts(data);
+      const userIds = [...new Set(data.map((a: any) => a.user_id))];
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
+        if (profs) {
+          const map: Record<string, string> = {};
+          profs.forEach((p: any) => { map[p.user_id] = p.full_name || "N/A"; });
+          setProfiles(map);
+        }
+      }
+      // journal counts per account
+      const accIds = data.map((a: any) => a.id);
+      if (accIds.length > 0) {
+        const { data: journals } = await supabase.from("trade_journal_entries").select("account_id").in("account_id", accIds);
+        if (journals) {
+          const counts: Record<string, number> = {};
+          journals.forEach((j: any) => { counts[j.account_id] = (counts[j.account_id] || 0) + 1; });
+          setJournalCount(counts);
+        }
+      }
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const statusColor = (s: string) => {
+    switch (s) {
+      case "connected": return "bg-success/10 text-success";
+      case "pending": return "bg-warning/10 text-warning";
+      case "failed": return "bg-destructive/10 text-destructive";
+      default: return "bg-secondary text-muted-foreground";
+    }
+  };
+
+  if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+
+  // Stats
+  const userCounts: Record<string, number> = {};
+  accounts.forEach((a) => { userCounts[a.user_id] = (userCounts[a.user_id] || 0) + 1; });
+
+  return (
+    <div className="space-y-4">
+      {/* Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Conti totali</p>
+          <p className="text-xl font-bold text-foreground">{accounts.length}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Utenti con conti</p>
+          <p className="text-xl font-bold text-foreground">{Object.keys(userCounts).length}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Connessi</p>
+          <p className="text-xl font-bold text-success">{accounts.filter(a => a.connection_status === "connected").length}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Journaling totali</p>
+          <p className="text-xl font-bold text-foreground">{Object.values(journalCount).reduce((a, b) => a + b, 0)}</p>
+        </div>
+      </div>
+
+      {accounts.length === 0 ? (
+        <p className="text-muted-foreground text-center p-8">Nessun conto collegato</p>
+      ) : accounts.map(a => (
+        <div key={a.id} className="card-premium p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-foreground">{a.account_name}</p>
+                <Badge className={statusColor(a.connection_status)}>{a.connection_status}</Badge>
+                <Badge variant="outline" className="text-[10px]">{a.platform}</Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {profiles[a.user_id] || a.user_id.slice(0, 8)} · {a.broker || "—"} · {a.account_number || "—"}
+              </p>
+            </div>
+            <div className="text-right text-xs text-muted-foreground">
+              <p>Balance: ${Number(a.balance).toLocaleString()}</p>
+              {a.last_sync_at && <p>Sync: {new Date(a.last_sync_at).toLocaleDateString("it-IT")}</p>}
+              {journalCount[a.id] && <p>{journalCount[a.id]} journal</p>}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ---- Main Admin Page ----
 export default function Admin() {
   return (
@@ -812,12 +912,13 @@ export default function Admin() {
 
         <Tabs defaultValue="users">
           <TabsList className="mb-6 w-full flex flex-wrap gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
-            <TabsTrigger value="users" className="flex-1 min-w-[100px]"><Users className="h-3 w-3 mr-1" />Utenti</TabsTrigger>
-            <TabsTrigger value="courses" className="flex-1 min-w-[100px]"><BookOpen className="h-3 w-3 mr-1" />Corsi</TabsTrigger>
-            <TabsTrigger value="support" className="flex-1 min-w-[100px]"><HeadphonesIcon className="h-3 w-3 mr-1" />Supporto</TabsTrigger>
-            <TabsTrigger value="reviews" className="flex-1 min-w-[100px]"><BarChart3 className="h-3 w-3 mr-1" />Reviews</TabsTrigger>
-            <TabsTrigger value="ai-chat" className="flex-1 min-w-[100px]"><Bot className="h-3 w-3 mr-1" />AI Chat</TabsTrigger>
-            <TabsTrigger value="announcements" className="flex-1 min-w-[100px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
+            <TabsTrigger value="users" className="flex-1 min-w-[80px]"><Users className="h-3 w-3 mr-1" />Utenti</TabsTrigger>
+            <TabsTrigger value="courses" className="flex-1 min-w-[80px]"><BookOpen className="h-3 w-3 mr-1" />Corsi</TabsTrigger>
+            <TabsTrigger value="support" className="flex-1 min-w-[80px]"><HeadphonesIcon className="h-3 w-3 mr-1" />Supporto</TabsTrigger>
+            <TabsTrigger value="reviews" className="flex-1 min-w-[80px]"><BarChart3 className="h-3 w-3 mr-1" />Reviews</TabsTrigger>
+            <TabsTrigger value="ai-chat" className="flex-1 min-w-[80px]"><Bot className="h-3 w-3 mr-1" />AI Chat</TabsTrigger>
+            <TabsTrigger value="accounts" className="flex-1 min-w-[80px]"><Wallet className="h-3 w-3 mr-1" />Conti</TabsTrigger>
+            <TabsTrigger value="announcements" className="flex-1 min-w-[80px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><AdminUsers /></TabsContent>
@@ -825,6 +926,7 @@ export default function Admin() {
           <TabsContent value="support"><AdminSupport /></TabsContent>
           <TabsContent value="reviews"><AdminReviews /></TabsContent>
           <TabsContent value="ai-chat"><AdminAIChat /></TabsContent>
+          <TabsContent value="accounts"><AdminAccounts /></TabsContent>
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
         </Tabs>
       </div>
