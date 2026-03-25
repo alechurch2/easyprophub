@@ -7,7 +7,7 @@ import { ReviewRatingWidget } from "./ReviewRatingWidget";
 import { ReviewForm } from "./ReviewForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, MessageSquare, Link2, Zap, BarChart3 } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, Link2, Zap, BarChart3, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
