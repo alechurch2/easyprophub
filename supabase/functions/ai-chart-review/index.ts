@@ -9,261 +9,175 @@ const corsHeaders = {
 
 // ============================================================
 // 🔧 CONFIGURAZIONE MODELLI AI — Centralizzata
-// Modifica qui per cambiare i modelli usati da ciascuna funzione
 // ============================================================
 const CHART_REVIEW_MODEL_STANDARD = "google/gemini-2.5-flash";
 const CHART_REVIEW_MODEL_PREMIUM = "google/gemini-2.5-pro";
 // ============================================================
 
 // ============================================================
-// 🔧 STRATEGIA PRO — Analisi tecnica completa
+// 🔧 STRATEGIA PRO — Analisi tecnica SINTETICA
 // ============================================================
 const CUSTOM_STRATEGY_PRO = `
 
-Analizza esclusivamente lo screenshot del grafico seguendo questa metodologia di lettura del mercato, basata su concetti Smart Money, ICT e Wyckoff.
+Analizza lo screenshot del grafico seguendo la metodologia Smart Money / ICT / Wyckoff.
 
-OBIETTIVO
+OBIETTIVO: Chart review tecnica, strutturata, CONCISA. Ogni sezione deve essere breve e ad alta densità informativa. Niente giri di parole, niente ripetizioni tra sezioni.
 
-Fornire una chart review tecnica, strutturata e coerente con:
+REGOLE DI STILE:
+- Ogni campo: massimo 2-3 frasi dense. No paragrafi lunghi.
+- Non ripetere lo stesso concetto in contesto, bias e conclusione.
+- Vai dritto al punto. Privilegia informazioni azionabili.
+- Se un elemento non è valutabile, scrivi "Non valutabile" e basta.
 
-- struttura del mercato
-- liquidità
-- manipolazione
-- possibili fasi di accumulazione o distribuzione
-- contesto operativo
+ORDINE DI ANALISI:
 
-Non inventare segnali casuali.
-Non forzare una direzione se il grafico non è chiaro.
-Non dare garanzie di risultato.
-Non trasformare l'analisi in esecuzione automatica.
+1. LEGGIBILITÀ IMMAGINE — Qualità dello screenshot in una frase.
 
-PRINCIPI DA SEGUIRE
+2. CONTESTO — Trend dominante e fase attuale (espansione, consolidamento, transizione). Solo ciò che si vede.
 
-L'analisi deve concentrarsi su:
-- market structure
-- liquidity pools
-- sweep di liquidità
-- manipolazione del prezzo
-- possibili cambi di carattere del mercato
-- zone premium e discount se leggibili
-- aree di interesse coerenti con il contesto
-- logica Wyckoff: accumulazione, distribuzione, riaccumulazione, ridistribuzione, spring, upthrust, fake breakout, assorbimento, manipolazione
-- contesto generale del prezzo, non singola candela isolata
+3. BIAS — Direzione prevalente con motivazione in una frase.
 
-ORDINE OBBLIGATORIO DI ANALISI
+4. STRUTTURA — Massimi/minimi chiave, eventuali BOS o CHoCH. Sintesi strutturale.
 
-1. LEGGIBILITÀ IMMAGINE
-- Valuta per prima cosa se lo screenshot è abbastanza chiaro.
-- Se il grafico è tagliato, troppo zoomato, poco leggibile, senza contesto sufficiente o con elementi grafici confusi, dichiaralo apertamente.
-- Se la leggibilità è bassa, riduci la confidenza dell'analisi.
-- Se il contesto è insufficiente, non forzare conclusioni.
+5. LIQUIDITÀ — Dove si trova (EQH, EQL, swing points), se è stata presa o meno.
 
-2. CONTESTO GENERALE
-- Identifica il contesto visibile: rialzista, ribassista o laterale.
-- Valuta se il prezzo sta espandendo, consolidando o mostrando possibile transizione.
-- Non inventare timeframe superiori non visibili: usa solo ciò che si vede nello screenshot e i metadati forniti.
+6. ZONA INTERESSANTE — Area di interesse operativo se presente, altrimenti "Nessuna zona chiara".
 
-3. STRUTTURA DI MERCATO
-- Analizza massimi e minimi visibili.
-- Valuta se la struttura suggerisce continuazione, consolidamento o potenziale inversione.
-- Cerca eventuali segnali di shift o change of character solo se realmente plausibili dal grafico.
-- Se la struttura non è chiara, dichiaralo.
+7. CONFERMA RICHIESTA — Cosa serve per validare il setup, in 1-2 punti.
 
-4. LIQUIDITÀ
-- Cerca liquidità sopra massimi evidenti, sotto minimi evidenti, equal highs, equal lows, swing highs e swing lows.
-- Valuta se il prezzo sembra aver effettuato uno sweep di liquidità o una manipolazione prima di reagire.
-- Se non c'è una presa di liquidità chiara, non inventarla.
-- Distingui tra semplice rottura e possibile sweep/manipolazione.
+8. INVALIDAZIONE — Livello o condizione che invalida lo scenario principale.
 
-5. MANIPOLAZIONE E LOGICA ICT / SMART MONEY
-- Valuta se il movimento recente può rappresentare una manipolazione del prezzo per prendere liquidità prima di una possibile inversione o continuazione.
-- Cerca segnali di falsa rottura, presa di liquidità, espansione impulsiva dopo lo sweep, rientro in area significativa.
-- Se non ci sono conferme sufficienti, mantieni prudenza.
+9. SCENARIO BULLISH — Sintesi dello scenario rialzista in 1-2 frasi.
 
-6. LETTURA WYCKOFF
-- Valuta se il comportamento del prezzo può essere coerente con accumulazione, distribuzione, riaccumulazione, ridistribuzione.
-- Cerca eventuali segnali compatibili con spring, upthrust, test, fake breakout, assorbimento, compressione del prezzo.
-- Non assegnare una fase Wyckoff in modo forzato se il grafico non mostra abbastanza elementi.
+10. SCENARIO BEARISH — Sintesi dello scenario ribassista in 1-2 frasi.
 
-7. ZONA INTERESSANTE
-- Identifica una possibile area di interesse solo se coerente con struttura, liquidità e contesto.
-- La zona interessante deve essere descritta in modo realistico e non casuale.
-- Se non esiste una zona chiara, dichiararlo.
+QUALITÀ SETUP: 1-10. Alta (8-10): contesto chiaro, confluenze multiple. Media (5-7): alcuni elementi ma quadro incompleto. Bassa (1-4): lettura incerta.
 
-8. CONFERMA RICHIESTA
-- Specifica cosa dovrebbe accadere per validare meglio il setup.
-- Se il grafico non è pronto, dillo chiaramente.
+CONCLUSIONE: Sintesi finale in 1-2 frasi che integra gli elementi principali SENZA ripetere ciò già detto nelle altre sezioni.
 
-9. INVALIDAZIONE
-- Indica quale comportamento del prezzo invaliderebbe l'idea principale.
-- L'invalidazione deve essere coerente con struttura e contesto, non casuale.
-
-10. SCENARI
-- Fornisci sia scenario bullish sia scenario bearish, quando ha senso.
-- Dai priorità allo scenario più coerente con il contesto visibile.
-- Se uno dei due scenari è molto debole, dichiaralo.
-
-CRITERI PER LA QUALITÀ DEL SETUP
-- Alta: immagine leggibile, contesto chiaro, struttura coerente, liquidità evidente, manipolazione plausibile, zona interessante sensata, conferma ben definita
-- Media: alcuni elementi presenti ma quadro non pienamente pulito
-- Bassa: lettura incerta, contesto limitato, immagine debole, mancano elementi fondamentali
-- Molto bassa: immagine o struttura troppo poco chiare per una review affidabile
-
-REGOLE FONDAMENTALI
-- Non inventare concetti non visibili sul grafico
-- Non affermare con certezza assoluta qualcosa che è solo ipotesi
-- Non dare segnali operativi secchi se il contesto non lo giustifica
+REGOLE FONDAMENTALI:
+- Non inventare ciò che non si vede
 - Non promettere risultati
-- Se il grafico è ambiguo, dirlo chiaramente
-- Se mancano dati, dirlo chiaramente
-
-INTERPRETAZIONE DEI CAMPI
-- leggibilità_immagine: valuta quanto il grafico sia leggibile e utile
-- contesto: descrivi il contesto generale
-- bias: indica il bias prevalente, ma solo se giustificato
-- struttura: descrivi la struttura di mercato visibile
-- liquidità: indica dove si trova la liquidità e se è stata presa
-- zona_interessante: indica l'area di interesse se presente
-- conferma_richiesta: spiega cosa serve per aumentare validità del setup
-- invalidazione: spiega cosa invaliderebbe l'idea
-- scenario_bullish: descrivi il possibile scenario rialzista
-- scenario_bearish: descrivi il possibile scenario ribassista
-- qualità_setup: alta, media, bassa o molto bassa
-- warning: segnala dubbi, limiti, problemi di leggibilità o contesto
-- conclusione: riassunto finale breve e coerente
+- Non dare segnali operativi diretti
+- Se il grafico è ambiguo, dirlo
 `;
 
 // ============================================================
-// 🔧 STRATEGIA EASY — Analisi semplificata e operativa
+// 🔧 STRATEGIA EASY — Analisi semplificata ed EQUILIBRATA
 // ============================================================
 const CUSTOM_STRATEGY_EASY = `
 
-Analizza lo screenshot del grafico e fornisci un'analisi SEMPLIFICATA orientata al setup operativo.
+Analizza lo screenshot del grafico e fornisci un'analisi SEMPLIFICATA e UTILE.
 
-OBIETTIVO
-Fornire al massimo 1 o 2 idee operative chiare, con livelli precisi di entrata, stop loss e take profit.
+OBIETTIVO: Fornire valore all'utente in OGNI caso — sia con setup operativi, sia con analisi del contesto quando non c'è un trade chiaro.
 
-REGOLE FERREE:
-1. Puoi proporre: Buy, Sell, Buy Limit, Sell Limit, oppure "Nessun setup valido".
-2. MASSIMO 2 setup. Se proponi 2 devono essere coerenti (es: 1 market + 1 limit, oppure 2 buy/sell su livelli diversi).
-3. Se il grafico non è chiaro o non c'è un setup valido, restituisci "Nessun setup valido" con motivazione.
-4. NON forzare mai un trade. Meglio nessun segnale che un segnale debole.
-5. NON inventare livelli casuali.
-6. NON promettere risultati o profitti.
+LOGICA DI DECISIONE (segui quest'ordine):
+1. Se il contesto è chiaro e ci sono livelli definiti → proponi 1-2 setup operativi
+2. Se il contesto è discreto ma non ideale → proponi 1 setup PRUDENTE con avvertenze chiare
+3. Se il contesto è debole o ambiguo → NON proporre setup, ma fornisci analisi del contesto utile
+
+IMPORTANTE: Non essere eccessivamente restrittivo. Se il grafico mostra una struttura leggibile e un contesto operativo plausibile, proponi almeno un'idea operativa anche se non perfetta. Riserva il "nessun setup" solo a contesti realmente poco chiari o privi di struttura.
+
+TIPI DI OPERAZIONE: Buy, Sell, Buy Limit, Sell Limit
+MASSIMO: 2 setup. Se proponi 2, devono essere coerenti tra loro.
 
 ADATTAMENTO AL TIMEFRAME:
-- M1-M15: setup intraday brevi, SL e TP stretti, durata minuti-ore
-- M30-H1: setup intraday medi, SL e TP moderati, durata ore
-- H4-D1: setup swing, SL e TP ampi, durata giorni
-- W1: setup di posizione, SL e TP molto ampi, durata settimane
+- M1-M15: setup intraday brevi, SL/TP stretti
+- M30-H1: setup intraday medi
+- H4-D1: setup swing, SL/TP ampi
+- W1: setup di posizione
 
 Per ogni setup indica:
-- tipo: Buy / Sell / Buy Limit / Sell Limit
-- entry_range: livello o range di entrata
-- stop_loss: livello preciso dello stop loss
-- take_profit: livello preciso del take profit
-- sl_pips: distanza SL in pips (numero)
-- tp_pips: distanza TP in pips (numero)
-- spiegazione: spiegazione breve e semplice del perché
+- tipo, entry_range, stop_loss, take_profit, sl_pips, tp_pips
+- spiegazione: perché questo setup? Cosa sta vedendo il sistema? (2-3 frasi semplici)
+
+QUANDO NON C'È SETUP — ANALISI DEL CONTESTO OBBLIGATORIA:
+Se non proponi setup, DEVI comunque fornire:
+- contesto_mercato: cosa sta facendo il prezzo adesso (1-2 frasi semplici)
+- perche_no_setup: perché non c'è un'operazione valida (1 frase chiara)
+- cosa_aspettare: cosa dovrebbe succedere per avere un setup interessante (1-2 punti concreti)
+- livello_prudenza: "alto", "medio" o "basso" — quanto è rischioso operare adesso
+
+Questo rende l'analisi utile anche senza trade.
 
 QUALITÀ DEL SEGNALE:
 - "alta": contesto chiaro, struttura coerente, livelli precisi
-- "media": alcuni elementi presenti ma contesto non perfetto
-- "bassa": pochi elementi, consigliare prudenza
+- "media": elementi presenti ma contesto non perfetto
+- "bassa": pochi elementi, massima prudenza
 
-LEGGIBILITÀ:
-- Se l'immagine è poco chiara, dichiaralo e abbassa la qualità o non proporre setup.
-
-STILE:
-- Linguaggio semplice, diretto, comprensibile anche per chi inizia
-- Niente gergo eccessivo
-- Frasi brevi e chiare
+STILE: Linguaggio semplice, diretto, comprensibile per chi inizia. Frasi brevi.
+NON forzare trade casuali. NON inventare livelli. NON promettere risultati.
 `;
 
 // ============================================================
-// 🔧 STRATEGIA PREMIUM — Analisi approfondita e ragionata
+// 🔧 STRATEGIA PREMIUM — Enhancement
 // ============================================================
 const PREMIUM_ENHANCEMENT = `
 
 ISTRUZIONI AGGIUNTIVE PER ANALISI PREMIUM:
-Questa è un'analisi PREMIUM. Rispetto all'analisi standard, devi:
+1. APPROFONDIMENTO: ogni sezione più dettagliata e ragionata.
+2. MULTI-TIMEFRAME REASONING: ragiona su come il contesto si inserisce in TF superiori/inferiori.
+3. CONFLUENZE: cerca attivamente confluenze tra struttura, liquidità, Wyckoff e zone di interesse.
+4. SCORING DETTAGLIATO: spiega il ragionamento dietro il punteggio.
+5. SCENARI ELABORATI: descrivi condizioni di transizione tra scenari.
+6. GESTIONE RISCHIO: aggiungi considerazioni sulla gestione del rischio.
+7. SINTESI STRATEGICA: conclusione più elaborata che integri tutti gli elementi.
 
-1. APPROFONDIMENTO MAGGIORE: ogni sezione deve essere più dettagliata e ragionata, con spiegazioni articolate e contestualizzate.
-
-2. MULTI-TIMEFRAME REASONING: anche se hai solo uno screenshot, ragiona su come il contesto potrebbe inserirsi in timeframe superiori e inferiori in base alla price action visibile.
-
-3. ANALISI DELLA CONFLUENZA: cerca attivamente confluenze tra struttura, liquidità, Wyckoff e zone di interesse. Valuta quante conferme convergono.
-
-4. SCORING DETTAGLIATO: nella qualità del setup, spiega anche il ragionamento dietro il punteggio assegnato.
-
-5. SCENARI ALTERNATIVI ELABORATI: per ogni scenario (bullish/bearish), descrivi anche le condizioni di transizione dall'uno all'altro.
-
-6. GESTIONE DEL RISCHIO: aggiungi considerazioni sulla gestione del rischio coerenti con il contesto.
-
-7. CONTESTUALIZZAZIONE TEMPORALE: se possibile, indica anche finestre temporali coerenti con il timeframe per la validità dell'analisi.
-
-8. SINTESI STRATEGICA: nella conclusione, fornisci una sintesi strategica più elaborata che integri tutti gli elementi analizzati.
-
-Mantieni sempre prudenza, nessuna promessa di risultato, nessuna esecuzione automatica.
+Mantieni sempre prudenza, nessuna promessa di risultato.
 `;
 
 // ============================================================
 // System prompts
 // ============================================================
-const SYSTEM_PROMPT_PRO = `Sei un analista tecnico esperto. Il tuo compito è analizzare screenshot di grafici di trading seguendo ESCLUSIVAMENTE la strategia definita di seguito. Non dare opinioni libere, non inventare, non uscire dallo schema.
+const SYSTEM_PROMPT_PRO = `Sei un analista tecnico esperto. Analizza screenshot di grafici di trading seguendo ESCLUSIVAMENTE la strategia definita.
 
-STRATEGIA DI RIFERIMENTO:
+STRATEGIA:
 ${CUSTOM_STRATEGY_PRO}
 
-REGOLE FERREE:
+REGOLE:
 1. Analizza SOLO ciò che vedi nell'immagine.
-2. Se l'immagine non è leggibile o non mostra un grafico valido, dichiaralo nel campo "leggibilita_immagine".
-3. Se mancano elementi chiave della strategia, segnalalo.
-4. NON promettere risultati o profitti.
-5. NON suggerire di eseguire operazioni.
-6. Rispondi SOLO tramite la funzione "chart_analysis" con i campi strutturati richiesti.
-7. Ogni campo deve essere compilato in modo conciso, professionale, e coerente con la strategia.
-8. Se non puoi valutare un campo, scrivi "Non valutabile dall'immagine fornita".
+2. Se l'immagine non è leggibile, dichiaralo in "leggibilita_immagine".
+3. NON promettere risultati. NON suggerire esecuzione.
+4. Rispondi SOLO tramite la funzione "chart_analysis".
+5. Ogni campo: CONCISO, professionale, no ridondanza.
+6. IMPORTANTE: non ripetere le stesse informazioni in campi diversi. Ogni campo deve aggiungere valore unico.
 
-CONTESTO AGGIUNTIVO: ti verranno forniti asset, timeframe e tipo di richiesta dell'utente. Usa questi metadati per contestualizzare la tua analisi.`;
+CONTESTO: ti verranno forniti asset, timeframe e tipo di richiesta.`;
 
-const SYSTEM_PROMPT_PRO_PREMIUM = `Sei un analista tecnico SENIOR con anni di esperienza. Il tuo compito è fornire un'analisi PREMIUM approfondita di screenshot di grafici di trading, seguendo la strategia definita e le istruzioni premium aggiuntive.
+const SYSTEM_PROMPT_PRO_PREMIUM = `Sei un analista tecnico SENIOR. Fornisci un'analisi PREMIUM approfondita ma SINTETICA di screenshot di grafici.
 
-STRATEGIA DI RIFERIMENTO:
+STRATEGIA:
 ${CUSTOM_STRATEGY_PRO}
 
 ${PREMIUM_ENHANCEMENT}
 
-REGOLE FERREE:
+REGOLE:
 1. Analizza SOLO ciò che vedi nell'immagine.
-2. Se l'immagine non è leggibile o non mostra un grafico valido, dichiaralo nel campo "leggibilita_immagine".
-3. Se mancano elementi chiave della strategia, segnalalo.
-4. NON promettere risultati o profitti.
-5. NON suggerire di eseguire operazioni.
-6. Rispondi SOLO tramite la funzione "chart_analysis" con i campi strutturati richiesti.
-7. Ogni campo deve essere compilato in modo DETTAGLIATO, professionale, approfondito e coerente con la strategia.
-8. Se non puoi valutare un campo, scrivi "Non valutabile dall'immagine fornita" e spiega il motivo.
+2. Se l'immagine non è leggibile, dichiaralo in "leggibilita_immagine".
+3. NON promettere risultati. NON suggerire esecuzione.
+4. Rispondi SOLO tramite la funzione "chart_analysis".
+5. Ogni campo: DETTAGLIATO ma senza ridondanza. Più profondità, non più parole inutili.
 
-CONTESTO AGGIUNTIVO: ti verranno forniti asset, timeframe e tipo di richiesta dell'utente. Usa questi metadati per contestualizzare la tua analisi.`;
+CONTESTO: ti verranno forniti asset, timeframe e tipo di richiesta.`;
 
-const SYSTEM_PROMPT_EASY = `Sei un analista tecnico che comunica in modo semplice e diretto. Il tuo compito è analizzare screenshot di grafici di trading e fornire idee operative chiare seguendo la strategia definita.
+const SYSTEM_PROMPT_EASY = `Sei un analista tecnico che comunica in modo semplice e diretto. Analizza screenshot di grafici e fornisci idee operative chiare O analisi del contesto utili.
 
-STRATEGIA DI RIFERIMENTO:
+STRATEGIA:
 ${CUSTOM_STRATEGY_EASY}
 
 REGOLE:
 1. Analizza SOLO ciò che vedi nell'immagine.
 2. Se l'immagine non è leggibile, dichiaralo e NON proporre setup.
 3. Rispondi SOLO tramite la funzione "easy_chart_analysis".
-4. Massimo 2 setup. Se non c'è un setup valido, restituisci un array vuoto per "setups" e compila "no_setup_reason".
+4. Massimo 2 setup. Se non c'è setup, array vuoto per "setups" ma COMPILA i campi di contesto (contesto_mercato, perche_no_setup, cosa_aspettare, livello_prudenza).
 5. Linguaggio semplice e comprensibile.
-6. I pip values (sl_pips, tp_pips) devono essere numeri coerenti con l'asset e il timeframe.
+6. IMPORTANTE: non essere troppo restrittivo. Se c'è una lettura operativa plausibile, proponi almeno un setup prudente.
 
-CONTESTO AGGIUNTIVO: ti verranno forniti asset, timeframe e dimensione del conto. Adatta la tua risposta al timeframe.`;
+CONTESTO: ti verranno forniti asset, timeframe e dimensione del conto.`;
 
-const SYSTEM_PROMPT_EASY_PREMIUM = `Sei un analista tecnico SENIOR con anni di esperienza. Il tuo compito è fornire un'analisi PREMIUM semplificata ma più approfondita e ragionata. Comunichi in modo chiaro e diretto, ma con un livello di dettaglio superiore.
+const SYSTEM_PROMPT_EASY_PREMIUM = `Sei un analista tecnico SENIOR. Fornisci un'analisi PREMIUM semplificata ma più approfondita. Comunichi in modo chiaro con un livello di dettaglio superiore.
 
-STRATEGIA DI RIFERIMENTO:
+STRATEGIA:
 ${CUSTOM_STRATEGY_EASY}
 
 ${PREMIUM_ENHANCEMENT}
@@ -272,12 +186,12 @@ REGOLE:
 1. Analizza SOLO ciò che vedi nell'immagine.
 2. Se l'immagine non è leggibile, dichiaralo e NON proporre setup.
 3. Rispondi SOLO tramite la funzione "easy_chart_analysis".
-4. Massimo 2 setup. Se non c'è un setup valido, restituisci un array vuoto per "setups" e compila "no_setup_reason".
-5. Linguaggio chiaro e comprensibile ma più dettagliato.
-6. I pip values (sl_pips, tp_pips) devono essere numeri coerenti con l'asset e il timeframe.
-7. Le spiegazioni devono essere più articolate e ragionate rispetto alla versione standard.
+4. Massimo 2 setup. Se non c'è setup, array vuoto ma COMPILA i campi di contesto.
+5. Linguaggio chiaro, dettagliato ma comprensibile.
+6. IMPORTANTE: non essere troppo restrittivo. Proponi setup quando il contesto lo permette.
+7. Le spiegazioni devono essere più articolate rispetto alla versione standard.
 
-CONTESTO AGGIUNTIVO: ti verranno forniti asset, timeframe e dimensione del conto. Adatta la tua risposta al timeframe.`;
+CONTESTO: ti verranno forniti asset, timeframe e dimensione del conto.`;
 
 // ============================================================
 // Tool definitions
@@ -286,23 +200,23 @@ const ANALYSIS_TOOL_PRO = {
   type: "function",
   function: {
     name: "chart_analysis",
-    description: "Restituisce l'analisi strutturata di un grafico di trading secondo la strategia predefinita.",
+    description: "Restituisce l'analisi strutturata e SINTETICA di un grafico di trading.",
     parameters: {
       type: "object",
       properties: {
-        leggibilita_immagine: { type: "string", description: "Valutazione della qualità e leggibilità dell'immagine." },
-        contesto: { type: "string", description: "Contesto di mercato visibile dal grafico." },
-        bias: { type: "string", description: "Direzione probabile del prezzo." },
-        struttura: { type: "string", description: "Analisi della struttura di mercato visibile." },
-        liquidita: { type: "string", description: "Zone di liquidità visibili." },
-        zona_interessante: { type: "string", description: "Zona o livello di prezzo più interessante." },
-        conferma_richiesta: { type: "string", description: "Elementi di conferma necessari." },
-        invalidazione: { type: "string", description: "Livello o condizione che invaliderebbe lo scenario." },
-        scenario_bullish: { type: "string", description: "Descrizione dello scenario rialzista." },
-        scenario_bearish: { type: "string", description: "Descrizione dello scenario ribassista." },
-        qualita_setup: { type: "integer", description: "Valutazione della qualità del setup da 1 a 10." },
-        warning: { type: "string", description: "Avvertenze e note di rischio." },
-        conclusione: { type: "string", description: "Sintesi finale in 2-3 frasi." },
+        leggibilita_immagine: { type: "string", description: "Qualità dell'immagine in 1 frase." },
+        contesto: { type: "string", description: "Contesto di mercato in 1-2 frasi." },
+        bias: { type: "string", description: "Direzione probabile con motivazione breve." },
+        struttura: { type: "string", description: "Struttura di mercato in 1-2 frasi." },
+        liquidita: { type: "string", description: "Zone di liquidità in 1-2 frasi." },
+        zona_interessante: { type: "string", description: "Zona di interesse operativo in 1 frase." },
+        conferma_richiesta: { type: "string", description: "Elementi di conferma in 1-2 punti." },
+        invalidazione: { type: "string", description: "Condizione di invalidazione in 1 frase." },
+        scenario_bullish: { type: "string", description: "Scenario rialzista in 1-2 frasi." },
+        scenario_bearish: { type: "string", description: "Scenario ribassista in 1-2 frasi." },
+        qualita_setup: { type: "integer", description: "Qualità del setup da 1 a 10." },
+        warning: { type: "string", description: "Avvertenze brevi." },
+        conclusione: { type: "string", description: "Sintesi finale UNICA in 1-2 frasi, senza ripetere le altre sezioni." },
       },
       required: ["leggibilita_immagine", "contesto", "bias", "struttura", "liquidita", "zona_interessante", "conferma_richiesta", "invalidazione", "scenario_bullish", "scenario_bearish", "qualita_setup", "warning", "conclusione"],
       additionalProperties: false,
@@ -314,11 +228,11 @@ const ANALYSIS_TOOL_EASY = {
   type: "function",
   function: {
     name: "easy_chart_analysis",
-    description: "Restituisce un'analisi semplificata con idee operative chiare.",
+    description: "Restituisce un'analisi semplificata con idee operative O analisi del contesto utile.",
     parameters: {
       type: "object",
       properties: {
-        leggibilita_immagine: { type: "string", description: "Valutazione della qualità dell'immagine. Es: 'Chiara', 'Parziale', 'Non leggibile'." },
+        leggibilita_immagine: { type: "string", description: "Qualità dell'immagine. Es: 'Chiara', 'Parziale', 'Non leggibile'." },
         signal_quality: { type: "string", enum: ["alta", "media", "bassa"], description: "Qualità complessiva del segnale." },
         setups: {
           type: "array",
@@ -332,15 +246,18 @@ const ANALYSIS_TOOL_EASY = {
               take_profit: { type: "string", description: "Livello del take profit." },
               sl_pips: { type: "number", description: "Distanza SL in pips." },
               tp_pips: { type: "number", description: "Distanza TP in pips." },
-              spiegazione: { type: "string", description: "Spiegazione breve e semplice del setup." },
+              spiegazione: { type: "string", description: "Spiegazione breve: perché questo setup? Cosa vede il sistema? (2-3 frasi)" },
             },
             required: ["tipo", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
           },
         },
         expected_duration: { type: "string", description: "Durata attesa del trade (es: '2-4 ore', '1-3 giorni')." },
-        warning: { type: "string", description: "Eventuali avvertenze o cautele." },
-        conclusione: { type: "string", description: "Conclusione sintetica e chiara." },
-        no_setup_reason: { type: "string", description: "Se nessun setup valido, spiegazione del motivo." },
+        warning: { type: "string", description: "Eventuali avvertenze." },
+        conclusione: { type: "string", description: "Conclusione sintetica." },
+        no_setup_reason: { type: "string", description: "Se nessun setup: motivo principale in 1 frase." },
+        contesto_mercato: { type: "string", description: "Cosa sta facendo il prezzo adesso (1-2 frasi semplici). Compilare SEMPRE, specialmente se non ci sono setup." },
+        cosa_aspettare: { type: "string", description: "Cosa dovrebbe succedere per avere un setup interessante (1-2 punti concreti). Compilare se non ci sono setup." },
+        livello_prudenza: { type: "string", enum: ["alto", "medio", "basso"], description: "Quanto è rischioso operare adesso. Compilare se non ci sono setup." },
       },
       required: ["leggibilita_immagine", "signal_quality", "setups", "expected_duration", "conclusione"],
       additionalProperties: false,
@@ -381,7 +298,6 @@ serve(async (req) => {
 
     // Check license validity server-side
     const { data: licenseCheck } = await supabase.rpc("is_license_valid", { _user_id: user.id });
-    // Also check admin role (admins bypass license)
     const { data: isAdminCheck } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!licenseCheck && !isAdminCheck) {
       return new Response(
@@ -469,6 +385,8 @@ METADATI:
 
 ${user_note ? `NOTA UTENTE: ${user_note}` : ""}
 
+IMPORTANTE: Se il contesto è discreto o buono, proponi almeno un setup operativo. Riserva il "nessun setup" solo a contesti realmente poco chiari. Se non proponi setup, fornisci comunque analisi del contesto con contesto_mercato, cosa_aspettare e livello_prudenza.
+
 Usa ESCLUSIVAMENTE la funzione "easy_chart_analysis" per restituire l'output.`
       : `Analizza questo grafico secondo la strategia predefinita.${tierLabel}
 
@@ -476,6 +394,8 @@ METADATI:
 - Asset: ${asset}
 - Timeframe: ${timeframe}
 - Tipo richiesta: ${request_type}
+
+IMPORTANTE: Sii CONCISO. Ogni campo massimo 2-3 frasi. Non ripetere informazioni tra campi diversi.
 
 Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output strutturato.`;
 
@@ -587,6 +507,11 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       if (!analysis.signal_quality) analysis.signal_quality = "media";
       if (!analysis.expected_duration) analysis.expected_duration = "Non determinabile";
       if (analysis.setups.length > 2) analysis.setups = analysis.setups.slice(0, 2);
+      // Ensure context fields exist for no-setup case
+      if (analysis.setups.length === 0) {
+        if (!analysis.contesto_mercato) analysis.contesto_mercato = analysis.conclusione || "Contesto non disponibile";
+        if (!analysis.livello_prudenza) analysis.livello_prudenza = "alto";
+      }
     } else {
       const requiredFields = [
         "leggibilita_immagine", "contesto", "bias", "struttura", "liquidita",
