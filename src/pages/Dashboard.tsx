@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target } from "lucide-react";
+import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface Announcement {
@@ -118,6 +118,14 @@ export default function Dashboard() {
       path: "/case-studies",
       color: "text-info",
       bg: "bg-info/10",
+    },
+    {
+      title: "Account Center",
+      description: "Monitora i tuoi conti trading",
+      icon: Wallet,
+      path: "/account-center",
+      color: "text-success",
+      bg: "bg-success/10",
     },
   ];
 
