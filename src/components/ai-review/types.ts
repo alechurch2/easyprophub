@@ -15,6 +15,9 @@ export interface Review {
   didactic_description: string | null;
   didactic_tags: string[] | null;
   didactic_visible: boolean;
+  review_mode: string;
+  account_size: number | null;
+  custom_account_size: number | null;
 }
 
 export interface ReviewRating {

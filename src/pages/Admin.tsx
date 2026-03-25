@@ -330,6 +330,7 @@ function AdminReviews() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [filterRating, setFilterRating] = useState("all");
+  const [filterMode, setFilterMode] = useState("all");
 
   // Didactic form
   const [didacticTitle, setDidacticTitle] = useState("");
@@ -417,6 +418,7 @@ function AdminReviews() {
   const filtered = reviews.filter(r => {
     if (filterAsset !== "all" && r.asset !== filterAsset) return false;
     if (filterStatus !== "all" && r.status !== filterStatus) return false;
+    if (filterMode !== "all" && (r.review_mode || "pro") !== filterMode) return false;
     if (filterRating === "useful" && (!ratings[r.id] || ratings[r.id].useful === 0)) return false;
     if (filterRating === "not_useful" && (!ratings[r.id] || ratings[r.id].notUseful === 0)) return false;
     if (filterRating === "didactic" && !r.is_didactic_example) return false;
@@ -536,6 +538,14 @@ function AdminReviews() {
             <SelectItem value="didactic">Didattici</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterMode} onValueChange={setFilterMode}>
+          <SelectTrigger className="w-[100px] h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutti</SelectItem>
+            <SelectItem value="pro">Pro</SelectItem>
+            <SelectItem value="easy">Easy</SelectItem>
+          </SelectContent>
+        </Select>
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setSortOrder(s => s === "desc" ? "asc" : "desc")}>
           <ArrowUpDown className="h-3 w-3 mr-1" />{sortOrder === "desc" ? "Recenti" : "Vecchie"}
         </Button>
@@ -551,6 +561,8 @@ function AdminReviews() {
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium text-foreground">{r.asset} - {r.timeframe}</p>
+                {(r.review_mode || "pro") === "easy" && <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">⚡ Easy</Badge>}
+                {(r.review_mode || "pro") === "pro" && <Badge variant="outline" className="text-[10px]">Pro</Badge>}
                 {r.is_didactic_example && <Badge className="bg-primary/10 text-primary text-[10px]"><GraduationCap className="h-2.5 w-2.5 mr-0.5" />Didattico</Badge>}
                 {r.parent_review_id && <Badge variant="secondary" className="text-[10px]">🔗 Riesame</Badge>}
               </div>
