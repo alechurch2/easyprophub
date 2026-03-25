@@ -61,11 +61,23 @@ async function metaapiRequest(path: string, options: RequestInit = {}) {
     },
   });
 
+  const rawBody = await res.text();
+  console.log(`[MetaApi] ${options.method || "GET"} ${path} -> ${res.status}, body length: ${rawBody.length}`);
+
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`MetaApi error ${res.status}: ${body}`);
+    throw new Error(`MetaApi error ${res.status}: ${rawBody || "empty response"}`);
   }
-  return res.json();
+
+  if (!rawBody || rawBody.trim() === "") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawBody);
+  } catch (e) {
+    console.warn(`[MetaApi] Non-JSON response for ${path}: ${rawBody.substring(0, 200)}`);
+    return null;
+  }
 }
 
 async function metaapiClientRequest(accountId: string, path: string) {
