@@ -330,6 +330,7 @@ function AdminReviews() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [filterRating, setFilterRating] = useState("all");
+  const [filterMode, setFilterMode] = useState("all");
 
   // Didactic form
   const [didacticTitle, setDidacticTitle] = useState("");
