@@ -414,6 +414,7 @@ Deno.serve(async (req) => {
         });
 
       } catch (err) {
+        console.error("[connect_metaapi] FAILED:", err.message);
         await supabase.from("trading_accounts").update({
           connection_status: "failed",
           sync_status: "error",
