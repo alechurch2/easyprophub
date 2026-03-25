@@ -44,6 +44,7 @@ interface TradingAccount {
   last_sync_error: string | null;
   last_successful_sync_at: string | null;
   provider_type: string;
+  provider_account_id: string | null;
   created_at: string;
 }
 
