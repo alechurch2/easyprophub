@@ -101,10 +101,10 @@ export default function Dashboard() {
       bg: "bg-primary/10",
     },
     {
-      title: "Supporto",
-      description: "Assistenza dedicata e FAQ",
-      icon: HeadphonesIcon,
-      path: "/support",
+      title: "Libreria Didattica",
+      description: "Esempi selezionati di analisi AI",
+      icon: GraduationCap,
+      path: "/case-studies",
       color: "text-info",
       bg: "bg-info/10",
     },
@@ -125,20 +125,20 @@ export default function Dashboard() {
       bg: "bg-primary/10",
     },
     {
-      title: "Libreria Didattica",
-      description: "Esempi selezionati di analisi AI",
-      icon: GraduationCap,
-      path: "/case-studies",
-      color: "text-info",
-      bg: "bg-info/10",
-    },
-    {
       title: "Account Center",
       description: "Monitora i tuoi conti trading",
       icon: Wallet,
       path: "/account-center",
       color: "text-success",
       bg: "bg-success/10",
+    },
+    {
+      title: "Supporto",
+      description: "Assistenza dedicata e FAQ",
+      icon: HeadphonesIcon,
+      path: "/support",
+      color: "text-info",
+      bg: "bg-info/10",
     },
   ];
 
