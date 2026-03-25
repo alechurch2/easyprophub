@@ -174,20 +174,31 @@ export default function AIReview() {
             <ModeSelector mode={reviewMode} onChange={setReviewMode} />
 
             {/* Selection summary */}
-            <div className="mb-6 flex items-center gap-2 rounded-lg bg-secondary/50 border border-border px-4 py-3">
-              <span className="text-xs text-muted-foreground">Hai selezionato:</span>
-              <span className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold",
+            <div className="my-8">
+              <div className={cn(
+                "rounded-xl border px-5 py-4",
                 reviewTier === "premium"
-                  ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
-                  : "bg-primary/10 text-primary border border-primary/20"
+                  ? "border-amber-500/20 bg-amber-500/[0.04]"
+                  : "border-border bg-secondary/40"
               )}>
-                {reviewTier === "premium" ? "👑 Premium Review" : "⚡ Standard Review"}
-              </span>
-              <span className="text-xs text-muted-foreground">+</span>
-              <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 text-xs font-semibold">
-                {reviewMode === "pro" ? "📊 Pro Mode" : "⚡ Easy Mode"}
-              </span>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                  Review selezionata
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold",
+                    reviewTier === "premium"
+                      ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                      : "bg-primary/10 text-primary border border-primary/20"
+                  )}>
+                    {reviewTier === "premium" ? "👑 Premium Review" : "⚡ Standard Review"}
+                  </span>
+                  <span className="text-muted-foreground/40 text-sm">·</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 text-xs font-semibold">
+                    {reviewMode === "pro" ? "📊 Pro Mode" : "⚡ Easy Mode"}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {reviewMode === "pro" ? (
