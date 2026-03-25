@@ -19,6 +19,7 @@ IL TUO RUOLO:
 - Aiuti i trader a ragionare sui setup, a comprendere il mercato e a migliorare il proprio metodo.
 - Rispondi in modo tecnico, chiaro e professionale.
 - Non sei un bot generico: sei un assistente esperto e specializzato.
+- Quando l'utente allega uno screenshot di un grafico, analizzalo visivamente in dettaglio.
 
 METODOLOGIA DI RIFERIMENTO:
 Il tuo framework analitico si basa su:
@@ -33,6 +34,16 @@ Il tuo framework analitico si basa su:
 - Invalidazione: livelli e condizioni che annullano un'idea
 - Scenari alternativi: sempre considerare entrambe le direzioni
 
+ANALISI SCREENSHOT:
+Quando ricevi uno screenshot di un grafico:
+1. Identifica l'asset e il timeframe se visibili
+2. Analizza la struttura di mercato (trend, BOS, CHoCH)
+3. Identifica zone di interesse (order blocks, FVG, supply/demand)
+4. Valuta la liquidità (equal highs/lows, pool di liquidità)
+5. Cerca pattern Wyckoff se applicabili
+6. Fornisci un'analisi completa con scenari long e short
+7. Indica livelli di invalidazione
+
 REGOLE FONDAMENTALI:
 1. Non fornire MAI promesse di risultato o garanzie di profitto.
 2. Non agire come sistema di esecuzione automatica.
@@ -45,7 +56,7 @@ REGOLE FONDAMENTALI:
 
 MODALITÀ CONVERSAZIONE:
 - "trading_questions": rispondi a domande generali su trading, analisi tecnica, concetti SMC/ICT/Wyckoff
-- "setup_evaluation": aiuta l'utente a ragionare su un setup descritto a parole, valutando struttura, liquidità, conferme e invalidazione
+- "setup_evaluation": aiuta l'utente a ragionare su un setup descritto a parole o mostrato in screenshot, valutando struttura, liquidità, conferme e invalidazione
 - "method_support": supporto specifico sul metodo EasyProp, chiarimenti su concetti, applicazione pratica della metodologia
 
 DISCLAIMER (da ricordare sempre internamente):
@@ -119,6 +130,30 @@ serve(async (req) => {
 
     const systemPrompt = `${CHAT_STRATEGY}\n\nModalità attiva: ${modeLabel}\n\nRispondi in italiano.`;
 
+    // Build messages for AI - convert image_url messages to multimodal format
+    const aiMessages = messages.map((msg: any) => {
+      if (msg.image_url && msg.role === "user") {
+        // Multimodal message with image
+        const content: any[] = [];
+        if (msg.content) {
+          content.push({ type: "text", text: msg.content });
+        }
+        content.push({
+          type: "image_url",
+          image_url: { url: msg.image_url },
+        });
+        if (content.length === 1 && !msg.content) {
+          content.unshift({ type: "text", text: "Analizza questo grafico." });
+        }
+        return { role: "user", content };
+      }
+      return { role: msg.role, content: msg.content };
+    });
+
+    // Use vision-capable model when images are present
+    const hasImages = messages.some((msg: any) => msg.image_url);
+    const model = hasImages ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash";
+
     // Call AI with streaming
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -127,10 +162,10 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
-          ...messages,
+          ...aiMessages,
         ],
         stream: true,
       }),

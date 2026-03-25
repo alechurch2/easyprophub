@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   MessageSquare, Plus, Trash2, Send, Loader2, Bot, User,
-  MessagesSquare, Target, BookMarked, ChevronLeft, Info
+  MessagesSquare, Target, BookMarked, ChevronLeft, Info, ImagePlus, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 
 type ChatMode = "trading_questions" | "setup_evaluation" | "method_support";
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "user" | "assistant"; content: string; image_url?: string };
 
 interface Conversation {
   id: string;
@@ -38,6 +38,7 @@ Sono qui per aiutarti a ragionare sul mercato, valutare setup e approfondire con
 - 📊 Risposte a domande di analisi tecnica
 - 🎯 Valutazione di setup descritti a parole
 - 📖 Supporto sul metodo EasyProp
+- 🖼️ Analisi visiva di screenshot dei tuoi grafici
 
 Scegli una modalità e inizia a scrivere!`;
 
@@ -53,8 +54,12 @@ export default function AIAssistant() {
   const [mode, setMode] = useState<ChatMode>("trading_questions");
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [pendingImage, setPendingImage] = useState<File | null>(null);
+  const [pendingImagePreview, setPendingImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -77,7 +82,7 @@ export default function AIAssistant() {
     if (!activeConv) { setMessages([]); return; }
     supabase
       .from("ai_chat_messages")
-      .select("role, content")
+      .select("role, content, image_url")
       .eq("conversation_id", activeConv)
       .order("created_at")
       .then(({ data }) => {
@@ -89,6 +94,7 @@ export default function AIAssistant() {
     setActiveConv(null);
     setMessages([]);
     setShowModeSelect(true);
+    clearPendingImage();
   };
 
   const selectMode = (m: ChatMode) => {
@@ -100,6 +106,7 @@ export default function AIAssistant() {
     setActiveConv(conv.id);
     setMode(conv.mode as ChatMode);
     setShowModeSelect(false);
+    clearPendingImage();
   };
 
   const deleteConversation = async (id: string, e: React.MouseEvent) => {
@@ -110,16 +117,78 @@ export default function AIAssistant() {
     toast.success("Conversazione eliminata");
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Solo immagini sono supportate");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("L'immagine deve essere inferiore a 10MB");
+      return;
+    }
+
+    setPendingImage(file);
+    const url = URL.createObjectURL(file);
+    setPendingImagePreview(url);
+
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const clearPendingImage = () => {
+    if (pendingImagePreview) URL.revokeObjectURL(pendingImagePreview);
+    setPendingImage(null);
+    setPendingImagePreview(null);
+  };
+
+  const uploadImage = async (file: File, userId: string): Promise<string> => {
+    const ext = file.name.split(".").pop() || "png";
+    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from("chat-attachments")
+      .upload(path, file, { contentType: file.type });
+
+    if (error) throw new Error("Errore upload immagine: " + error.message);
+
+    const { data: urlData } = supabase.storage
+      .from("chat-attachments")
+      .getPublicUrl(path);
+
+    return urlData.publicUrl;
+  };
+
   const sendMessage = async () => {
-    if (!input.trim() || isLoading || !user) return;
+    if ((!input.trim() && !pendingImage) || isLoading || !user) return;
     const userMsg = input.trim();
     setInput("");
+
+    let imageUrl: string | undefined;
+
+    // Upload image if present
+    if (pendingImage) {
+      setIsUploading(true);
+      try {
+        imageUrl = await uploadImage(pendingImage, user.id);
+      } catch (e: any) {
+        toast.error(e.message || "Errore upload immagine");
+        setIsUploading(false);
+        return;
+      }
+      setIsUploading(false);
+      clearPendingImage();
+    }
 
     let convId = activeConv;
 
     // Create conversation if needed
     if (!convId) {
-      const title = userMsg.length > 60 ? userMsg.slice(0, 57) + "..." : userMsg;
+      const title = userMsg
+        ? (userMsg.length > 60 ? userMsg.slice(0, 57) + "..." : userMsg)
+        : "Analisi screenshot";
       const { data: newConv, error } = await supabase
         .from("ai_chat_conversations")
         .insert({ user_id: user.id, title, mode })
@@ -135,10 +204,16 @@ export default function AIAssistant() {
     await supabase.from("ai_chat_messages").insert({
       conversation_id: convId,
       role: "user",
-      content: userMsg,
+      content: userMsg || (imageUrl ? "Analizza questo grafico" : ""),
+      image_url: imageUrl || null,
     });
 
-    const newMessages: Msg[] = [...messages, { role: "user", content: userMsg }];
+    const userMsgObj: Msg = {
+      role: "user",
+      content: userMsg || (imageUrl ? "Analizza questo grafico" : ""),
+      image_url: imageUrl,
+    };
+    const newMessages: Msg[] = [...messages, userMsgObj];
     setMessages(newMessages);
     setIsLoading(true);
 
@@ -155,7 +230,11 @@ export default function AIAssistant() {
             Authorization: `Bearer ${session?.access_token}`,
           },
           body: JSON.stringify({
-            messages: newMessages,
+            messages: newMessages.map(m => ({
+              role: m.role,
+              content: m.content,
+              ...(m.image_url ? { image_url: m.image_url } : {}),
+            })),
             conversation_id: convId,
             mode,
           }),
@@ -229,7 +308,6 @@ export default function AIAssistant() {
           role: "assistant",
           content: assistantContent,
         });
-        // Update conversation timestamp
         await supabase.from("ai_chat_conversations").update({ updated_at: new Date().toISOString() }).eq("id", convId);
       }
     } catch (e: any) {
@@ -254,6 +332,7 @@ export default function AIAssistant() {
 
   const currentMode = MODES.find((m) => m.value === mode);
   const isNewChat = !activeConv && messages.length === 0;
+  const canSend = (input.trim() || pendingImage) && !isLoading && !(isNewChat && showModeSelect);
 
   return (
     <AppLayout>
@@ -308,7 +387,6 @@ export default function AIAssistant() {
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:block text-muted-foreground hover:text-foreground">
               <ChevronLeft className={cn("h-4 w-4 transition-transform", !sidebarOpen && "rotate-180")} />
             </button>
-            {/* Mobile: new conversation */}
             <button onClick={startNewConversation} className="md:hidden text-muted-foreground hover:text-foreground">
               <Plus className="h-5 w-5" />
             </button>
@@ -387,12 +465,23 @@ export default function AIAssistant() {
                       ? "bg-primary text-primary-foreground"
                       : "card-premium"
                   )}>
+                    {/* Image attachment */}
+                    {msg.image_url && (
+                      <div className="mb-2">
+                        <img
+                          src={msg.image_url}
+                          alt="Screenshot allegato"
+                          className="rounded-lg max-h-64 w-auto cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => window.open(msg.image_url, "_blank")}
+                        />
+                      </div>
+                    )}
                     {msg.role === "assistant" ? (
                       <div className="prose prose-sm max-w-none text-foreground [&_ul]:list-disc [&_ol]:list-decimal [&_li]:ml-4">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
                     ) : (
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      msg.content && <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                     )}
                   </div>
                 </div>
@@ -425,23 +514,58 @@ export default function AIAssistant() {
             </div>
           </div>
 
+          {/* Image Preview */}
+          {pendingImagePreview && (
+            <div className="px-4 pb-1">
+              <div className="max-w-3xl mx-auto">
+                <div className="inline-flex items-start gap-2 p-2 rounded-lg bg-secondary border border-border">
+                  <img src={pendingImagePreview} alt="Anteprima" className="h-16 w-auto rounded" />
+                  <button
+                    onClick={clearPendingImage}
+                    className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Input */}
           <div className="p-4 border-t border-border bg-card">
             <div className="max-w-3xl mx-auto">
               <div className="flex gap-2 items-end">
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 flex-shrink-0 text-muted-foreground hover:text-primary"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading || (isNewChat && showModeSelect)}
+                  title="Allega screenshot"
+                >
+                  {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                </Button>
                 <Textarea
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={showModeSelect ? "Seleziona una modalità per iniziare..." : "Scrivi un messaggio..."}
+                  placeholder={showModeSelect ? "Seleziona una modalità per iniziare..." : pendingImage ? "Aggiungi un commento all'immagine (opzionale)..." : "Scrivi un messaggio..."}
                   disabled={isLoading || (isNewChat && showModeSelect)}
                   className="min-h-[44px] max-h-32 resize-none"
                   rows={1}
                 />
                 <Button
                   onClick={sendMessage}
-                  disabled={!input.trim() || isLoading || (isNewChat && showModeSelect)}
+                  disabled={!canSend}
                   size="icon"
                   className="h-11 w-11 flex-shrink-0"
                 >
