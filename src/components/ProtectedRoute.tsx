@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requireAdmin = false, requireApproval = true }: ProtectedRouteProps) {
-  const { user, loading, isAdmin, isApproved, profile } = useAuth();
+  const { user, loading, isAdmin, isApproved, isLicenseValid, profile } = useAuth();
 
   if (loading) {
     return (
@@ -29,6 +29,11 @@ export default function ProtectedRoute({ children, requireAdmin = false, require
 
   if (requireApproval && !isApproved && !isAdmin) {
     return <Navigate to="/pending" replace />;
+  }
+
+  // License check: if approved but license expired/suspended, redirect to expired page
+  if (requireApproval && isApproved && !isLicenseValid && !isAdmin) {
+    return <Navigate to="/expired" replace />;
   }
 
   return <>{children}</>;
