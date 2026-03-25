@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_sync_logs: {
+        Row: {
+          account_id: string
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          started_at: string
+          status: string
+          sync_type: string
+          trades_synced: number | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+          trades_synced?: number | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+          trades_synced?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_sync_logs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_trade_history: {
         Row: {
           account_id: string
@@ -24,6 +71,7 @@ export type Database = {
           duration_minutes: number | null
           entry_price: number
           exit_price: number | null
+          external_trade_id: string | null
           id: string
           lot_size: number
           metadata: Json | null
@@ -43,6 +91,7 @@ export type Database = {
           duration_minutes?: number | null
           entry_price?: number
           exit_price?: number | null
+          external_trade_id?: string | null
           id?: string
           lot_size?: number
           metadata?: Json | null
@@ -62,6 +111,7 @@ export type Database = {
           duration_minutes?: number | null
           entry_price?: number
           exit_price?: number | null
+          external_trade_id?: string | null
           id?: string
           lot_size?: number
           metadata?: Json | null
@@ -610,14 +660,19 @@ export type Database = {
           equity: number | null
           id: string
           investor_password: string | null
+          last_successful_sync_at: string | null
           last_sync_at: string | null
+          last_sync_error: string | null
           metadata: Json | null
           open_positions_count: number | null
           platform: string
           profit_factor: number | null
           profit_loss: number | null
+          provider_account_id: string | null
+          provider_type: string
           read_only_mode: boolean
           server: string | null
+          sync_status: string
           updated_at: string
           user_id: string
           user_note: string | null
@@ -636,14 +691,19 @@ export type Database = {
           equity?: number | null
           id?: string
           investor_password?: string | null
+          last_successful_sync_at?: string | null
           last_sync_at?: string | null
+          last_sync_error?: string | null
           metadata?: Json | null
           open_positions_count?: number | null
           platform?: string
           profit_factor?: number | null
           profit_loss?: number | null
+          provider_account_id?: string | null
+          provider_type?: string
           read_only_mode?: boolean
           server?: string | null
+          sync_status?: string
           updated_at?: string
           user_id: string
           user_note?: string | null
@@ -662,14 +722,19 @@ export type Database = {
           equity?: number | null
           id?: string
           investor_password?: string | null
+          last_successful_sync_at?: string | null
           last_sync_at?: string | null
+          last_sync_error?: string | null
           metadata?: Json | null
           open_positions_count?: number | null
           platform?: string
           profit_factor?: number | null
           profit_loss?: number | null
+          provider_account_id?: string | null
+          provider_type?: string
           read_only_mode?: boolean
           server?: string | null
+          sync_status?: string
           updated_at?: string
           user_id?: string
           user_note?: string | null
