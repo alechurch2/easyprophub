@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Minus, Eye, Search, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { fullLotCalculation, RISK_PERCENT, TARGET_PERCENT } from "./lotSizeCalculator";
@@ -21,6 +21,9 @@ interface EasyAnalysis {
   conclusione: string;
   expected_duration: string;
   no_setup_reason?: string;
+  contesto_mercato?: string;
+  cosa_aspettare?: string;
+  livello_prudenza?: string;
 }
 
 function qualityColor(q: string) {
@@ -28,6 +31,15 @@ function qualityColor(q: string) {
     case "alta": return "bg-success/10 text-success border-success/20";
     case "media": return "bg-warning/10 text-warning border-warning/20";
     case "bassa": return "bg-destructive/10 text-destructive border-destructive/20";
+    default: return "bg-muted text-muted-foreground";
+  }
+}
+
+function prudenzaColor(p: string) {
+  switch (p?.toLowerCase()) {
+    case "alto": return "bg-destructive/10 text-destructive border-destructive/20";
+    case "medio": return "bg-warning/10 text-warning border-warning/20";
+    case "basso": return "bg-success/10 text-success border-success/20";
     default: return "bg-muted text-muted-foreground";
   }
 }
@@ -71,12 +83,52 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset }: { analysis
         </Badge>
       </div>
 
-      {/* No setup case */}
+      {/* No setup case — Enhanced context analysis */}
       {!hasSetups && (
-        <div className="card-premium p-6 text-center border-warning/20">
-          <ShieldAlert className="h-8 w-8 text-warning mx-auto mb-2" />
-          <p className="text-sm font-medium text-foreground mb-1">Nessun setup valido identificato</p>
-          <p className="text-xs text-muted-foreground">{data.no_setup_reason || "Il contesto non permette di proporre un'idea operativa affidabile."}</p>
+        <div className="space-y-3">
+          {/* Context card */}
+          {data.contesto_mercato && (
+            <div className="card-premium p-4 border-primary/20">
+              <div className="flex items-center gap-2 mb-2">
+                <Eye className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium text-muted-foreground uppercase">Contesto attuale</span>
+              </div>
+              <p className="text-sm text-foreground">{data.contesto_mercato}</p>
+            </div>
+          )}
+
+          {/* Why no setup */}
+          <div className="card-premium p-4 border-warning/20">
+            <div className="flex items-center gap-2 mb-2">
+              <ShieldAlert className="h-4 w-4 text-warning" />
+              <span className="text-xs font-medium text-warning uppercase">Perché nessun setup</span>
+            </div>
+            <p className="text-sm text-foreground">
+              {data.no_setup_reason || "Il contesto attuale non permette di proporre un'idea operativa affidabile."}
+            </p>
+          </div>
+
+          {/* What to wait for */}
+          {data.cosa_aspettare && (
+            <div className="card-premium p-4 border-primary/20">
+              <div className="flex items-center gap-2 mb-2">
+                <Search className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium text-muted-foreground uppercase">Cosa aspettare</span>
+              </div>
+              <p className="text-sm text-foreground">{data.cosa_aspettare}</p>
+            </div>
+          )}
+
+          {/* Prudence level */}
+          {data.livello_prudenza && (
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Livello di prudenza:</span>
+              <Badge className={cn("text-xs", prudenzaColor(data.livello_prudenza))}>
+                {data.livello_prudenza === "alto" ? "🔴 Alto" : data.livello_prudenza === "medio" ? "🟡 Medio" : "🟢 Basso"}
+              </Badge>
+            </div>
+          )}
         </div>
       )}
 
