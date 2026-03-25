@@ -265,6 +265,68 @@ const ANALYSIS_TOOL_EASY = {
   },
 };
 
+// ============================================================
+// Cost estimation per model (USD per 1K tokens)
+// ============================================================
+const MODEL_COSTS: Record<string, { input: number; output: number; perCall: number }> = {
+  "google/gemini-2.5-flash": { input: 0.00015, output: 0.0006, perCall: 0.003 },
+  "google/gemini-2.5-pro": { input: 0.00125, output: 0.005, perCall: 0.015 },
+  "google/gemini-2.5-flash-lite": { input: 0.000075, output: 0.0003, perCall: 0.001 },
+};
+
+function estimateAICost(model: string, tokensIn: number, tokensOut: number): number {
+  const costs = MODEL_COSTS[model];
+  if (!costs) return 0.005; // fallback per-call estimate
+  if (tokensIn > 0 || tokensOut > 0) {
+    return (tokensIn / 1000) * costs.input + (tokensOut / 1000) * costs.output;
+  }
+  return costs.perCall;
+}
+
+async function checkUsageLimits(supabase: any, userId: string, functionType: string, isAdmin: boolean): Promise<string | null> {
+  if (isAdmin) return null;
+
+  // Get applicable limits (user-specific override OR global)
+  const { data: limits } = await supabase
+    .from("ai_usage_limits")
+    .select("*")
+    .or(`user_id.eq.${userId},user_id.is.null`)
+    .eq("is_active", true);
+
+  if (!limits || limits.length === 0) return null;
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  for (const limit of limits) {
+    // User-specific overrides global
+    const hasUserOverride = limits.some((l: any) => l.user_id === userId && l.limit_type === limit.limit_type);
+    if (limit.user_id === null && hasUserOverride) continue;
+
+    let matchType = "";
+    let since = "";
+    if (limit.limit_type === "chat_daily" && functionType === "chat") { matchType = "chat"; since = todayStart; }
+    else if (limit.limit_type === "chart_review_standard_daily" && functionType === "chart_review_standard") { matchType = functionType; since = todayStart; }
+    else if (limit.limit_type === "chart_review_standard_monthly" && functionType === "chart_review_standard") { matchType = functionType; since = monthStart; }
+    else if (limit.limit_type === "chart_review_premium_monthly" && functionType === "chart_review_premium") { matchType = functionType; since = monthStart; }
+    else continue;
+
+    const { count } = await supabase
+      .from("ai_usage_log")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("function_type", matchType)
+      .gte("created_at", since);
+
+    if (count !== null && count >= limit.limit_value) {
+      const period = limit.limit_type.includes("daily") ? "giornaliero" : "mensile";
+      return `Hai raggiunto il limite ${period} di ${limit.limit_value} richieste per questa funzione.`;
+    }
+  }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
