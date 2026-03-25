@@ -45,9 +45,15 @@ interface ProviderAccountData {
 
 // ========== METAAPI PROVIDER ==========
 const METAAPI_BASE = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai";
-// MetaApi Client API uses regional subdomains. The exact domain depends on
-// the account's deploy region. We try the documented base first.
-const METAAPI_CLIENT_BASE = "https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai";
+const METAAPI_CLIENT_LEGACY_BASE = "https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai";
+
+type MetaApiClientBaseCandidate = {
+  accessUrl: string | null;
+  baseUrl: string;
+  host: string;
+  region: string | null;
+  source: string;
+};
 
 function getHostFromUrl(url: string) {
   try {
@@ -55,6 +61,147 @@ function getHostFromUrl(url: string) {
   } catch {
     return "invalid-url";
   }
+}
+
+function normalizeUrlBase(url: unknown) {
+  if (typeof url !== "string" || !url.trim()) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(url.trim());
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function buildRegionalMetaApiClientBase(region: unknown) {
+  if (typeof region !== "string" || !region.trim()) {
+    return null;
+  }
+
+  const normalizedRegion = region.trim();
+  return `https://mt-client-api-v1.${normalizedRegion}.agiliumtrade.ai`;
+}
+
+function collectMetaApiClientBaseCandidates(accountMeta: any) {
+  const candidates: MetaApiClientBaseCandidate[] = [];
+  const checkedFields: string[] = [];
+  const seen = new Set<string>();
+
+  const pushCandidate = (
+    rawUrl: unknown,
+    source: string,
+    region: string | null,
+    accessUrl: string | null = typeof rawUrl === "string" ? rawUrl : null,
+  ) => {
+    checkedFields.push(source);
+
+    const normalizedBase = normalizeUrlBase(rawUrl);
+    if (!normalizedBase || seen.has(normalizedBase)) {
+      return;
+    }
+
+    seen.add(normalizedBase);
+    candidates.push({
+      accessUrl,
+      baseUrl: normalizedBase,
+      host: getHostFromUrl(normalizedBase),
+      region,
+      source,
+    });
+  };
+
+  const accountRegion = typeof accountMeta?.region === "string" ? accountMeta.region : null;
+  const accessUrls = accountMeta?.accessUrls ?? null;
+  pushCandidate(accessUrls?.httpUrl, "account.accessUrls.httpUrl", accountRegion);
+  pushCandidate(accessUrls?.restApiUrl, "account.accessUrls.restApiUrl", accountRegion);
+
+  const replicas = Array.isArray(accountMeta?.accountReplicas) ? accountMeta.accountReplicas : [];
+  replicas.forEach((replica: any, index: number) => {
+    const replicaRegion = typeof replica?.region === "string" ? replica.region : accountRegion;
+    pushCandidate(replica?.accessUrls?.httpUrl, `account.accountReplicas[${index}].accessUrls.httpUrl`, replicaRegion);
+    pushCandidate(replica?.accessUrls?.restApiUrl, `account.accountReplicas[${index}].accessUrls.restApiUrl`, replicaRegion);
+    pushCandidate(buildRegionalMetaApiClientBase(replicaRegion), `account.accountReplicas[${index}].region`, replicaRegion, null);
+  });
+
+  pushCandidate(buildRegionalMetaApiClientBase(accountRegion), "account.region", accountRegion, null);
+  pushCandidate(METAAPI_CLIENT_LEGACY_BASE, "legacy.defaultClientBase", null, null);
+
+  return {
+    candidates,
+    checkedFields,
+    region: accountRegion,
+  };
+}
+
+async function metaapiClientFetchJson(url: string, token: string, logPrefix: string) {
+  const res = await fetch(url, {
+    headers: {
+      "auth-token": token,
+      "Content-Type": "application/json",
+    },
+  });
+
+  const rawBody = await res.text();
+  console.log(`${logPrefix} -> ${res.status}, body length: ${rawBody.length}`);
+
+  if (!res.ok) {
+    throw new Error(`MetaApi client error ${res.status}: ${rawBody || "empty response"}`);
+  }
+
+  if (!rawBody || rawBody.trim() === "") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawBody);
+  } catch {
+    console.warn(`[MetaApi Client] Non-JSON response for ${url}: ${rawBody.substring(0, 200)}`);
+    return null;
+  }
+}
+
+async function resolveMetaApiClientRouting(accountId: string) {
+  const metadataEndpoint = `/users/current/accounts/${accountId}`;
+  const accountMeta = await metaapiRequest(metadataEndpoint);
+  const { candidates, checkedFields, region } = collectMetaApiClientBaseCandidates(accountMeta);
+  const accessUrls = accountMeta?.accessUrls ?? null;
+
+  console.log(`[MetaApi Client] Routing metadata endpoint: ${metadataEndpoint}`);
+  console.log(`[MetaApi Client] Routing metadata summary: ${JSON.stringify({
+    region,
+    state: accountMeta?.state ?? null,
+    connectionStatus: accountMeta?.connectionStatus ?? null,
+    accessUrls,
+    accountReplicas: Array.isArray(accountMeta?.accountReplicas)
+      ? accountMeta.accountReplicas.map((replica: any, index: number) => ({
+        index,
+        region: replica?.region ?? null,
+        accessUrls: replica?.accessUrls ?? null,
+      }))
+      : [],
+    checkedFields,
+    candidates: candidates.map((candidate) => ({
+      source: candidate.source,
+      region: candidate.region,
+      host: candidate.host,
+      accessUrl: candidate.accessUrl,
+      baseUrl: candidate.baseUrl,
+    })),
+  })}`);
+
+  if (!accessUrls?.httpUrl && !accessUrls?.restApiUrl) {
+    console.warn(`[MetaApi Client] No direct accessUrl on provisioning account object from ${metadataEndpoint}. Checked fields=${checkedFields.join(", ") || "none"}. accessUrls=${JSON.stringify(accessUrls)}`);
+  }
+
+  return {
+    metadataEndpoint,
+    accountMeta,
+    candidates,
+    checkedFields,
+  };
 }
 
 async function metaapiRequest(path: string, options: RequestInit = {}) {
@@ -94,119 +241,88 @@ async function metaapiClientRequest(accountId: string, path: string) {
   const token = Deno.env.get("METAAPI_TOKEN");
   if (!token) throw new Error("METAAPI_TOKEN non configurato");
 
-  const originalUrl = `${METAAPI_CLIENT_BASE}/users/current/accounts/${accountId}${path}`;
-  const originalHost = getHostFromUrl(originalUrl);
   const runtimeLabel = `Deno/${Deno.version.deno} ${Deno.build.os}/${Deno.build.arch}`;
+  const attemptedUrls: Array<{ url: string; host: string; source: string; region: string | null; error: string }> = [];
 
   console.log(`[MetaApi Client] Runtime: ${runtimeLabel}`);
-  console.log(`[MetaApi Client] Original URL for ${path}: ${originalUrl}`);
-  console.log(`[MetaApi Client] Original host for ${path}: ${originalHost}`);
+  console.log(`[MetaApi Client] Resolving client endpoint for ${path}...`);
 
+  let routing;
   try {
-    const res = await fetch(originalUrl, {
-      headers: {
-        "auth-token": token,
-        "Content-Type": "application/json",
-      },
-    });
+    routing = await resolveMetaApiClientRouting(accountId);
+  } catch (routingErr) {
+    const routingError = routingErr instanceof Error ? routingErr.message : String(routingErr);
+    console.error(`[MetaApi Client] Routing resolution failed for ${path}: ${routingError}`);
+    routing = {
+      metadataEndpoint: `/users/current/accounts/${accountId}`,
+      accountMeta: null,
+      checkedFields: ["legacy.defaultClientBase"],
+      candidates: collectMetaApiClientBaseCandidates(null).candidates,
+    };
+  }
 
-    const rawBody = await res.text();
-    console.log(`[MetaApi Client] ORIGINAL GET ${path} -> ${res.status}, body length: ${rawBody.length}`);
+  const [originalCandidate] = routing.candidates;
+  if (!originalCandidate) {
+    throw new Error(`MetaApi client routing error. metadataEndpoint=${routing.metadataEndpoint} checkedFields=${routing.checkedFields.join(",") || "none"} reason=no-client-base-candidates`);
+  }
 
-    if (!res.ok) {
-      throw new Error(`MetaApi client error ${res.status}: ${rawBody || "empty response"}`);
-    }
+  const originalUrl = `${originalCandidate.baseUrl}/users/current/accounts/${accountId}${path}`;
+  console.log(`[MetaApi Client] Original URL for ${path}: ${originalUrl}`);
+  console.log(`[MetaApi Client] Original host for ${path}: ${originalCandidate.host}`);
+  console.log(`[MetaApi Client] Original routing source for ${path}: ${originalCandidate.source} region=${originalCandidate.region ?? "unknown"} accessUrl=${originalCandidate.accessUrl ?? "not-provided"}`);
 
-    if (!rawBody || rawBody.trim() === "") {
-      return null;
-    }
+  for (let index = 0; index < routing.candidates.length; index++) {
+    const candidate = routing.candidates[index];
+    const finalUrl = `${candidate.baseUrl}/users/current/accounts/${accountId}${path}`;
+    const isOriginalAttempt = index === 0;
+    const attemptLabel = isOriginalAttempt ? "ORIGINAL" : `FALLBACK ${index}`;
+
+    console.log(`[MetaApi Client] ${attemptLabel} candidate for ${path}: source=${candidate.source} region=${candidate.region ?? "unknown"} host=${candidate.host} accessUrl=${candidate.accessUrl ?? "not-provided"}`);
+    console.log(`[MetaApi Client] ${attemptLabel} finalUrl for ${path}: ${finalUrl}`);
 
     try {
-      return JSON.parse(rawBody);
-    } catch (e) {
-      console.warn(`[MetaApi Client] Non-JSON response for ${path}: ${rawBody.substring(0, 200)}`);
-      return null;
-    }
-  } catch (err) {
-    const originalError = err instanceof Error ? err.message : String(err);
-    console.error(`[MetaApi Client] ORIGINAL REQUEST FAILED url=${originalUrl} host=${originalHost} error=${originalError}`);
+      const data = await metaapiClientFetchJson(finalUrl, token, `[MetaApi Client] ${attemptLabel} GET ${path}`);
+      console.log(`[MetaApi Client] SUCCESS for ${path}: finalUrl=${finalUrl} host=${candidate.host} region=${candidate.region ?? "unknown"}`);
+      return data;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      attemptedUrls.push({
+        url: finalUrl,
+        host: candidate.host,
+        source: candidate.source,
+        region: candidate.region,
+        error: errorMessage,
+      });
 
-    const isTlsError = originalError.includes("certificate") ||
-      originalError.includes("TLS") ||
-      originalError.includes("UnknownIssuer") ||
-      originalError.includes("Expired");
+      console.error(`[MetaApi Client] ${attemptLabel} REQUEST FAILED url=${finalUrl} host=${candidate.host} source=${candidate.source} region=${candidate.region ?? "unknown"} error=${errorMessage}`);
 
-    if (isTlsError) {
-      console.log(`[MetaApi Client] TLS failure detected on original URL for ${path}. Resolving fallback from provisioning API...`);
+      const isTlsError = errorMessage.includes("certificate") ||
+        errorMessage.includes("TLS") ||
+        errorMessage.includes("UnknownIssuer") ||
+        errorMessage.includes("Expired");
 
-      try {
-        const accountMeta = await metaapiRequest(`/users/current/accounts/${accountId}`);
-        const accessUrls = accountMeta?.accessUrls || {};
-        const fallbackBase = accessUrls.httpUrl || accessUrls.restApiUrl;
-
-        console.log(`[MetaApi Client] Provisioning metadata: ${JSON.stringify({
-          region: accountMeta?.region ?? null,
-          state: accountMeta?.state ?? null,
-          connectionStatus: accountMeta?.connectionStatus ?? null,
-          accessUrls,
-        })}`);
-
-        if (fallbackBase) {
-          const normalizedFallbackBase = String(fallbackBase).replace(/\/$/, "");
-          const fallbackUrl = `${normalizedFallbackBase}${path}`;
-          const fallbackHost = getHostFromUrl(fallbackUrl);
-
-          console.log(`[MetaApi Client] FALLBACK EXECUTED for ${path}`);
-          console.log(`[MetaApi Client] Fallback URL: ${fallbackUrl}`);
-          console.log(`[MetaApi Client] Fallback host: ${fallbackHost}`);
-
-          try {
-            const fallbackRes = await fetch(fallbackUrl, {
-              headers: {
-                "auth-token": token,
-                "Content-Type": "application/json",
-              },
-            });
-
-            const fallbackRawBody = await fallbackRes.text();
-            console.log(`[MetaApi Client] FALLBACK GET ${path} -> ${fallbackRes.status}, body length: ${fallbackRawBody.length}`);
-
-            if (!fallbackRes.ok) {
-              throw new Error(`MetaApi client fallback error ${fallbackRes.status}: ${fallbackRawBody || "empty response"}`);
-            }
-
-            if (!fallbackRawBody || fallbackRawBody.trim() === "") {
-              return null;
-            }
-
-            try {
-              return JSON.parse(fallbackRawBody);
-            } catch {
-              console.warn(`[MetaApi Client] Non-JSON fallback response for ${path}: ${fallbackRawBody.substring(0, 200)}`);
-              return null;
-            }
-          } catch (fallbackErr) {
-            const fallbackError = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-            console.error(`[MetaApi Client] FALLBACK REQUEST FAILED url=${fallbackUrl} host=${fallbackHost} error=${fallbackError}`);
-            throw new Error(`MetaApi client TLS/network error. originalUrl=${originalUrl} originalHost=${originalHost} fallbackUrl=${fallbackUrl} fallbackHost=${fallbackHost} originalError=${originalError} fallbackError=${fallbackError}`);
-          }
-        }
-
-        console.error(`[MetaApi Client] FALLBACK NOT EXECUTED: provisioning API did not return a usable client access URL for ${path}`);
-        throw new Error(`MetaApi client TLS/network error. originalUrl=${originalUrl} originalHost=${originalHost} originalError=${originalError} fallbackUrl=not-available`);
-      } catch (fallbackResolutionErr) {
-        if (fallbackResolutionErr instanceof Error && fallbackResolutionErr.message.includes("fallbackUrl=")) {
-          throw fallbackResolutionErr;
-        }
-
-        const resolutionError = fallbackResolutionErr instanceof Error ? fallbackResolutionErr.message : String(fallbackResolutionErr);
-        console.error(`[MetaApi Client] FALLBACK RESOLUTION FAILED for ${path}: ${resolutionError}`);
-        throw new Error(`MetaApi client TLS/network error. originalUrl=${originalUrl} originalHost=${originalHost} originalError=${originalError} fallbackResolutionError=${resolutionError}`);
+      if (!isTlsError) {
+        throw new Error(`MetaApi client request failed. originalUrl=${originalUrl} finalUrl=${finalUrl} region=${candidate.region ?? "unknown"} source=${candidate.source} error=${errorMessage}`);
       }
     }
-
-    throw new Error(`MetaApi client network error. originalUrl=${originalUrl} originalHost=${originalHost} error=${originalError}`);
   }
+
+  const attemptsSummary = attemptedUrls.map((attempt, index) => ({
+    attempt: index + 1,
+    url: attempt.url,
+    host: attempt.host,
+    source: attempt.source,
+    region: attempt.region,
+    error: attempt.error,
+  }));
+
+  console.error(`[MetaApi Client] All routing attempts failed for ${path}: ${JSON.stringify({
+    metadataEndpoint: routing.metadataEndpoint,
+    region: routing.accountMeta?.region ?? null,
+    checkedFields: routing.checkedFields,
+    attempts: attemptsSummary,
+  })}`);
+  throw new Error(`MetaApi client TLS/network error. metadataEndpoint=${routing.metadataEndpoint} originalUrl=${originalUrl} checkedFields=${routing.checkedFields.join(",") || "none"} attempts=${JSON.stringify(attemptsSummary)}`);
 }
 
 // Deploy a MetaApi account and wait for it to connect
