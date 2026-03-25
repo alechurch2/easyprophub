@@ -5,10 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ========== MOCK PROVIDER ==========
-// Replace this section with a real provider (MT4/MT5 bridge) in the future.
-// The interface is: fetchAccountData(account) => { overview, openPositions, closedTrades }
-
+// ========== TYPES ==========
 interface ProviderAccountData {
   overview: {
     balance: number;
@@ -46,10 +43,197 @@ interface ProviderAccountData {
   }>;
 }
 
+// ========== METAAPI PROVIDER ==========
+const METAAPI_BASE = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai";
+const METAAPI_CLIENT_BASE = "https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai";
+
+async function metaapiRequest(path: string, options: RequestInit = {}) {
+  const token = Deno.env.get("METAAPI_TOKEN");
+  if (!token) throw new Error("METAAPI_TOKEN non configurato");
+
+  const url = path.startsWith("http") ? path : `${METAAPI_BASE}${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "auth-token": token,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`MetaApi error ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+async function metaapiClientRequest(accountId: string, path: string) {
+  const token = Deno.env.get("METAAPI_TOKEN");
+  if (!token) throw new Error("METAAPI_TOKEN non configurato");
+
+  const url = `${METAAPI_CLIENT_BASE}/users/current/accounts/${accountId}${path}`;
+  const res = await fetch(url, {
+    headers: {
+      "auth-token": token,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`MetaApi client error ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+// Deploy a MetaApi account and wait for it to connect
+async function createMetaApiAccount(account: any): Promise<string> {
+  const token = Deno.env.get("METAAPI_TOKEN");
+  if (!token) throw new Error("METAAPI_TOKEN non configurato");
+
+  const payload = {
+    login: account.account_number,
+    password: account.investor_password,
+    name: account.account_name || `EasyProp-${account.account_number}`,
+    server: account.server,
+    platform: (account.platform || "mt5").toLowerCase(),
+    type: "cloud-g2",
+    reliability: "high",
+    // read-only: we use investor password, MetaApi will detect access type
+  };
+
+  const result = await metaapiRequest("/users/current/accounts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  return result.id; // MetaApi account ID
+}
+
+// Deploy the account (start the cloud instance)
+async function deployMetaApiAccount(metaAccountId: string) {
+  await metaapiRequest(`/users/current/accounts/${metaAccountId}/deploy`, {
+    method: "POST",
+  });
+}
+
+// Wait for the account to reach DEPLOYED state and connected
+async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < maxWaitMs) {
+    const info = await metaapiRequest(`/users/current/accounts/${metaAccountId}`);
+    if (info.state === "DEPLOYED" && info.connectionStatus === "CONNECTED") {
+      return true;
+    }
+    if (info.state === "DEPLOY_FAILED") {
+      throw new Error(`Deploy fallito: ${info.connectionStatus || "stato sconosciuto"}`);
+    }
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  throw new Error("Timeout: il conto non si è connesso entro 90 secondi. Riprova tra qualche minuto.");
+}
+
+// Fetch account data from MetaApi
+async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountData> {
+  // Get account information (balance, equity, etc.)
+  const accountInfo = await metaapiClientRequest(metaAccountId, "/account-information");
+
+  // Get open positions
+  const positions = await metaapiClientRequest(metaAccountId, "/positions");
+
+  // Get history deals (last 30 days)
+  const startTime = new Date(Date.now() - 30 * 86400000).toISOString();
+  const endTime = new Date().toISOString();
+  const historyOrders = await metaapiClientRequest(
+    metaAccountId,
+    `/history-deals/time/${startTime}/${endTime}`
+  );
+
+  const balance = accountInfo.balance || 0;
+  const equity = accountInfo.equity || 0;
+  const floatingPnl = equity - balance;
+
+  const openPositions = (positions || []).map((p: any) => ({
+    external_trade_id: `metaapi-pos-${p.id}`,
+    asset: p.symbol,
+    direction: p.type === "POSITION_TYPE_BUY" ? "buy" : "sell",
+    lot_size: p.volume || 0,
+    entry_price: p.openPrice || 0,
+    stop_loss: p.stopLoss || null,
+    take_profit: p.takeProfit || null,
+    profit_loss: p.profit || 0,
+    opened_at: p.time || new Date().toISOString(),
+  }));
+
+  // Process history deals into closed trades
+  // MetaApi returns individual deals; we need to pair entry/exit deals
+  const dealsByPosition: Record<string, any[]> = {};
+  for (const deal of (historyOrders || [])) {
+    if (deal.type === "DEAL_TYPE_BALANCE" || deal.type === "DEAL_TYPE_CREDIT") continue;
+    const posId = deal.positionId || deal.id;
+    if (!dealsByPosition[posId]) dealsByPosition[posId] = [];
+    dealsByPosition[posId].push(deal);
+  }
+
+  const closedTrades: ProviderAccountData["closedTrades"] = [];
+  for (const [posId, deals] of Object.entries(dealsByPosition)) {
+    // Entry deals: DEAL_ENTRY_IN, Exit deals: DEAL_ENTRY_OUT
+    const entryDeals = deals.filter((d: any) => d.entryType === "DEAL_ENTRY_IN");
+    const exitDeals = deals.filter((d: any) => d.entryType === "DEAL_ENTRY_OUT");
+
+    if (entryDeals.length > 0 && exitDeals.length > 0) {
+      const entry = entryDeals[0];
+      const exit = exitDeals[exitDeals.length - 1];
+      const openTime = new Date(entry.time);
+      const closeTime = new Date(exit.time);
+      const durationMins = Math.round((closeTime.getTime() - openTime.getTime()) / 60000);
+
+      closedTrades.push({
+        external_trade_id: `metaapi-deal-${posId}`,
+        asset: entry.symbol,
+        direction: entry.type === "DEAL_TYPE_BUY" ? "buy" : "sell",
+        lot_size: entry.volume || 0,
+        entry_price: entry.price || 0,
+        exit_price: exit.price || 0,
+        stop_loss: null, // not available in deals
+        take_profit: null,
+        profit_loss: exitDeals.reduce((sum: number, d: any) => sum + (d.profit || 0) + (d.swap || 0) + (d.commission || 0), 0),
+        opened_at: openTime.toISOString(),
+        closed_at: closeTime.toISOString(),
+        duration_minutes: durationMins,
+      });
+    }
+  }
+
+  return {
+    overview: {
+      balance: Math.round(balance * 100) / 100,
+      equity: Math.round(equity * 100) / 100,
+      profit_loss: Math.round(floatingPnl * 100) / 100,
+      drawdown: accountInfo.marginLevel ? Math.round((1 - accountInfo.equity / accountInfo.balance) * 10000) / 100 : 0,
+      daily_pnl: 0, // Would need daily comparison
+      weekly_pnl: 0,
+      open_positions_count: openPositions.length,
+    },
+    openPositions,
+    closedTrades,
+  };
+}
+
+// ========== MOCK PROVIDER (fallback) ==========
+function hashCode(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
 function generateMockData(account: any): ProviderAccountData {
   const seed = hashCode(account.id);
   const r = (min: number, max: number) => min + ((seed * 9301 + 49297) % 233280) / 233280 * (max - min);
-
   const assets = ["EUR/USD", "GBP/USD", "XAU/USD", "USD/JPY", "NAS100"];
   const balance = 10000 + r(0, 90000);
   const floatingPnl = r(-500, 800);
@@ -58,16 +242,14 @@ function generateMockData(account: any): ProviderAccountData {
     const asset = assets[i % assets.length];
     const dir = i % 2 === 0 ? "buy" : "sell";
     const entry = asset === "XAU/USD" ? 2300 + r(-50, 50) : asset === "NAS100" ? 18000 + r(-500, 500) : 1.0 + r(0, 0.5);
-    const pnl = r(-200, 400);
     return {
       external_trade_id: `mock-open-${account.id.slice(0, 8)}-${i}`,
-      asset,
-      direction: dir,
+      asset, direction: dir,
       lot_size: Math.round(r(0.01, 1) * 100) / 100,
       entry_price: Math.round(entry * 100000) / 100000,
       stop_loss: Math.round((entry * (dir === "buy" ? 0.995 : 1.005)) * 100000) / 100000,
       take_profit: Math.round((entry * (dir === "buy" ? 1.01 : 0.99)) * 100000) / 100000,
-      profit_loss: Math.round(pnl * 100) / 100,
+      profit_loss: Math.round(r(-200, 400) * 100) / 100,
       opened_at: new Date(Date.now() - r(3600000, 86400000 * 3)).toISOString(),
     };
   });
@@ -76,16 +258,14 @@ function generateMockData(account: any): ProviderAccountData {
     const asset = assets[i % assets.length];
     const dir = i % 3 === 0 ? "sell" : "buy";
     const entry = asset === "XAU/USD" ? 2300 + r(-100, 100) : asset === "NAS100" ? 18000 + r(-1000, 1000) : 1.0 + r(0, 0.5);
-    const exitMult = dir === "buy" ? 1 + r(-0.005, 0.01) : 1 - r(-0.01, 0.005);
-    const exit = entry * exitMult;
+    const exit = entry * (dir === "buy" ? 1 + r(-0.005, 0.01) : 1 - r(-0.01, 0.005));
     const pnl = (dir === "buy" ? exit - entry : entry - exit) * r(1000, 10000);
     const durationMins = Math.floor(r(15, 4320));
     const closedAt = new Date(Date.now() - r(86400000, 86400000 * 30));
     const openedAt = new Date(closedAt.getTime() - durationMins * 60000);
     return {
       external_trade_id: `mock-closed-${account.id.slice(0, 8)}-${i}`,
-      asset,
-      direction: dir,
+      asset, direction: dir,
       lot_size: Math.round(r(0.01, 2) * 100) / 100,
       entry_price: Math.round(entry * 100000) / 100000,
       exit_price: Math.round(exit * 100000) / 100000,
@@ -97,9 +277,6 @@ function generateMockData(account: any): ProviderAccountData {
       duration_minutes: durationMins,
     };
   });
-
-  const wins = closedTrades.filter(t => t.profit_loss > 0).length;
-  const winRate = closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0;
 
   return {
     overview: {
@@ -116,27 +293,18 @@ function generateMockData(account: any): ProviderAccountData {
   };
 }
 
-function hashCode(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
 // ========== PROVIDER ROUTER ==========
-// Add new providers here. For now only "mock" is available.
 async function fetchAccountData(account: any): Promise<ProviderAccountData> {
   const providerType = account.provider_type || "mock";
 
   switch (providerType) {
+    case "metaapi":
+      if (!account.provider_account_id) {
+        throw new Error("Account MetaApi non configurato (provider_account_id mancante)");
+      }
+      return await fetchMetaApiData(account.provider_account_id);
     case "mock":
       return generateMockData(account);
-    // case "mt5_bridge":
-    //   return await fetchMT5Data(account);
-    // case "mt4_bridge":
-    //   return await fetchMT4Data(account);
     default:
       throw new Error(`Provider sconosciuto: ${providerType}`);
   }
@@ -161,7 +329,6 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify user
     const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
     const { data: { user }, error: authError } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
     if (authError || !user) {
@@ -173,6 +340,71 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action, account_id } = body;
+
+    // === CONNECT (MetaApi provisioning) ===
+    if (action === "connect_metaapi") {
+      const { data: account } = await supabase
+        .from("trading_accounts")
+        .select("*")
+        .eq("id", account_id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (!account) {
+        return new Response(JSON.stringify({ error: "Conto non trovato" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      try {
+        await supabase.from("trading_accounts").update({
+          connection_status: "syncing",
+          sync_status: "running",
+        }).eq("id", account_id);
+
+        // 1. Create MetaApi account
+        const metaAccountId = await createMetaApiAccount(account);
+
+        // 2. Save provider_account_id immediately
+        await supabase.from("trading_accounts").update({
+          provider_account_id: metaAccountId,
+          provider_type: "metaapi",
+        }).eq("id", account_id);
+
+        // 3. Deploy the account
+        await deployMetaApiAccount(metaAccountId);
+
+        // 4. Wait for connection
+        await waitForConnection(metaAccountId);
+
+        // 5. Mark connected
+        await supabase.from("trading_accounts").update({
+          connection_status: "connected",
+          sync_status: "idle",
+          last_sync_error: null,
+        }).eq("id", account_id);
+
+        return new Response(JSON.stringify({
+          success: true,
+          status: "connected",
+          provider_account_id: metaAccountId,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+
+      } catch (err) {
+        await supabase.from("trading_accounts").update({
+          connection_status: "failed",
+          sync_status: "error",
+          last_sync_error: err.message,
+        }).eq("id", account_id);
+
+        return new Response(JSON.stringify({ success: false, error: err.message }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // === TEST CONNECTION ===
     if (action === "test_connection") {
@@ -191,16 +423,13 @@ Deno.serve(async (req) => {
       }
 
       try {
-        // Update status to syncing
         await supabase.from("trading_accounts").update({
           connection_status: "syncing",
           sync_status: "running",
         }).eq("id", account_id);
 
-        // Try fetching data (validates connection)
         await fetchAccountData(account);
 
-        // Mark as connected
         await supabase.from("trading_accounts").update({
           connection_status: "connected",
           sync_status: "idle",
@@ -239,7 +468,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Prevent concurrent syncs
       if (account.sync_status === "running") {
         return new Response(JSON.stringify({ error: "Sincronizzazione già in corso" }), {
           status: 409,
@@ -247,7 +475,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create sync log
       const { data: syncLog } = await supabase.from("account_sync_logs").insert({
         account_id,
         user_id: user.id,
@@ -255,7 +482,6 @@ Deno.serve(async (req) => {
         status: "running",
       }).select().single();
 
-      // Mark syncing
       await supabase.from("trading_accounts").update({
         sync_status: "running",
         connection_status: "syncing",
@@ -280,7 +506,7 @@ Deno.serve(async (req) => {
           last_sync_error: null,
         }).eq("id", account_id);
 
-        // Calculate metrics from closed trades
+        // Calculate metrics
         const closedTrades = data.closedTrades;
         if (closedTrades.length > 0) {
           const wins = closedTrades.filter(t => t.profit_loss > 0);
@@ -296,7 +522,7 @@ Deno.serve(async (req) => {
           }).eq("id", account_id);
         }
 
-        // Upsert open positions (delete old opens, insert new)
+        // Upsert open positions
         await supabase.from("account_trade_history")
           .delete()
           .eq("account_id", account_id)
@@ -321,7 +547,7 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Upsert closed trades (skip existing by external_trade_id)
+        // Upsert closed trades (deduplicate by external_trade_id)
         let tradesSynced = 0;
         for (const trade of data.closedTrades) {
           const { data: existing } = await supabase
@@ -353,7 +579,6 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Complete sync log
         if (syncLog) {
           await supabase.from("account_sync_logs").update({
             status: "completed",
@@ -372,7 +597,6 @@ Deno.serve(async (req) => {
         });
 
       } catch (err) {
-        // Error handling
         await supabase.from("trading_accounts").update({
           sync_status: "error",
           connection_status: "failed",
