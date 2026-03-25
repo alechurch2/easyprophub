@@ -343,6 +343,12 @@ function AdminReviews() {
     const { data } = await supabase.from("ai_chart_reviews").select("*").order("created_at", { ascending: false });
     if (data) {
       setReviews(data);
+      // Compute premium stats
+      const premiumReviews = data.filter((r: any) => r.review_tier === "premium");
+      const byUser: Record<string, number> = {};
+      premiumReviews.forEach((r: any) => { byUser[r.user_id] = (byUser[r.user_id] || 0) + 1; });
+      setPremiumStats({ total: premiumReviews.length, byUser });
+
       const userIds = [...new Set(data.map((r: any) => r.user_id))];
       if (userIds.length > 0) {
         const { data: profs } = await supabase.from("profiles").select("user_id, full_name").in("user_id", userIds);
@@ -352,7 +358,6 @@ function AdminReviews() {
           setProfiles(map);
         }
       }
-      // Load all ratings
       const reviewIds = data.map((r: any) => r.id);
       if (reviewIds.length > 0) {
         const { data: allRatings } = await supabase.from("ai_review_ratings" as any).select("*").in("review_id", reviewIds);
