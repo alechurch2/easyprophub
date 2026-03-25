@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone, Bot,
-  Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft
+  Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft,
+  ThumbsUp, ThumbsDown, Star, MessageSquare, Link2, GraduationCap, Search, ArrowUpDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
