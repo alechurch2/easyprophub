@@ -102,10 +102,15 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
   const [investorPassword, setInvestorPassword] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [connectionStep, setConnectionStep] = useState("");
 
   const handleSave = async () => {
-    if (!name.trim() || !user) return;
+    if (!name.trim() || !accountNumber.trim() || !server.trim() || !investorPassword.trim() || !user) {
+      toast.error("Compila login, server e investor password");
+      return;
+    }
     setSaving(true);
+    setConnectionStep("Creazione account...");
 
     // 1. Create account as pending
     const { data: account, error } = await supabase.from("trading_accounts").insert({
@@ -118,18 +123,20 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
       investor_password: investorPassword.trim() || null,
       connection_status: "pending",
       sync_status: "idle",
-      provider_type: "mock",
+      provider_type: "metaapi",
       user_note: note.trim() || null,
     } as any).select().single();
 
     if (error || !account) {
       toast.error("Errore nel salvataggio");
       setSaving(false);
+      setConnectionStep("");
       return;
     }
 
-    // 2. Test connection via edge function
-    toast.info("Connessione in corso...");
+    // 2. Connect via MetaApi (provisioning + deploy + wait)
+    setConnectionStep("Connessione a MetaApi in corso...");
+    toast.info("Connessione al broker in corso. Può richiedere fino a 90 secondi...");
     try {
       const { data: session } = await supabase.auth.getSession();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -141,15 +148,16 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.session?.access_token}`,
           },
-          body: JSON.stringify({ action: "test_connection", account_id: (account as any).id }),
+          body: JSON.stringify({ action: "connect_metaapi", account_id: (account as any).id }),
         }
       );
       const result = await res.json();
 
       if (result.success) {
-        toast.success("Conto collegato con successo! Avvio sincronizzazione...");
+        setConnectionStep("Sincronizzazione dati...");
+        toast.success("Conto collegato! Avvio prima sincronizzazione...");
         // 3. Run first sync
-        await fetch(
+        const syncRes = await fetch(
           `https://${projectId}.supabase.co/functions/v1/account-sync`,
           {
             method: "POST",
@@ -160,15 +168,21 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
             body: JSON.stringify({ action: "sync", account_id: (account as any).id }),
           }
         );
-        toast.success("Prima sincronizzazione completata!");
+        const syncResult = await syncRes.json();
+        if (syncResult.success) {
+          toast.success(`Sincronizzazione completata! ${syncResult.trades_synced} trade importati.`);
+        } else {
+          toast.warning(`Conto collegato ma errore sync: ${syncResult.error || "Riprova manualmente"}`);
+        }
       } else {
         toast.error(`Errore connessione: ${result.error || "Sconosciuto"}`);
       }
     } catch {
-      toast.error("Errore durante il test di connessione");
+      toast.error("Errore durante la connessione al broker");
     }
 
     setSaving(false);
+    setConnectionStep("");
     onSaved();
   };
 
@@ -192,7 +206,6 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
             <SelectContent>
               <SelectItem value="MT4">MetaTrader 4</SelectItem>
               <SelectItem value="MT5">MetaTrader 5</SelectItem>
-              <SelectItem value="other">Altro</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -203,18 +216,18 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
             <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Es: ICMarkets" className="mt-1" />
           </div>
           <div>
-            <Label className="text-foreground">Server</Label>
-            <Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: ICMarkets-Live" className="mt-1" />
+            <Label className="text-foreground">Server *</Label>
+            <Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: ICMarketsSC-MT5" className="mt-1" />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-foreground">Numero conto</Label>
+            <Label className="text-foreground">Login (numero conto) *</Label>
             <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Es: 12345678" className="mt-1" />
           </div>
           <div>
-            <Label className="text-foreground">Investor Password</Label>
+            <Label className="text-foreground">Investor Password *</Label>
             <Input type="password" value={investorPassword} onChange={(e) => setInvestorPassword(e.target.value)} placeholder="Password read-only" className="mt-1" />
           </div>
         </div>
@@ -227,15 +240,23 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
         <div className="card-premium p-3 border-primary/20 bg-primary/5">
           <div className="flex items-start gap-2">
             <Shield className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              Il conto verrà collegato in <strong>modalità sola lettura</strong>. Non sarà possibile aprire, chiudere o modificare ordini dalla piattaforma.
-            </p>
+            <div className="text-xs text-muted-foreground">
+              <p><strong>Modalità sola lettura.</strong> Usa la tua <strong>investor password</strong> (non la master password). Il portale non può aprire, chiudere o modificare ordini.</p>
+              <p className="mt-1 text-[10px]">Il collegamento avviene tramite MetaApi. La connessione iniziale può richiedere fino a 90 secondi.</p>
+            </div>
           </div>
         </div>
 
+        {connectionStep && (
+          <div className="flex items-center gap-2 text-sm text-primary">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{connectionStep}</span>
+          </div>
+        )}
+
         <div className="flex gap-2 justify-end pt-2">
-          <Button variant="outline" onClick={onClose}>Annulla</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || saving}>
+          <Button variant="outline" onClick={onClose} disabled={saving}>Annulla</Button>
+          <Button onClick={handleSave} disabled={!name.trim() || !accountNumber.trim() || !server.trim() || !investorPassword.trim() || saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
             Collega conto
           </Button>
@@ -315,7 +336,7 @@ function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccou
                 <Eye className="h-2.5 w-2.5 mr-1" />Read-only
               </Badge>
               <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                {acc.provider_type === "mock" ? "📊 Demo" : acc.provider_type}
+                {acc.provider_type === "metaapi" ? "⚡ MetaApi" : acc.provider_type === "mock" ? "📊 Demo" : acc.provider_type}
               </Badge>
               <SyncStatusBadge status={acc.sync_status} />
               <StatusBadge status={acc.connection_status} />
