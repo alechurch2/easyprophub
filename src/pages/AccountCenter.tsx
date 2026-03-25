@@ -138,6 +138,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
     // 2. Connect via MetaApi (provisioning + deploy + wait)
     setConnectionStep("Connessione a MetaApi in corso...");
     toast.info("Connessione al broker in corso. Può richiedere fino a 90 secondi...");
+    let connectSuccess = false;
     try {
       const { data: session } = await supabase.auth.getSession();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
@@ -155,6 +156,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
       const result = await res.json();
 
       if (result.success) {
+        connectSuccess = true;
         setConnectionStep("Sincronizzazione dati...");
         toast.success("Conto collegato! Avvio prima sincronizzazione...");
         // 3. Run first sync
@@ -180,6 +182,11 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
       }
     } catch {
       toast.error("Errore durante la connessione al broker");
+    }
+
+    // If connect failed, delete orphan record
+    if (!connectSuccess) {
+      await supabase.from("trading_accounts").delete().eq("id", (account as any).id);
     }
 
     setSaving(false);
