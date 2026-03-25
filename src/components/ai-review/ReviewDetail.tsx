@@ -50,6 +50,9 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-heading text-xl font-bold text-foreground">{review.asset} - {review.timeframe}</h1>
+            {review.review_tier === "premium" && (
+              <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Crown className="h-3 w-3 mr-0.5" />Premium</Badge>
+            )}
             {isEasy ? (
               <Badge variant="outline" className="border-primary/30 text-primary"><Zap className="h-3 w-3 mr-0.5" />Easy</Badge>
             ) : (
