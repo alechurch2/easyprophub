@@ -996,13 +996,13 @@ export default function AccountCenter() {
 
         {/* Tabs */}
         <Tabs defaultValue="overview">
-          <TabsList className="mb-6 w-full flex flex-wrap gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
-            <TabsTrigger value="overview" className="flex-1 min-w-[80px]"><Wallet className="h-3 w-3 mr-1" />Overview</TabsTrigger>
-            <TabsTrigger value="positions" className="flex-1 min-w-[80px]"><Activity className="h-3 w-3 mr-1" />Posizioni</TabsTrigger>
-            <TabsTrigger value="history" className="flex-1 min-w-[80px]"><BarChart3 className="h-3 w-3 mr-1" />Storico</TabsTrigger>
-            <TabsTrigger value="journal" className="flex-1 min-w-[80px]"><BookOpen className="h-3 w-3 mr-1" />Journaling</TabsTrigger>
-            <TabsTrigger value="metrics" className="flex-1 min-w-[80px]"><TrendingUp className="h-3 w-3 mr-1" />Metriche</TabsTrigger>
-            <TabsTrigger value="sync-logs" className="flex-1 min-w-[80px]"><RefreshCw className="h-3 w-3 mr-1" />Sync</TabsTrigger>
+          <TabsList className="mb-6 w-full grid grid-cols-3 sm:grid-cols-6 gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
+            <TabsTrigger value="overview" className="text-xs px-2"><Wallet className="h-3 w-3 mr-1 hidden sm:inline" />Overview</TabsTrigger>
+            <TabsTrigger value="positions" className="text-xs px-2"><Activity className="h-3 w-3 mr-1 hidden sm:inline" />Posizioni</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs px-2"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Storico</TabsTrigger>
+            <TabsTrigger value="journal" className="text-xs px-2"><BookOpen className="h-3 w-3 mr-1 hidden sm:inline" />Journal</TabsTrigger>
+            <TabsTrigger value="metrics" className="text-xs px-2"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Metriche</TabsTrigger>
+            <TabsTrigger value="sync-logs" className="text-xs px-2"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} /></TabsContent>
