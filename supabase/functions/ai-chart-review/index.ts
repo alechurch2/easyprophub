@@ -401,7 +401,7 @@ serve(async (req) => {
       });
     }
 
-    const { asset, timeframe, request_type, screenshot_url } = await req.json();
+    const { asset, timeframe, request_type, screenshot_url, user_note, parent_review_id } = await req.json();
 
     if (!asset || !timeframe || !request_type) {
       return new Response(
