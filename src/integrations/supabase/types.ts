@@ -16,9 +16,11 @@ export type Database = {
     Tables: {
       ai_chart_reviews: {
         Row: {
+          account_size: number | null
           analysis: Json | null
           asset: string
           created_at: string
+          custom_account_size: number | null
           didactic_description: string | null
           didactic_tags: string[] | null
           didactic_title: string | null
@@ -27,6 +29,7 @@ export type Database = {
           is_didactic_example: boolean
           parent_review_id: string | null
           request_type: string
+          review_mode: string
           screenshot_url: string | null
           status: Database["public"]["Enums"]["review_status"]
           timeframe: string
@@ -35,9 +38,11 @@ export type Database = {
           user_note: string | null
         }
         Insert: {
+          account_size?: number | null
           analysis?: Json | null
           asset: string
           created_at?: string
+          custom_account_size?: number | null
           didactic_description?: string | null
           didactic_tags?: string[] | null
           didactic_title?: string | null
@@ -46,6 +51,7 @@ export type Database = {
           is_didactic_example?: boolean
           parent_review_id?: string | null
           request_type: string
+          review_mode?: string
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["review_status"]
           timeframe: string
@@ -54,9 +60,11 @@ export type Database = {
           user_note?: string | null
         }
         Update: {
+          account_size?: number | null
           analysis?: Json | null
           asset?: string
           created_at?: string
+          custom_account_size?: number | null
           didactic_description?: string | null
           didactic_tags?: string[] | null
           didactic_title?: string | null
@@ -65,6 +73,7 @@ export type Database = {
           is_didactic_example?: boolean
           parent_review_id?: string | null
           request_type?: string
+          review_mode?: string
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["review_status"]
           timeframe?: string
