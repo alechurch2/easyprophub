@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { BRAND } from "@/config/brand";
+import BrandLogo from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BarChart3, Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-
-const PORTAL_NAME = "TradingHub Pro";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -35,41 +35,31 @@ export default function Login() {
     <div className="min-h-screen bg-background flex">
       {/* Left panel - branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-card border-r border-border flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-            <BarChart3 className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="font-heading text-xl font-bold text-foreground">{PORTAL_NAME}</span>
-        </div>
+        <BrandLogo size="md" />
         <div>
           <h1 className="font-heading text-4xl font-bold text-foreground leading-tight">
-            Il tuo percorso di
+            Formazione, analisi
             <br />
-            <span className="text-gradient-gold">crescita nel trading</span>
+            e <span className="text-gradient-gold">supporto operativo</span>
             <br />
-            inizia qui.
+            in un unico portale.
           </h1>
           <p className="mt-4 text-muted-foreground text-lg max-w-md">
-            Accedi al portale riservato per formazione, analisi e supporto personalizzato.
+            Accedi all'area riservata EasyProp per strumenti esclusivi, AI Chart Review e percorsi formativi dedicati.
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          © 2024 {PORTAL_NAME}. Tutti i diritti riservati.
-        </p>
+        <p className="text-xs text-muted-foreground">{BRAND.copyright}</p>
       </div>
 
       {/* Right panel - form */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-              <BarChart3 className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="font-heading text-xl font-bold text-foreground">{PORTAL_NAME}</span>
+          <div className="lg:hidden flex justify-center mb-8">
+            <BrandLogo size="md" />
           </div>
 
           <h2 className="font-heading text-2xl font-bold text-foreground">Bentornato</h2>
-          <p className="text-muted-foreground mt-1 mb-8">Accedi al tuo account</p>
+          <p className="text-muted-foreground mt-1 mb-8">Accedi alla tua area riservata</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
