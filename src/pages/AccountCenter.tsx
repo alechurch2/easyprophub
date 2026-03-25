@@ -942,14 +942,20 @@ export default function AccountCenter() {
           body: JSON.stringify({ action: "sync", account_id: accountId }),
         }
       );
-      const result = await res.json();
+      let result: any;
+      try {
+        const rawText = await res.text();
+        result = rawText ? JSON.parse(rawText) : { success: false, error: "Empty response" };
+      } catch {
+        result = { success: false, error: `Risposta non valida (status ${res.status})` };
+      }
       if (result.success) {
         toast.success(`Sincronizzazione completata! ${result.trades_synced} nuovi trade importati.`);
       } else {
         toast.error(`Errore: ${result.error || "Sconosciuto"}`);
       }
-    } catch {
-      toast.error("Errore di connessione durante il sync");
+    } catch (err: any) {
+      toast.error(`Errore di connessione durante il sync: ${err.message || "Sconosciuto"}`);
     }
     setSyncing(null);
     loadData();
