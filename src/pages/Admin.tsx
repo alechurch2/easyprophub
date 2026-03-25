@@ -580,6 +580,20 @@ function AdminReviews() {
               <Button size="sm" variant={r.is_didactic_example ? "default" : "outline"} className="h-7 text-xs" onClick={() => toggleDidactic(r)}>
                 <GraduationCap className="h-3 w-3" />
               </Button>
+              {r.is_didactic_example && (
+                <Button
+                  size="sm"
+                  variant={r.didactic_visible ? "default" : "outline"}
+                  className={cn("h-7 text-xs", r.didactic_visible ? "bg-success hover:bg-success/90" : "")}
+                  onClick={async () => {
+                    await supabase.from("ai_chart_reviews").update({ didactic_visible: !r.didactic_visible } as any).eq("id", r.id);
+                    toast.success(r.didactic_visible ? "Nascosto dalla libreria" : "Visibile nella libreria");
+                    load();
+                  }}
+                >
+                  {r.didactic_visible ? "Visibile" : "Nascosto"}
+                </Button>
+              )}
             </div>
           </div>
         </div>
