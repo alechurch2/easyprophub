@@ -201,7 +201,7 @@ export default function Support() {
             </div>
             <div>
               <h1 className="font-heading text-2xl font-bold text-foreground">Supporto</h1>
-              <p className="text-sm text-muted-foreground">FAQ e assistenza dedicata</p>
+              <p className="text-sm text-muted-foreground">Assistenza dedicata EasyProp — FAQ e ticket</p>
             </div>
           </div>
           <Button onClick={() => setShowForm(!showForm)} size="sm">

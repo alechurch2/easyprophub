@@ -235,7 +235,7 @@ export default function AIReview() {
             </div>
             <div>
               <h1 className="font-heading text-2xl font-bold text-foreground">AI Chart Review</h1>
-              <p className="text-sm text-muted-foreground">Ottieni un'analisi strutturata dei tuoi grafici</p>
+              <p className="text-sm text-muted-foreground">Analisi strutturata dei tuoi grafici, powered by EasyProp</p>
             </div>
           </div>
           <Button onClick={() => setShowForm(!showForm)} size="sm">

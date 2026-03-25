@@ -154,7 +154,7 @@ export default function Training() {
           </div>
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">Formazione</h1>
-            <p className="text-sm text-muted-foreground">Esplora i corsi e i moduli disponibili</p>
+            <p className="text-sm text-muted-foreground">Percorsi formativi e moduli dedicati EasyProp</p>
           </div>
         </div>
 

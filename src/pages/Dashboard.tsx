@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight } from "lucide-react";
@@ -32,7 +33,7 @@ export default function Dashboard() {
   const cards = [
     {
       title: "Formazione",
-      description: "Accedi ai corsi e ai moduli formativi",
+      description: "Percorsi formativi e moduli dedicati",
       icon: BookOpen,
       path: "/training",
       color: "text-primary",
@@ -40,7 +41,7 @@ export default function Dashboard() {
     },
     {
       title: "Supporto",
-      description: "Apri un ticket o consulta le FAQ",
+      description: "Assistenza dedicata e FAQ",
       icon: HeadphonesIcon,
       path: "/support",
       color: "text-info",
@@ -48,7 +49,7 @@ export default function Dashboard() {
     },
     {
       title: "AI Chart Review",
-      description: "Analisi AI dei tuoi grafici",
+      description: "Analisi strutturata dei tuoi grafici",
       icon: BarChart3,
       path: "/ai-review",
       color: "text-success",
@@ -64,7 +65,7 @@ export default function Dashboard() {
           <h1 className="font-heading text-2xl lg:text-3xl font-bold text-foreground">
             Bentornato, {profile?.full_name?.split(" ")[0] || "Utente"}
           </h1>
-          <p className="text-muted-foreground mt-1">Ecco il riepilogo del tuo portale</p>
+          <p className="text-muted-foreground mt-1">{BRAND.description}</p>
         </div>
 
         {/* Status */}

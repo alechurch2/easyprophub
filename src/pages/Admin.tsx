@@ -427,8 +427,8 @@ export default function Admin() {
             <Shield className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground">Pannello Admin</h1>
-            <p className="text-sm text-muted-foreground">Gestisci utenti, contenuti e richieste</p>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Admin EasyProp</h1>
+            <p className="text-sm text-muted-foreground">Gestione utenti, contenuti e richieste</p>
           </div>
         </div>
 

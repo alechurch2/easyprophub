@@ -1,6 +1,8 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { BRAND } from "@/config/brand";
+import BrandLogo from "@/components/BrandLogo";
 import {
   BookOpen,
   HeadphonesIcon,
@@ -14,8 +16,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const PORTAL_NAME = "TradingHub Pro";
 
 interface NavItem {
   label: string;
@@ -50,11 +50,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 border-r border-border bg-card">
         <div className="flex h-16 items-center px-6 border-b border-border">
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <BarChart3 className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-heading text-lg font-bold text-foreground">{PORTAL_NAME}</span>
+          <Link to="/dashboard">
+            <BrandLogo size="sm" />
           </Link>
         </div>
 
@@ -107,7 +104,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <button onClick={() => setMobileOpen(true)} className="text-foreground">
           <Menu className="h-5 w-5" />
         </button>
-        <span className="ml-3 font-heading font-bold text-foreground">{PORTAL_NAME}</span>
+        <div className="ml-3">
+          <BrandLogo size="sm" />
+        </div>
       </div>
 
       {/* Mobile sidebar overlay */}
@@ -116,7 +115,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <aside className="relative w-72 h-full bg-card border-r border-border flex flex-col">
             <div className="flex h-14 items-center justify-between px-4 border-b border-border">
-              <span className="font-heading font-bold text-foreground">{PORTAL_NAME}</span>
+              <BrandLogo size="sm" />
               <button onClick={() => setMobileOpen(false)} className="text-muted-foreground">
                 <X className="h-5 w-5" />
               </button>

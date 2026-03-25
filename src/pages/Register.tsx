@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { BRAND } from "@/config/brand";
+import BrandLogo from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BarChart3, Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-
-const PORTAL_NAME = "TradingHub Pro";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -50,10 +50,9 @@ export default function Register() {
           <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
             <CheckCircle2 className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="font-heading text-2xl font-bold text-foreground">Richiesta inviata</h2>
+          <h2 className="font-heading text-2xl font-bold text-foreground">Richiesta ricevuta</h2>
           <p className="text-muted-foreground mt-3">
-            La tua richiesta di accesso è stata ricevuta. Riceverai una conferma via email. 
-            Il tuo account sarà attivato dopo l'approvazione di un amministratore.
+            Grazie per la tua richiesta. Riceverai una conferma via email e il tuo accesso sarà attivato dopo la verifica del team EasyProp.
           </p>
           <Button className="mt-6" onClick={() => navigate("/login")}>
             Torna al login
@@ -66,16 +65,13 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
-            <BarChart3 className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <span className="font-heading text-xl font-bold text-foreground">{PORTAL_NAME}</span>
+        <div className="flex justify-center mb-8">
+          <BrandLogo size="md" />
         </div>
 
         <h2 className="font-heading text-2xl font-bold text-foreground text-center">Richiedi accesso</h2>
         <p className="text-muted-foreground mt-1 mb-8 text-center">
-          Compila il form per richiedere l'accesso al portale
+          Compila il form per richiedere l'accesso all'area riservata EasyProp
         </p>
 
         <form onSubmit={handleRegister} className="space-y-4">
