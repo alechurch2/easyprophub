@@ -92,6 +92,11 @@ async function createMetaApiAccount(account: any): Promise<string> {
   const token = Deno.env.get("METAAPI_TOKEN");
   if (!token) throw new Error("METAAPI_TOKEN non configurato");
 
+  // Configurable reliability: defaults to "regular" to avoid 403 on demo/test accounts
+  // Set METAAPI_RELIABILITY_DEFAULT=high in secrets when ready for production
+  const reliability = Deno.env.get("METAAPI_RELIABILITY_DEFAULT") || "regular";
+  console.log("[MetaApi] Using reliability:", reliability);
+
   const payload = {
     login: String(account.account_number),
     password: account.investor_password,
@@ -100,7 +105,7 @@ async function createMetaApiAccount(account: any): Promise<string> {
     platform: (account.platform || "mt5").toLowerCase(),
     type: "cloud-g2",
     magic: 0,
-    reliability: "high",
+    reliability,
   };
 
   console.log("[MetaApi] Creating account with payload:", JSON.stringify({ ...payload, password: "***" }));
