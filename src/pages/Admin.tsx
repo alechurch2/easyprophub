@@ -438,6 +438,7 @@ export default function Admin() {
             <TabsTrigger value="courses" className="flex-1 min-w-[100px]"><BookOpen className="h-3 w-3 mr-1" />Corsi</TabsTrigger>
             <TabsTrigger value="support" className="flex-1 min-w-[100px]"><HeadphonesIcon className="h-3 w-3 mr-1" />Supporto</TabsTrigger>
             <TabsTrigger value="reviews" className="flex-1 min-w-[100px]"><BarChart3 className="h-3 w-3 mr-1" />Reviews</TabsTrigger>
+            <TabsTrigger value="ai-chat" className="flex-1 min-w-[100px]"><Bot className="h-3 w-3 mr-1" />AI Chat</TabsTrigger>
             <TabsTrigger value="announcements" className="flex-1 min-w-[100px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
           </TabsList>
 
@@ -445,6 +446,7 @@ export default function Admin() {
           <TabsContent value="courses"><AdminCourses /></TabsContent>
           <TabsContent value="support"><AdminSupport /></TabsContent>
           <TabsContent value="reviews"><AdminReviews /></TabsContent>
+          <TabsContent value="ai-chat"><AdminAIChat /></TabsContent>
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
         </Tabs>
       </div>
