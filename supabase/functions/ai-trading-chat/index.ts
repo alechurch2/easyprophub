@@ -251,6 +251,17 @@ serve(async (req) => {
       });
     }
 
+    // Log AI usage (fire and forget for streaming)
+    supabase.from("ai_usage_log").insert({
+      user_id: user.id,
+      function_type: "chat",
+      model,
+      tokens_input: 0,
+      tokens_output: 0,
+      estimated_cost: estimateAICost(model),
+      metadata: { conversation_id, mode },
+    }).then(() => {});
+
     return new Response(aiResponse.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
