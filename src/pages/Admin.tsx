@@ -418,6 +418,7 @@ function AdminReviews() {
   const filtered = reviews.filter(r => {
     if (filterAsset !== "all" && r.asset !== filterAsset) return false;
     if (filterStatus !== "all" && r.status !== filterStatus) return false;
+    if (filterMode !== "all" && (r.review_mode || "pro") !== filterMode) return false;
     if (filterRating === "useful" && (!ratings[r.id] || ratings[r.id].useful === 0)) return false;
     if (filterRating === "not_useful" && (!ratings[r.id] || ratings[r.id].notUseful === 0)) return false;
     if (filterRating === "didactic" && !r.is_didactic_example) return false;
