@@ -1,0 +1,454 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import AppLayout from "@/components/AppLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  MessageSquare, Plus, Trash2, Send, Loader2, Bot, User,
+  MessagesSquare, Target, BookMarked, ChevronLeft, Info
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
+
+type ChatMode = "trading_questions" | "setup_evaluation" | "method_support";
+type Msg = { role: "user" | "assistant"; content: string };
+
+interface Conversation {
+  id: string;
+  title: string;
+  mode: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const MODES: { value: ChatMode; label: string; icon: React.ElementType; desc: string }[] = [
+  { value: "trading_questions", label: "Domande di Trading", icon: MessagesSquare, desc: "Analisi tecnica, concetti SMC, ICT, Wyckoff" },
+  { value: "setup_evaluation", label: "Valutazione Setup", icon: Target, desc: "Ragiona su un setup e valuta struttura e conferme" },
+  { value: "method_support", label: "Metodo EasyProp", icon: BookMarked, desc: "Supporto sul metodo e applicazione pratica" },
+];
+
+const WELCOME_MSG = `Benvenuto nell'**AI Trading Assistant** di EasyProp.
+
+Sono qui per aiutarti a ragionare sul mercato, valutare setup e approfondire concetti di trading basati su **Smart Money, ICT e Wyckoff**.
+
+**Come posso aiutarti:**
+- 📊 Risposte a domande di analisi tecnica
+- 🎯 Valutazione di setup descritti a parole
+- 📖 Supporto sul metodo EasyProp
+
+Scegli una modalità e inizia a scrivere!`;
+
+const DISCLAIMER = "Questa chat ha finalità informative, educative e di supporto operativo. Non costituisce esecuzione automatica, consulenza finanziaria personalizzata o garanzia di risultato.";
+
+export default function AIAssistant() {
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConv, setActiveConv] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<ChatMode>("trading_questions");
+  const [showModeSelect, setShowModeSelect] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
+
+  // Load conversations
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("ai_chat_conversations")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .then(({ data }) => { if (data) setConversations(data as Conversation[]); });
+  }, [user]);
+
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (!activeConv) { setMessages([]); return; }
+    supabase
+      .from("ai_chat_messages")
+      .select("role, content")
+      .eq("conversation_id", activeConv)
+      .order("created_at")
+      .then(({ data }) => {
+        if (data) setMessages(data as Msg[]);
+      });
+  }, [activeConv]);
+
+  const startNewConversation = () => {
+    setActiveConv(null);
+    setMessages([]);
+    setShowModeSelect(true);
+  };
+
+  const selectMode = (m: ChatMode) => {
+    setMode(m);
+    setShowModeSelect(false);
+  };
+
+  const openConversation = (conv: Conversation) => {
+    setActiveConv(conv.id);
+    setMode(conv.mode as ChatMode);
+    setShowModeSelect(false);
+  };
+
+  const deleteConversation = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    await supabase.from("ai_chat_conversations").delete().eq("id", id);
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    if (activeConv === id) { setActiveConv(null); setMessages([]); }
+    toast.success("Conversazione eliminata");
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading || !user) return;
+    const userMsg = input.trim();
+    setInput("");
+
+    let convId = activeConv;
+
+    // Create conversation if needed
+    if (!convId) {
+      const title = userMsg.length > 60 ? userMsg.slice(0, 57) + "..." : userMsg;
+      const { data: newConv, error } = await supabase
+        .from("ai_chat_conversations")
+        .insert({ user_id: user.id, title, mode })
+        .select()
+        .single();
+      if (error || !newConv) { toast.error("Errore nella creazione della conversazione"); return; }
+      convId = newConv.id;
+      setActiveConv(convId);
+      setConversations((prev) => [newConv as Conversation, ...prev]);
+    }
+
+    // Save user message
+    await supabase.from("ai_chat_messages").insert({
+      conversation_id: convId,
+      role: "user",
+      content: userMsg,
+    });
+
+    const newMessages: Msg[] = [...messages, { role: "user", content: userMsg }];
+    setMessages(newMessages);
+    setIsLoading(true);
+
+    let assistantContent = "";
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-trading-chat`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({
+            messages: newMessages,
+            conversation_id: convId,
+            mode,
+          }),
+        }
+      );
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Errore di rete" }));
+        throw new Error(err.error || `Errore ${resp.status}`);
+      }
+
+      if (!resp.body) throw new Error("Nessuna risposta");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let streamDone = false;
+
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") { streamDone = true; break; }
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+              setMessages([...newMessages, { role: "assistant", content: assistantContent }]);
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Flush remaining
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split("\n")) {
+          if (!raw) continue;
+          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+          if (raw.startsWith(":") || raw.trim() === "") continue;
+          if (!raw.startsWith("data: ")) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (jsonStr === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+              setMessages([...newMessages, { role: "assistant", content: assistantContent }]);
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      // Save assistant message
+      if (assistantContent) {
+        await supabase.from("ai_chat_messages").insert({
+          conversation_id: convId,
+          role: "assistant",
+          content: assistantContent,
+        });
+        // Update conversation timestamp
+        await supabase.from("ai_chat_conversations").update({ updated_at: new Date().toISOString() }).eq("id", convId);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Errore nella risposta AI");
+      if (!assistantContent) {
+        setMessages(newMessages);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  const currentMode = MODES.find((m) => m.value === mode);
+  const isNewChat = !activeConv && messages.length === 0;
+
+  return (
+    <AppLayout>
+      <div className="flex h-[calc(100vh-3.5rem)] lg:h-screen">
+        {/* Sidebar - Conversation History */}
+        <div className={cn(
+          "border-r border-border bg-card flex flex-col transition-all duration-200",
+          sidebarOpen ? "w-72" : "w-0 overflow-hidden",
+          "hidden md:flex"
+        )}>
+          <div className="p-3 border-b border-border">
+            <Button onClick={startNewConversation} className="w-full" size="sm">
+              <Plus className="h-4 w-4 mr-2" /> Nuova conversazione
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => openConversation(conv)}
+                className={cn(
+                  "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors group flex items-start justify-between gap-2",
+                  activeConv === conv.id
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                )}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="truncate font-medium text-xs">{conv.title}</p>
+                  <p className="text-[10px] mt-0.5 opacity-60">
+                    {MODES.find(m => m.value === conv.mode)?.label} · {new Date(conv.updated_at).toLocaleDateString("it-IT")}
+                  </p>
+                </div>
+                <button
+                  onClick={(e) => deleteConversation(conv.id, e)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-destructive"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </button>
+            ))}
+            {conversations.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center p-4">Nessuna conversazione</p>
+            )}
+          </div>
+        </div>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header */}
+          <div className="h-14 border-b border-border flex items-center px-4 gap-3 bg-card">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:block text-muted-foreground hover:text-foreground">
+              <ChevronLeft className={cn("h-4 w-4 transition-transform", !sidebarOpen && "rotate-180")} />
+            </button>
+            {/* Mobile: new conversation */}
+            <button onClick={startNewConversation} className="md:hidden text-muted-foreground hover:text-foreground">
+              <Plus className="h-5 w-5" />
+            </button>
+            <Bot className="h-5 w-5 text-primary" />
+            <div className="flex-1 min-w-0">
+              <h2 className="font-heading font-semibold text-sm text-foreground">AI Trading Assistant</h2>
+              {currentMode && (
+                <p className="text-[10px] text-muted-foreground">{currentMode.label}</p>
+              )}
+            </div>
+            {activeConv && (
+              <Badge variant="secondary" className="text-[10px]">{currentMode?.label}</Badge>
+            )}
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-4 py-6">
+            <div className="max-w-3xl mx-auto space-y-6">
+              {/* Mode selection for new chat */}
+              {isNewChat && showModeSelect && (
+                <div className="animate-fade-in space-y-4">
+                  <div className="text-center mb-6">
+                    <Bot className="h-10 w-10 text-primary mx-auto mb-3" />
+                    <h2 className="font-heading text-xl font-bold text-foreground">AI Trading Assistant</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Scegli la modalità per iniziare</p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {MODES.map((m) => (
+                      <button
+                        key={m.value}
+                        onClick={() => selectMode(m.value)}
+                        className={cn(
+                          "card-premium p-4 text-left hover:border-primary/40 transition-all",
+                          mode === m.value && !showModeSelect ? "border-primary/40" : ""
+                        )}
+                      >
+                        <m.icon className="h-6 w-6 text-primary mb-2" />
+                        <p className="font-medium text-sm text-foreground">{m.label}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{m.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Welcome message */}
+              {isNewChat && !showModeSelect && (
+                <div className="animate-fade-in">
+                  <div className="flex gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Bot className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="card-premium p-4 flex-1 prose prose-sm max-w-none text-foreground">
+                      <ReactMarkdown>{WELCOME_MSG}</ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Chat messages */}
+              {messages.map((msg, i) => (
+                <div key={i} className={cn("flex gap-3 animate-fade-in", msg.role === "user" && "flex-row-reverse")}>
+                  <div className={cn(
+                    "h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-1",
+                    msg.role === "user" ? "bg-secondary" : "bg-primary/10"
+                  )}>
+                    {msg.role === "user" ? (
+                      <User className="h-4 w-4 text-secondary-foreground" />
+                    ) : (
+                      <Bot className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
+                  <div className={cn(
+                    "max-w-[85%] rounded-xl p-4",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "card-premium"
+                  )}>
+                    {msg.role === "assistant" ? (
+                      <div className="prose prose-sm max-w-none text-foreground [&_ul]:list-disc [&_ol]:list-decimal [&_li]:ml-4">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Loading */}
+              {isLoading && messages[messages.length - 1]?.role === "user" && (
+                <div className="flex gap-3 animate-fade-in">
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                    <Bot className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="card-premium p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm">Sto elaborando...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Disclaimer */}
+          <div className="px-4 py-1">
+            <div className="max-w-3xl mx-auto flex items-start gap-1.5 text-[10px] text-muted-foreground">
+              <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+              <span>{DISCLAIMER}</span>
+            </div>
+          </div>
+
+          {/* Input */}
+          <div className="p-4 border-t border-border bg-card">
+            <div className="max-w-3xl mx-auto">
+              <div className="flex gap-2 items-end">
+                <Textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={showModeSelect ? "Seleziona una modalità per iniziare..." : "Scrivi un messaggio..."}
+                  disabled={isLoading || (isNewChat && showModeSelect)}
+                  className="min-h-[44px] max-h-32 resize-none"
+                  rows={1}
+                />
+                <Button
+                  onClick={sendMessage}
+                  disabled={!input.trim() || isLoading || (isNewChat && showModeSelect)}
+                  size="icon"
+                  className="h-11 w-11 flex-shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </AppLayout>
+  );
+}
