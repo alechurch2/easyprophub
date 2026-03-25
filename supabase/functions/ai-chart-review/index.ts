@@ -339,6 +339,16 @@ serve(async (req) => {
       }
     }
 
+    // Check AI usage limits
+    const functionType = isPremium ? "chart_review_premium" : "chart_review_standard";
+    const limitCheckResult = await checkUsageLimits(supabase, user.id, functionType, isAdminCheck);
+    if (limitCheckResult) {
+      return new Response(
+        JSON.stringify({ error: limitCheckResult, limit_exceeded: true }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Select model based on tier
     const model = isPremium ? CHART_REVIEW_MODEL_PREMIUM : CHART_REVIEW_MODEL_STANDARD;
 
