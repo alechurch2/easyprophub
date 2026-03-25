@@ -309,6 +309,72 @@ export type Database = {
           },
         ]
       }
+      ai_usage_limits: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          limit_type: string
+          limit_value: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          limit_type: string
+          limit_value?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          limit_type?: string
+          limit_value?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      ai_usage_log: {
+        Row: {
+          created_at: string
+          estimated_cost: number | null
+          function_type: string
+          id: string
+          metadata: Json | null
+          model: string
+          tokens_input: number | null
+          tokens_output: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_cost?: number | null
+          function_type: string
+          id?: string
+          metadata?: Json | null
+          model: string
+          tokens_input?: number | null
+          tokens_output?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          estimated_cost?: number | null
+          function_type?: string
+          id?: string
+          metadata?: Json | null
+          model?: string
+          tokens_input?: number | null
+          tokens_output?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           content: string
