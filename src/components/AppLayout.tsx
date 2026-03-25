@@ -126,7 +126,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <nav className="flex-1 px-3 py-4 space-y-1">
+            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
               {filteredItems.map((item) => {
                 const active = location.pathname.startsWith(item.path);
                 return (
@@ -135,13 +135,13 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     to={item.path}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
                       active
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                     )}
                   >
-                    <item.icon className="h-4 w-4" />
+                    <item.icon className="h-5 w-5" />
                     {item.label}
                   </Link>
                 );
