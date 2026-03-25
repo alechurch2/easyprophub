@@ -1113,7 +1113,7 @@ export default function AccountCenter() {
             <TabsTrigger value="sync-logs" className="text-xs px-2"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} /></TabsContent>
+          <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} onDelete={handleDelete} deleting={deleting} /></TabsContent>
           <TabsContent value="positions"><OpenPositions trades={trades} /></TabsContent>
           <TabsContent value="history"><TradeHistory trades={trades} onSelectTrade={setSelectedTrade} /></TabsContent>
           <TabsContent value="journal"><JournalingOverview journalEntries={journalEntries} trades={trades} /></TabsContent>
