@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_trade_history: {
+        Row: {
+          account_id: string
+          asset: string
+          closed_at: string | null
+          created_at: string
+          direction: string
+          duration_minutes: number | null
+          entry_price: number
+          exit_price: number | null
+          id: string
+          lot_size: number
+          metadata: Json | null
+          opened_at: string
+          profit_loss: number | null
+          status: string
+          stop_loss: number | null
+          take_profit: number | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          asset: string
+          closed_at?: string | null
+          created_at?: string
+          direction: string
+          duration_minutes?: number | null
+          entry_price?: number
+          exit_price?: number | null
+          id?: string
+          lot_size?: number
+          metadata?: Json | null
+          opened_at?: string
+          profit_loss?: number | null
+          status?: string
+          stop_loss?: number | null
+          take_profit?: number | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          asset?: string
+          closed_at?: string | null
+          created_at?: string
+          direction?: string
+          duration_minutes?: number | null
+          entry_price?: number
+          exit_price?: number | null
+          id?: string
+          lot_size?: number
+          metadata?: Json | null
+          opened_at?: string
+          profit_loss?: number | null
+          status?: string
+          stop_loss?: number | null
+          take_profit?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_trade_history_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_chart_reviews: {
         Row: {
           account_size: number | null
@@ -460,6 +528,153 @@ export type Database = {
           subject?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      trade_journal_entries: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          did_well: string | null
+          emotion: string | null
+          free_note: string | null
+          id: string
+          initial_idea: string | null
+          lesson_learned: string | null
+          mistakes: string | null
+          motivation: string | null
+          screenshot_url: string | null
+          trade_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          did_well?: string | null
+          emotion?: string | null
+          free_note?: string | null
+          id?: string
+          initial_idea?: string | null
+          lesson_learned?: string | null
+          mistakes?: string | null
+          motivation?: string | null
+          screenshot_url?: string | null
+          trade_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          did_well?: string | null
+          emotion?: string | null
+          free_note?: string | null
+          id?: string
+          initial_idea?: string | null
+          lesson_learned?: string | null
+          mistakes?: string | null
+          motivation?: string | null
+          screenshot_url?: string | null
+          trade_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_journal_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trade_journal_entries_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "account_trade_history"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_accounts: {
+        Row: {
+          account_name: string
+          account_number: string | null
+          balance: number | null
+          broker: string | null
+          connection_status: string
+          created_at: string
+          daily_pnl: number | null
+          drawdown: number | null
+          equity: number | null
+          id: string
+          investor_password: string | null
+          last_sync_at: string | null
+          metadata: Json | null
+          open_positions_count: number | null
+          platform: string
+          profit_factor: number | null
+          profit_loss: number | null
+          read_only_mode: boolean
+          server: string | null
+          updated_at: string
+          user_id: string
+          user_note: string | null
+          weekly_pnl: number | null
+          win_rate: number | null
+        }
+        Insert: {
+          account_name: string
+          account_number?: string | null
+          balance?: number | null
+          broker?: string | null
+          connection_status?: string
+          created_at?: string
+          daily_pnl?: number | null
+          drawdown?: number | null
+          equity?: number | null
+          id?: string
+          investor_password?: string | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          open_positions_count?: number | null
+          platform?: string
+          profit_factor?: number | null
+          profit_loss?: number | null
+          read_only_mode?: boolean
+          server?: string | null
+          updated_at?: string
+          user_id: string
+          user_note?: string | null
+          weekly_pnl?: number | null
+          win_rate?: number | null
+        }
+        Update: {
+          account_name?: string
+          account_number?: string | null
+          balance?: number | null
+          broker?: string | null
+          connection_status?: string
+          created_at?: string
+          daily_pnl?: number | null
+          drawdown?: number | null
+          equity?: number | null
+          id?: string
+          investor_password?: string | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          open_positions_count?: number | null
+          platform?: string
+          profit_factor?: number | null
+          profit_loss?: number | null
+          read_only_mode?: boolean
+          server?: string | null
+          updated_at?: string
+          user_id?: string
+          user_note?: string | null
+          weekly_pnl?: number | null
+          win_rate?: number | null
         }
         Relationships: []
       }
