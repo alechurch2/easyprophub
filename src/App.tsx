@@ -14,6 +14,7 @@ import Support from "./pages/Support";
 import AIReview from "./pages/AIReview";
 import AIAssistant from "./pages/AIAssistant";
 import Admin from "./pages/Admin";
+import CaseStudies from "./pages/CaseStudies";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
             <Route path="/ai-review" element={<ProtectedRoute><AIReview /></ProtectedRoute>} />
             <Route path="/ai-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
+            <Route path="/case-studies" element={<ProtectedRoute><CaseStudies /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

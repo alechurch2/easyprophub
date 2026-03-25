@@ -14,6 +14,7 @@ import {
   X,
   ChevronRight,
   Bot,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const navItems: NavItem[] = [
   { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
   { label: "AI Assistant", icon: Bot, path: "/ai-assistant" },
+  { label: "Libreria Didattica", icon: GraduationCap, path: "/case-studies" },
   { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
