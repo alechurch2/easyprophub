@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
 import {
   Wallet, Plus, TrendingUp, TrendingDown, Activity, BarChart3, BookOpen,
   Loader2, Eye, ArrowUpRight, ArrowDownRight, Clock, Filter, ChevronLeft,
-  Save, Trash2, X, Image, RefreshCw, AlertTriangle, Shield
+  Save, Trash2, X, Image, RefreshCw, AlertTriangle, Shield, Wifi, WifiOff,
+  CheckCircle2, XCircle, Zap
 } from "lucide-react";
 
 // ---- Types ----
@@ -27,6 +28,7 @@ interface TradingAccount {
   server: string | null;
   account_number: string | null;
   connection_status: string;
+  sync_status: string;
   read_only_mode: boolean;
   balance: number;
   equity: number;
@@ -39,6 +41,9 @@ interface TradingAccount {
   open_positions_count: number;
   user_note: string | null;
   last_sync_at: string | null;
+  last_sync_error: string | null;
+  last_successful_sync_at: string | null;
+  provider_type: string;
   created_at: string;
 }
 
@@ -57,6 +62,7 @@ interface Trade {
   opened_at: string;
   closed_at: string | null;
   duration_minutes: number | null;
+  external_trade_id: string | null;
 }
 
 interface JournalEntry {
@@ -75,6 +81,16 @@ interface JournalEntry {
   updated_at: string;
 }
 
+interface SyncLog {
+  id: string;
+  sync_type: string;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  error_message: string | null;
+  trades_synced: number;
+}
+
 // ---- Connect Account Dialog ----
 function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { user } = useAuth();
@@ -83,25 +99,76 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
   const [broker, setBroker] = useState("");
   const [server, setServer] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
+  const [investorPassword, setInvestorPassword] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     if (!name.trim() || !user) return;
     setSaving(true);
-    const { error } = await supabase.from("trading_accounts").insert({
+
+    // 1. Create account as pending
+    const { data: account, error } = await supabase.from("trading_accounts").insert({
       user_id: user.id,
       account_name: name.trim(),
       platform,
       broker: broker.trim() || null,
       server: server.trim() || null,
       account_number: accountNumber.trim() || null,
+      investor_password: investorPassword.trim() || null,
       connection_status: "pending",
+      sync_status: "idle",
+      provider_type: "mock",
       user_note: note.trim() || null,
-    } as any);
+    } as any).select().single();
+
+    if (error || !account) {
+      toast.error("Errore nel salvataggio");
+      setSaving(false);
+      return;
+    }
+
+    // 2. Test connection via edge function
+    toast.info("Connessione in corso...");
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/account-sync`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: JSON.stringify({ action: "test_connection", account_id: (account as any).id }),
+        }
+      );
+      const result = await res.json();
+
+      if (result.success) {
+        toast.success("Conto collegato con successo! Avvio sincronizzazione...");
+        // 3. Run first sync
+        await fetch(
+          `https://${projectId}.supabase.co/functions/v1/account-sync`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.session?.access_token}`,
+            },
+            body: JSON.stringify({ action: "sync", account_id: (account as any).id }),
+          }
+        );
+        toast.success("Prima sincronizzazione completata!");
+      } else {
+        toast.error(`Errore connessione: ${result.error || "Sconosciuto"}`);
+      }
+    } catch {
+      toast.error("Errore durante il test di connessione");
+    }
+
     setSaving(false);
-    if (error) { toast.error("Errore nel salvataggio"); return; }
-    toast.success("Conto collegato con successo");
     onSaved();
   };
 
@@ -141,9 +208,15 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
           </div>
         </div>
 
-        <div>
-          <Label className="text-foreground">Numero conto</Label>
-          <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Es: 12345678" className="mt-1" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-foreground">Numero conto</Label>
+            <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Es: 12345678" className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-foreground">Investor Password</Label>
+            <Input type="password" value={investorPassword} onChange={(e) => setInvestorPassword(e.target.value)} placeholder="Password read-only" className="mt-1" />
+          </div>
         </div>
 
         <div>
@@ -174,14 +247,21 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
 
 // ---- Status Badge ----
 function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { class: string; label: string }> = {
-    connected: { class: "bg-success/10 text-success", label: "Connesso" },
-    pending: { class: "bg-warning/10 text-warning", label: "In attesa" },
-    failed: { class: "bg-destructive/10 text-destructive", label: "Errore" },
-    disconnected: { class: "bg-secondary text-muted-foreground", label: "Disconnesso" },
+  const config: Record<string, { class: string; label: string; icon: React.ReactNode }> = {
+    connected: { class: "bg-success/10 text-success", label: "Connesso", icon: <CheckCircle2 className="h-2.5 w-2.5" /> },
+    syncing: { class: "bg-info/10 text-info", label: "Sincronizzazione...", icon: <RefreshCw className="h-2.5 w-2.5 animate-spin" /> },
+    pending: { class: "bg-warning/10 text-warning", label: "In attesa", icon: <Clock className="h-2.5 w-2.5" /> },
+    failed: { class: "bg-destructive/10 text-destructive", label: "Errore", icon: <XCircle className="h-2.5 w-2.5" /> },
+    disconnected: { class: "bg-secondary text-muted-foreground", label: "Disconnesso", icon: <WifiOff className="h-2.5 w-2.5" /> },
   };
   const c = config[status] || config.disconnected;
-  return <Badge className={c.class}>{c.label}</Badge>;
+  return <Badge className={cn(c.class, "flex items-center gap-1")}>{c.icon}{c.label}</Badge>;
+}
+
+function SyncStatusBadge({ status }: { status: string }) {
+  if (status === "running") return <Badge className="bg-info/10 text-info text-[10px]"><RefreshCw className="h-2 w-2 animate-spin mr-0.5" />Sync in corso</Badge>;
+  if (status === "error") return <Badge className="bg-destructive/10 text-destructive text-[10px]">Errore sync</Badge>;
+  return null;
 }
 
 // ---- PnL Display ----
@@ -193,8 +273,19 @@ function PnLValue({ value, prefix = "" }: { value: number; prefix?: string }) {
   );
 }
 
+function MetricCard({ label, value, warn, small }: { label: string; value: React.ReactNode; warn?: boolean; small?: boolean }) {
+  return (
+    <div className={cn("rounded-lg bg-secondary/50 p-3", small && "p-2")}>
+      <p className={cn("text-muted-foreground mb-1", small ? "text-[10px]" : "text-xs")}>{label}</p>
+      <p className={cn("font-semibold text-foreground", small ? "text-sm" : "text-base", warn && "text-destructive")}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
 // ---- Account Overview Cards ----
-function AccountOverview({ accounts }: { accounts: TradingAccount[] }) {
+function AccountOverview({ accounts, onSync, syncing }: { accounts: TradingAccount[]; onSync: (id: string) => void; syncing: string | null }) {
   if (accounts.length === 0) {
     return (
       <div className="text-center py-16">
@@ -223,9 +314,31 @@ function AccountOverview({ accounts }: { accounts: TradingAccount[] }) {
               <Badge variant="outline" className="text-[10px]">
                 <Eye className="h-2.5 w-2.5 mr-1" />Read-only
               </Badge>
+              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                {acc.provider_type === "mock" ? "📊 Demo" : acc.provider_type}
+              </Badge>
+              <SyncStatusBadge status={acc.sync_status} />
               <StatusBadge status={acc.connection_status} />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => onSync(acc.id)}
+                disabled={syncing === acc.id || acc.sync_status === "running"}
+              >
+                <RefreshCw className={cn("h-3 w-3 mr-1", syncing === acc.id && "animate-spin")} />
+                Aggiorna
+              </Button>
             </div>
           </div>
+
+          {/* Error banner */}
+          {acc.last_sync_error && (
+            <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-2 mb-3 flex items-start gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-destructive">{acc.last_sync_error}</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
             <MetricCard label="Balance" value={`$${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} />
@@ -242,25 +355,24 @@ function AccountOverview({ accounts }: { accounts: TradingAccount[] }) {
             <MetricCard label="Profit Factor" value={acc.profit_factor > 0 ? acc.profit_factor.toFixed(2) : "—"} small />
           </div>
 
-          {acc.last_sync_at && (
-            <p className="text-[10px] text-muted-foreground mt-3 flex items-center gap-1">
-              <RefreshCw className="h-2.5 w-2.5" />
-              Ultimo aggiornamento: {new Date(acc.last_sync_at).toLocaleString("it-IT")}
-            </p>
-          )}
+          <div className="flex items-center justify-between mt-3">
+            {acc.last_sync_at ? (
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <RefreshCw className="h-2.5 w-2.5" />
+                Ultimo aggiornamento: {new Date(acc.last_sync_at).toLocaleString("it-IT")}
+              </p>
+            ) : (
+              <p className="text-[10px] text-muted-foreground">Nessun sync effettuato</p>
+            )}
+            {acc.last_successful_sync_at && acc.last_successful_sync_at !== acc.last_sync_at && (
+              <p className="text-[10px] text-success flex items-center gap-1">
+                <CheckCircle2 className="h-2.5 w-2.5" />
+                Ultimo sync riuscito: {new Date(acc.last_successful_sync_at).toLocaleString("it-IT")}
+              </p>
+            )}
+          </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-function MetricCard({ label, value, warn, small }: { label: string; value: React.ReactNode; warn?: boolean; small?: boolean }) {
-  return (
-    <div className={cn("rounded-lg bg-secondary/50 p-3", small && "p-2")}>
-      <p className={cn("text-muted-foreground mb-1", small ? "text-[10px]" : "text-xs")}>{label}</p>
-      <p className={cn("font-semibold text-foreground", small ? "text-sm" : "text-base", warn && "text-destructive")}>
-        {value}
-      </p>
     </div>
   );
 }
@@ -274,7 +386,7 @@ function OpenPositions({ trades }: { trades: Trade[] }) {
       <div className="text-center py-16">
         <Activity className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
         <h3 className="font-heading font-semibold text-foreground mb-2">Nessuna posizione aperta</h3>
-        <p className="text-sm text-muted-foreground">Le posizioni aperte appariranno qui una volta sincronizzate.</p>
+        <p className="text-sm text-muted-foreground">Le posizioni aperte appariranno qui dopo la sincronizzazione.</p>
       </div>
     );
   }
@@ -344,7 +456,7 @@ function TradeHistory({ trades, onSelectTrade }: { trades: Trade[]; onSelectTrad
       <div className="text-center py-16">
         <BarChart3 className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
         <h3 className="font-heading font-semibold text-foreground mb-2">Nessuna operazione nello storico</h3>
-        <p className="text-sm text-muted-foreground">Le operazioni chiuse appariranno qui.</p>
+        <p className="text-sm text-muted-foreground">Le operazioni chiuse appariranno qui dopo la sincronizzazione.</p>
       </div>
     );
   }
@@ -478,7 +590,6 @@ function TradeDetail({ trade, onBack }: { trade: Trade; onBack: () => void }) {
         <ChevronLeft className="h-3 w-3" /> Torna allo storico
       </button>
 
-      {/* Trade info */}
       <div className="card-premium p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center",
@@ -494,6 +605,7 @@ function TradeDetail({ trade, onBack }: { trade: Trade; onBack: () => void }) {
             </h3>
             <p className="text-xs text-muted-foreground">
               {trade.status === "open" ? "Posizione aperta" : "Posizione chiusa"}
+              {trade.external_trade_id && <span className="ml-2">· ID: {trade.external_trade_id}</span>}
             </p>
           </div>
           <div className="ml-auto text-right">
@@ -525,12 +637,16 @@ function TradeDetail({ trade, onBack }: { trade: Trade; onBack: () => void }) {
             <BookOpen className="h-4 w-4 text-primary" />
             <h4 className="font-heading font-semibold text-foreground">Journaling</h4>
           </div>
-          {!editing && (
+          <p className="text-[10px] text-muted-foreground">I dati di journaling sono privati e non vengono alterati dal sync</p>
+        </div>
+
+        {!editing && (
+          <div className="mb-3">
             <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
               <Save className="h-3 w-3 mr-1" /> {journal ? "Modifica" : "Aggiungi"}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
@@ -646,7 +762,7 @@ function AccountMetrics({ trades }: { trades: Trade[] }) {
       <div className="text-center py-16">
         <TrendingUp className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
         <h3 className="font-heading font-semibold text-foreground mb-2">Metriche non disponibili</h3>
-        <p className="text-sm text-muted-foreground">Servono operazioni chiuse per calcolare le metriche.</p>
+        <p className="text-sm text-muted-foreground">Servono operazioni chiuse sincronizzate per calcolare le metriche.</p>
       </div>
     );
   }
@@ -680,6 +796,62 @@ function AccountMetrics({ trades }: { trades: Trade[] }) {
   );
 }
 
+// ---- Sync Logs ----
+function SyncLogs({ accountIds }: { accountIds: string[] }) {
+  const [logs, setLogs] = useState<SyncLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (accountIds.length === 0) { setLoading(false); return; }
+    supabase
+      .from("account_sync_logs")
+      .select("*")
+      .in("account_id", accountIds)
+      .order("started_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        if (data) setLogs(data as any);
+        setLoading(false);
+      });
+  }, [accountIds]);
+
+  if (loading) return <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>;
+
+  if (logs.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <RefreshCw className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">Nessun log di sincronizzazione disponibile.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <h4 className="text-sm font-semibold text-foreground mb-2">Log sincronizzazione (ultimi 20)</h4>
+      {logs.map((log) => (
+        <div key={log.id} className="card-premium p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge className={cn("text-[10px]",
+              log.status === "completed" ? "bg-success/10 text-success" :
+              log.status === "running" ? "bg-info/10 text-info" :
+              "bg-destructive/10 text-destructive"
+            )}>
+              {log.status}
+            </Badge>
+            <span className="text-xs text-muted-foreground">{log.sync_type}</span>
+          </div>
+          <div className="text-right text-xs text-muted-foreground">
+            <p>{new Date(log.started_at).toLocaleString("it-IT")}</p>
+            {log.trades_synced > 0 && <p className="text-success">{log.trades_synced} trade sincronizzati</p>}
+            {log.error_message && <p className="text-destructive text-[10px]">{log.error_message.slice(0, 60)}</p>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ---- Main Page ----
 export default function AccountCenter() {
   const { user } = useAuth();
@@ -689,8 +861,9 @@ export default function AccountCenter() {
   const [loading, setLoading] = useState(true);
   const [showConnect, setShowConnect] = useState(false);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
     const [accRes, tradeRes, journalRes] = await Promise.all([
       supabase.from("trading_accounts").select("*").order("created_at", { ascending: false }),
@@ -701,9 +874,39 @@ export default function AccountCenter() {
     if (tradeRes.data) setTrades(tradeRes.data as any);
     if (journalRes.data) setJournalEntries(journalRes.data as any);
     setLoading(false);
-  };
+  }, [user]);
 
-  useEffect(() => { loadData(); }, [user]);
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleSync = async (accountId: string) => {
+    setSyncing(accountId);
+    toast.info("Sincronizzazione in corso...");
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/account-sync`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: JSON.stringify({ action: "sync", account_id: accountId }),
+        }
+      );
+      const result = await res.json();
+      if (result.success) {
+        toast.success(`Sincronizzazione completata! ${result.trades_synced} nuovi trade importati.`);
+      } else {
+        toast.error(`Errore: ${result.error || "Sconosciuto"}`);
+      }
+    } catch {
+      toast.error("Errore di connessione durante il sync");
+    }
+    setSyncing(null);
+    loadData();
+  };
 
   if (loading) {
     return (
@@ -747,9 +950,9 @@ export default function AccountCenter() {
         {/* Disclaimer */}
         <div className="card-premium p-3 mb-6 border-primary/20 bg-primary/5">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+            <Shield className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
             <p className="text-xs text-muted-foreground">
-              <strong>Modalità sola lettura.</strong> Questa sezione è dedicata esclusivamente al monitoraggio. Non è possibile aprire, chiudere o modificare ordini dalla piattaforma.
+              <strong>Modalità sola lettura.</strong> Conto collegato in sola lettura. Il portale non può aprire, chiudere o modificare operazioni. I dati vengono sincronizzati dal provider esterno.
             </p>
           </div>
         </div>
@@ -764,18 +967,20 @@ export default function AccountCenter() {
         {/* Tabs */}
         <Tabs defaultValue="overview">
           <TabsList className="mb-6 w-full flex flex-wrap gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
-            <TabsTrigger value="overview" className="flex-1 min-w-[100px]"><Wallet className="h-3 w-3 mr-1" />Overview</TabsTrigger>
-            <TabsTrigger value="positions" className="flex-1 min-w-[100px]"><Activity className="h-3 w-3 mr-1" />Posizioni</TabsTrigger>
-            <TabsTrigger value="history" className="flex-1 min-w-[100px]"><BarChart3 className="h-3 w-3 mr-1" />Storico</TabsTrigger>
-            <TabsTrigger value="journal" className="flex-1 min-w-[100px]"><BookOpen className="h-3 w-3 mr-1" />Journaling</TabsTrigger>
-            <TabsTrigger value="metrics" className="flex-1 min-w-[100px]"><TrendingUp className="h-3 w-3 mr-1" />Metriche</TabsTrigger>
+            <TabsTrigger value="overview" className="flex-1 min-w-[80px]"><Wallet className="h-3 w-3 mr-1" />Overview</TabsTrigger>
+            <TabsTrigger value="positions" className="flex-1 min-w-[80px]"><Activity className="h-3 w-3 mr-1" />Posizioni</TabsTrigger>
+            <TabsTrigger value="history" className="flex-1 min-w-[80px]"><BarChart3 className="h-3 w-3 mr-1" />Storico</TabsTrigger>
+            <TabsTrigger value="journal" className="flex-1 min-w-[80px]"><BookOpen className="h-3 w-3 mr-1" />Journaling</TabsTrigger>
+            <TabsTrigger value="metrics" className="flex-1 min-w-[80px]"><TrendingUp className="h-3 w-3 mr-1" />Metriche</TabsTrigger>
+            <TabsTrigger value="sync-logs" className="flex-1 min-w-[80px]"><RefreshCw className="h-3 w-3 mr-1" />Sync</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview"><AccountOverview accounts={accounts} /></TabsContent>
+          <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} /></TabsContent>
           <TabsContent value="positions"><OpenPositions trades={trades} /></TabsContent>
           <TabsContent value="history"><TradeHistory trades={trades} onSelectTrade={setSelectedTrade} /></TabsContent>
           <TabsContent value="journal"><JournalingOverview journalEntries={journalEntries} trades={trades} /></TabsContent>
           <TabsContent value="metrics"><AccountMetrics trades={trades} /></TabsContent>
+          <TabsContent value="sync-logs"><SyncLogs accountIds={accounts.map(a => a.id)} /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>
