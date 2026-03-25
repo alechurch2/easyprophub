@@ -203,11 +203,13 @@ export default function AIReview() {
               </div>
             </div>
 
-            {reviewMode === "pro" ? (
-              <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
-            ) : (
-              <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
-            )}
+            <div className="mt-8">
+              {reviewMode === "pro" ? (
+                <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
+              ) : (
+                <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
+              )}
+            </div>
           </div>
         )}
 
