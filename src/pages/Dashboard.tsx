@@ -55,6 +55,14 @@ export default function Dashboard() {
       color: "text-success",
       bg: "bg-success/10",
     },
+    {
+      title: "AI Assistant",
+      description: "Chat AI per trading e supporto operativo",
+      icon: Bot,
+      path: "/ai-assistant",
+      color: "text-primary",
+      bg: "bg-primary/10",
+    },
   ];
 
   return (
