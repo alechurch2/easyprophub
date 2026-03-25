@@ -229,7 +229,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-foreground">Login (numero conto) *</Label>
             <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Es: 12345678" className="mt-1" />
