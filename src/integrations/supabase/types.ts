@@ -521,28 +521,37 @@ export type Database = {
       }
       profiles: {
         Row: {
+          access_expires_at: string | null
+          access_started_at: string | null
           avatar_url: string | null
           created_at: string
           full_name: string | null
           id: string
+          license_status: string
           status: Database["public"]["Enums"]["user_status"]
           updated_at: string
           user_id: string
         }
         Insert: {
+          access_expires_at?: string | null
+          access_started_at?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          license_status?: string
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
           user_id: string
         }
         Update: {
+          access_expires_at?: string | null
+          access_started_at?: string | null
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          license_status?: string
           status?: Database["public"]["Enums"]["user_status"]
           updated_at?: string
           user_id?: string
@@ -813,6 +822,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_license_valid: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "member"
