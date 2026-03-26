@@ -826,7 +826,9 @@ Deno.serve(async (req) => {
       try {
         const data = await fetchAccountData(account);
 
-        // Update account overview
+        console.log(`[Sync:DB] Saving overview to trading_accounts: balance=${data.overview.balance} equity=${data.overview.equity} pnl=${data.overview.profit_loss} drawdown=${data.overview.drawdown} dailyPnl=${data.overview.daily_pnl} weeklyPnl=${data.overview.weekly_pnl} openPositions=${data.overview.open_positions_count} winRate=${data.overview.win_rate} profitFactor=${data.overview.profit_factor}`);
+
+        // Update account overview + metrics in one call
         await supabase.from("trading_accounts").update({
           balance: data.overview.balance,
           equity: data.overview.equity,
@@ -835,6 +837,8 @@ Deno.serve(async (req) => {
           daily_pnl: data.overview.daily_pnl,
           weekly_pnl: data.overview.weekly_pnl,
           open_positions_count: data.overview.open_positions_count,
+          win_rate: data.overview.win_rate ?? 0,
+          profit_factor: data.overview.profit_factor ?? 0,
           connection_status: "connected",
           sync_status: "idle",
           last_sync_at: new Date().toISOString(),
@@ -842,30 +846,15 @@ Deno.serve(async (req) => {
           last_sync_error: null,
         }).eq("id", account_id);
 
-        // Calculate metrics
-        const closedTrades = data.closedTrades;
-        if (closedTrades.length > 0) {
-          const wins = closedTrades.filter(t => t.profit_loss > 0);
-          const losses = closedTrades.filter(t => t.profit_loss < 0);
-          const grossProfit = wins.reduce((s, t) => s + t.profit_loss, 0);
-          const grossLoss = Math.abs(losses.reduce((s, t) => s + t.profit_loss, 0));
-          const winRate = (wins.length / closedTrades.length) * 100;
-          const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? 99.99 : 0;
-
-          await supabase.from("trading_accounts").update({
-            win_rate: Math.round(winRate * 100) / 100,
-            profit_factor: Math.round(profitFactor * 100) / 100,
-          }).eq("id", account_id);
-        }
-
-        // Upsert open positions
-        await supabase.from("account_trade_history")
-          .delete()
+        // Upsert open positions: delete old, insert new
+        const { count: deletedOpen } = await supabase.from("account_trade_history")
+          .delete({ count: "exact" })
           .eq("account_id", account_id)
           .eq("status", "open");
+        console.log(`[Sync:DB] Deleted ${deletedOpen ?? 0} old open positions`);
 
         if (data.openPositions.length > 0) {
-          await supabase.from("account_trade_history").insert(
+          const { error: posInsertErr } = await supabase.from("account_trade_history").insert(
             data.openPositions.map(p => ({
               account_id,
               user_id: user.id,
@@ -881,10 +870,13 @@ Deno.serve(async (req) => {
               external_trade_id: p.external_trade_id,
             }))
           );
+          if (posInsertErr) console.error(`[Sync:DB] Open positions insert error: ${posInsertErr.message}`);
+          else console.log(`[Sync:DB] Inserted ${data.openPositions.length} open positions`);
         }
 
         // Upsert closed trades (deduplicate by external_trade_id)
         let tradesSynced = 0;
+        let tradesSkipped = 0;
         for (const trade of data.closedTrades) {
           const { data: existing } = await supabase
             .from("account_trade_history")
@@ -894,7 +886,7 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (!existing) {
-            await supabase.from("account_trade_history").insert({
+            const { error: tradeErr } = await supabase.from("account_trade_history").insert({
               account_id,
               user_id: user.id,
               asset: trade.asset,
@@ -911,9 +903,16 @@ Deno.serve(async (req) => {
               duration_minutes: trade.duration_minutes,
               external_trade_id: trade.external_trade_id,
             });
-            tradesSynced++;
+            if (tradeErr) {
+              console.error(`[Sync:DB] Trade insert error for ${trade.external_trade_id}: ${tradeErr.message}`);
+            } else {
+              tradesSynced++;
+            }
+          } else {
+            tradesSkipped++;
           }
         }
+        console.log(`[Sync:DB] Closed trades: ${tradesSynced} new, ${tradesSkipped} duplicates skipped, ${data.closedTrades.length} total from provider`);
 
         if (syncLog) {
           await supabase.from("account_sync_logs").update({
