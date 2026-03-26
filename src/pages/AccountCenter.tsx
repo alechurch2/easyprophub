@@ -1173,7 +1173,35 @@ export default function AccountCenter() {
     };
   }, [user, scheduleFastRefresh]);
 
-  // ---- Auto-sync every 30s (general sync) ----
+  // ---- Page visibility & user activity tracking ----
+  useEffect(() => {
+    const handleVisibility = () => {
+      isPageVisibleRef.current = !document.hidden;
+      console.log(`[SmartSync] Page visibility: ${isPageVisibleRef.current ? 'visible' : 'hidden'}`);
+    };
+    const resetIdle = () => {
+      isUserActiveRef.current = true;
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        isUserActiveRef.current = false;
+        console.log('[SmartSync] User idle');
+      }, USER_IDLE_TIMEOUT);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('mousemove', resetIdle, { passive: true });
+    window.addEventListener('keydown', resetIdle, { passive: true });
+    window.addEventListener('touchstart', resetIdle, { passive: true });
+    resetIdle();
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('mousemove', resetIdle);
+      window.removeEventListener('keydown', resetIdle);
+      window.removeEventListener('touchstart', resetIdle);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, []);
+
+  // ---- Smart auto-sync: interval based on visibility/activity, scoped to selected account ----
   const runAutoSync = useCallback(async () => {
     if (!user || isSyncingRef.current || accounts.length === 0) return;
 
@@ -1182,16 +1210,23 @@ export default function AccountCenter() {
     );
     if (syncableAccounts.length === 0) return;
 
+    // Scope: if user is looking at a specific account, sync only that one
+    const toSync = selectedAccountId
+      ? syncableAccounts.filter(a => a.id === selectedAccountId)
+      : syncableAccounts;
+
+    if (toSync.length === 0) return;
+
     isSyncingRef.current = true;
     setLiveMode('syncing');
-    console.log('[AutoSync] Starting general sync cycle...');
+    const mode = isPageVisibleRef.current && isUserActiveRef.current ? 'active' : 'inactive';
+    console.log(`[AutoSync] Starting sync (${mode}), ${toSync.length}/${syncableAccounts.length} accounts`);
 
     try {
       const { data: session } = await supabase.auth.getSession();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
-      for (const acc of syncableAccounts) {
-        // Save pre-sync snapshot for fast refresh detection
+      for (const acc of toSync) {
         prevAccountSnapshotsRef.current.set(acc.id, {
           positions: acc.open_positions_count,
           balance: acc.balance,
@@ -1211,8 +1246,9 @@ export default function AccountCenter() {
           );
           const rawText = await res.text();
           const result = rawText ? JSON.parse(rawText) : {};
+          syncCountsRef.current.set(acc.id, (syncCountsRef.current.get(acc.id) || 0) + 1);
           if (result.success) {
-            console.log(`[AutoSync] ${acc.account_name}: OK, ${result.trades_synced} new trades`);
+            console.log(`[AutoSync] ${acc.account_name}: OK, ${result.trades_synced} new trades (total syncs: ${syncCountsRef.current.get(acc.id)})`);
           } else {
             console.warn(`[AutoSync] ${acc.account_name}: ${result.error || 'Unknown error'}`);
           }
@@ -1227,14 +1263,24 @@ export default function AccountCenter() {
       setLiveMode('live');
       setLastRealtimeUpdate(new Date().toISOString());
     }
-  }, [user, accounts]);
+  }, [user, accounts, selectedAccountId]);
 
+  // Dynamic interval based on visibility + activity
   useEffect(() => {
     if (accounts.length === 0) return;
 
-    autoSyncRef.current = setInterval(runAutoSync, AUTO_SYNC_INTERVAL);
+    const scheduleNext = () => {
+      const isActive = isPageVisibleRef.current && isUserActiveRef.current;
+      const interval = isActive ? SYNC_INTERVAL_ACTIVE : SYNC_INTERVAL_INACTIVE;
+      console.log(`[SmartSync] Next sync in ${interval / 1000}s (${isActive ? 'active' : 'inactive'})`);
+      autoSyncRef.current = setTimeout(() => {
+        runAutoSync().finally(scheduleNext);
+      }, interval);
+    };
+
+    scheduleNext();
     return () => {
-      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+      if (autoSyncRef.current) clearTimeout(autoSyncRef.current);
     };
   }, [runAutoSync, accounts.length]);
 
