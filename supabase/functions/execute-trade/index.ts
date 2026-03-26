@@ -206,21 +206,23 @@ Deno.serve(async (req) => {
     const normalizedDirection = direction.toLowerCase();
     const isMarket = (order_type || "market").toLowerCase() === "market";
     
+    // Normalize symbol: MT5 uses "XAUUSD" not "XAU/USD"
+    const normalizedSymbol = asset.replace("/", "");
+    console.log(`[ExecuteTrade] Symbol normalization: "${asset}" -> "${normalizedSymbol}"`);
+
     let tradeBody: Record<string, unknown>;
 
     if (isMarket) {
-      // Market order
       tradeBody = {
         actionType: normalizedDirection.includes("buy") ? "ORDER_TYPE_BUY" : "ORDER_TYPE_SELL",
-        symbol: asset,
+        symbol: normalizedSymbol,
         volume: Number(lot_size),
       };
     } else {
-      // Pending order (limit)
       const isBuy = normalizedDirection.includes("buy");
       tradeBody = {
         actionType: isBuy ? "ORDER_TYPE_BUY_LIMIT" : "ORDER_TYPE_SELL_LIMIT",
-        symbol: asset,
+        symbol: normalizedSymbol,
         volume: Number(lot_size),
         openPrice: Number(entry_price),
       };
