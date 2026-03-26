@@ -155,6 +155,9 @@ export default function Dashboard() {
           <p className="text-muted-foreground mt-1">{BRAND.description}</p>
         </div>
 
+        {/* Onboarding */}
+        <OnboardingChecklist />
+
         {/* License & Status */}
         <div className="grid grid-cols-1 gap-3 mb-6">
           <div className="card-premium p-4 flex items-center gap-3 min-w-0">
