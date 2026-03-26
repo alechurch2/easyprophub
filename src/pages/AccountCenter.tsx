@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -943,7 +943,30 @@ function SyncLogs({ accountIds }: { accountIds: string[] }) {
   );
 }
 
+// ---- Live Status Indicator ----
+function LiveStatusIndicator({ mode, lastUpdate }: { mode: "live" | "syncing" | "fallback" | "offline"; lastUpdate: string | null }) {
+  const config = {
+    live: { class: "bg-success/20 text-success border-success/30", label: "Live", icon: <Zap className="h-2.5 w-2.5" /> },
+    syncing: { class: "bg-info/20 text-info border-info/30", label: "Syncing", icon: <RefreshCw className="h-2.5 w-2.5 animate-spin" /> },
+    fallback: { class: "bg-warning/20 text-warning border-warning/30", label: "Fallback", icon: <WifiOff className="h-2.5 w-2.5" /> },
+    offline: { class: "bg-secondary text-muted-foreground border-border", label: "Offline", icon: <WifiOff className="h-2.5 w-2.5" /> },
+  };
+  const c = config[mode];
+  return (
+    <div className="flex items-center gap-2">
+      <Badge className={cn(c.class, "flex items-center gap-1 border text-[10px]")}>{c.icon}{c.label}</Badge>
+      {lastUpdate && (
+        <span className="text-[10px] text-muted-foreground">
+          Ultimo aggiornamento: {new Date(lastUpdate).toLocaleTimeString("it-IT")}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ---- Main Page ----
+const AUTO_SYNC_INTERVAL = 30_000; // 30 seconds
+
 export default function AccountCenter() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
@@ -954,6 +977,10 @@ export default function AccountCenter() {
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [liveMode, setLiveMode] = useState<"live" | "syncing" | "fallback" | "offline">("offline");
+  const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<string | null>(null);
+  const autoSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isSyncingRef = useRef(false);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -968,10 +995,126 @@ export default function AccountCenter() {
     setLoading(false);
   }, [user]);
 
+  // Initial load
   useEffect(() => { loadData(); }, [loadData]);
+
+  // ---- Supabase Realtime subscriptions ----
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('account-center-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trading_accounts' },
+        (payload) => {
+          console.log('[Realtime] trading_accounts change:', payload.eventType);
+          setLastRealtimeUpdate(new Date().toISOString());
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            setAccounts(prev => prev.map(a => a.id === (payload.new as any).id ? { ...a, ...payload.new } as TradingAccount : a));
+          } else if (payload.eventType === 'INSERT' && payload.new) {
+            setAccounts(prev => [payload.new as TradingAccount, ...prev]);
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            setAccounts(prev => prev.filter(a => a.id !== (payload.old as any).id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'account_trade_history' },
+        (payload) => {
+          console.log('[Realtime] account_trade_history change:', payload.eventType);
+          setLastRealtimeUpdate(new Date().toISOString());
+          if (payload.eventType === 'INSERT' && payload.new) {
+            setTrades(prev => {
+              const exists = prev.some(t => t.id === (payload.new as any).id);
+              if (exists) return prev.map(t => t.id === (payload.new as any).id ? payload.new as Trade : t);
+              return [payload.new as Trade, ...prev];
+            });
+          } else if (payload.eventType === 'UPDATE' && payload.new) {
+            setTrades(prev => prev.map(t => t.id === (payload.new as any).id ? { ...t, ...payload.new } as Trade : t));
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            setTrades(prev => prev.filter(t => t.id !== (payload.old as any).id));
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Realtime] Subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          setLiveMode('live');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setLiveMode('fallback');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // ---- Auto-sync every 30s ----
+  const runAutoSync = useCallback(async () => {
+    if (!user || isSyncingRef.current || accounts.length === 0) return;
+
+    // Only sync connected accounts with a provider
+    const syncableAccounts = accounts.filter(
+      a => a.provider_account_id && a.connection_status === 'connected'
+    );
+    if (syncableAccounts.length === 0) return;
+
+    isSyncingRef.current = true;
+    setLiveMode('syncing');
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+
+      // Sync all connected accounts sequentially to avoid overloading
+      for (const acc of syncableAccounts) {
+        try {
+          const res = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/account-sync`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.session?.access_token}`,
+              },
+              body: JSON.stringify({ action: "sync", account_id: acc.id }),
+            }
+          );
+          const rawText = await res.text();
+          const result = rawText ? JSON.parse(rawText) : {};
+          if (result.success) {
+            console.log(`[AutoSync] ${acc.account_name}: OK, ${result.trades_synced} new trades`);
+          } else {
+            console.warn(`[AutoSync] ${acc.account_name}: ${result.error || 'Unknown error'}`);
+          }
+        } catch (err) {
+          console.warn(`[AutoSync] ${acc.account_name}: fetch error`, err);
+        }
+      }
+    } catch (err) {
+      console.warn('[AutoSync] Session error', err);
+    } finally {
+      isSyncingRef.current = false;
+      setLiveMode('live');
+      setLastRealtimeUpdate(new Date().toISOString());
+    }
+  }, [user, accounts]);
+
+  useEffect(() => {
+    if (accounts.length === 0) return;
+
+    autoSyncRef.current = setInterval(runAutoSync, AUTO_SYNC_INTERVAL);
+    return () => {
+      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+    };
+  }, [runAutoSync, accounts.length]);
 
   const handleSync = async (accountId: string) => {
     setSyncing(accountId);
+    setLiveMode('syncing');
     toast.info("Sincronizzazione in corso...");
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -1003,7 +1146,8 @@ export default function AccountCenter() {
       toast.error(`Errore di connessione durante il sync: ${err.message || "Sconosciuto"}`);
     }
     setSyncing(null);
-    loadData();
+    setLiveMode('live');
+    setLastRealtimeUpdate(new Date().toISOString());
   };
 
   const handleDelete = async (accountId: string) => {
@@ -1070,7 +1214,7 @@ export default function AccountCenter() {
     <AppLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Wallet className="h-5 w-5 text-primary" />
@@ -1083,6 +1227,12 @@ export default function AccountCenter() {
           <Button onClick={() => setShowConnect(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Collega conto
           </Button>
+        </div>
+
+        {/* Live Status Indicator */}
+        <div className="flex items-center justify-between mb-6">
+          <LiveStatusIndicator mode={liveMode} lastUpdate={lastRealtimeUpdate} />
+          <p className="text-[10px] text-muted-foreground">Auto-sync ogni 30s</p>
         </div>
 
         {/* Disclaimer */}
