@@ -966,6 +966,7 @@ function LiveStatusIndicator({ mode, lastUpdate }: { mode: "live" | "syncing" | 
 
 // ---- Main Page ----
 const AUTO_SYNC_INTERVAL = 30_000; // 30 seconds
+const FAST_REFRESH_DEBOUNCE = 3_000; // 3 seconds debounce for fast refresh
 
 export default function AccountCenter() {
   const { user } = useAuth();
@@ -981,6 +982,9 @@ export default function AccountCenter() {
   const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<string | null>(null);
   const autoSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSyncingRef = useRef(false);
+  // Fast refresh: track previous account snapshots to detect position closures
+  const prevAccountSnapshotsRef = useRef<Map<string, { positions: number; balance: number }>>(new Map());
+  const fastRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
