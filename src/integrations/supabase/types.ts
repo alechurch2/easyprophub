@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_connection_requests: {
+        Row: {
+          account_type: string | null
+          admin_note: string | null
+          broker: string
+          created_at: string
+          id: string
+          note: string | null
+          platform: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          server: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type?: string | null
+          admin_note?: string | null
+          broker: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          platform?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          server?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string | null
+          admin_note?: string | null
+          broker?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          platform?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          server?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       account_sync_logs: {
         Row: {
           account_id: string
@@ -402,6 +450,65 @@ export type Database = {
         }
         Relationships: []
       }
+      broker_support_requests: {
+        Row: {
+          admin_note: string | null
+          approved_broker_id: string | null
+          broker_name: string
+          created_at: string
+          id: string
+          note: string | null
+          platform: string
+          reference_link: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          server: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          approved_broker_id?: string | null
+          broker_name: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          platform?: string
+          reference_link?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          server?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          approved_broker_id?: string | null
+          broker_name?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          platform?: string
+          reference_link?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          server?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broker_support_requests_approved_broker_id_fkey"
+            columns: ["approved_broker_id"]
+            isOneToOne: false
+            referencedRelation: "supported_brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_categories: {
         Row: {
           created_at: string
@@ -779,6 +886,39 @@ export type Database = {
         }
         Relationships: []
       }
+      supported_brokers: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          platforms: string[]
+          servers: string[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          platforms?: string[]
+          servers?: string[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          platforms?: string[]
+          servers?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -965,6 +1105,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_account_limits: {
+        Row: {
+          id: string
+          max_accounts: number
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          max_accounts?: number
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          max_accounts?: number
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_broker_overrides: {
+        Row: {
+          broker_name: string
+          created_at: string
+          granted_by: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          broker_name: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          broker_name?: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -988,6 +1176,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_account_limit: { Args: { _user_id: string }; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1005,6 +1194,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_broker_allowed: {
+        Args: { _broker_name: string; _user_id: string }
         Returns: boolean
       }
       is_license_valid: { Args: { _user_id: string }; Returns: boolean }
