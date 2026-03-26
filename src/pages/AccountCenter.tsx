@@ -1611,9 +1611,17 @@ export default function AccountCenter() {
               <p className="text-sm text-muted-foreground">Monitora i tuoi conti trading</p>
             </div>
           </div>
-          <Button onClick={() => setShowConnect(true)} size="sm">
-            <Plus className="h-4 w-4 mr-1" /> Collega conto
-          </Button>
+          {limitInfo?.can_connect ? (
+            <Button onClick={() => setShowConnect(true)} size="sm">
+              <Plus className="h-4 w-4 mr-1" /> Collega conto
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button onClick={() => setShowExtraRequest(true)} size="sm" variant="outline">
+                <Plus className="h-4 w-4 mr-1" /> Richiedi conto aggiuntivo
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Live Status Indicator */}
