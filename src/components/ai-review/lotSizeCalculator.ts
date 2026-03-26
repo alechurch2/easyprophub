@@ -121,20 +121,22 @@ export function fullLotCalculation(
   accountSize: number,
   slPips: number,
   tpPips: number,
-  asset: string
+  asset: string,
+  riskPercent = RISK_PERCENT
 ): LotCalculationResult | null {
   const config = getAssetConfig(asset);
   if (!config || slPips <= 0 || accountSize <= 0) return null;
 
-  const riskAmount = calculateRiskAmount(accountSize);
+  const riskAmount = calculateRiskAmount(accountSize, riskPercent);
   const targetAmount = calculateTargetAmount(accountSize);
-  const lotSize = calculateLotSize(accountSize, slPips, asset);
+  const lotSize = calculateLotSize(accountSize, slPips, asset, riskPercent);
   if (!lotSize) return null;
 
   const theoreticalProfit = calculateTheoreticalProfit(lotSize, tpPips, asset);
   const rrRatio = calculateRR(slPips, tpPips);
 
-  const formula = `Rischio ${(RISK_PERCENT * 100).toFixed(1)}% di ${accountSize.toLocaleString()}$ = ${riskAmount.toFixed(2)}$ | SL ${slPips} pip × ${config.pipValuePerLot}$/pip/lot → Lotto: ${lotSize}`;
+  const riskPctDisplay = (riskPercent * 100).toFixed(2).replace(/\.?0+$/, '');
+  const formula = `Rischio ${riskPctDisplay}% di ${accountSize.toLocaleString()}$ = ${riskAmount.toFixed(2)}$ | SL ${slPips} pip × ${config.pipValuePerLot}$/pip/lot → Lotto: ${lotSize}`;
 
   return { lotSize, riskAmount, targetAmount, theoreticalProfit, rrRatio, slPips, tpPips, formula };
 }
