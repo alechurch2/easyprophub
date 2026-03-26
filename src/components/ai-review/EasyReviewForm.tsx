@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
+import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES } from "./types";
 import { ACCOUNT_PRESETS } from "./lotSizeCalculator";
 
@@ -79,14 +80,20 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
       if (uploadError) { toast.error("Errore nel caricamento dell'immagine"); setSubmitting(false); return; }
       const { data: urlData } = supabase.storage.from("chart-screenshots").getPublicUrl(filePath);
 
-      const { data: session } = await supabase.auth.getSession();
+      const { token, error: tokenError } = await getValidFunctionAuthToken();
+      if (tokenError || !token) {
+        toast.error(tokenError || "Sessione non valida. Effettua di nuovo il login.");
+        setSubmitting(false);
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chart-review`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.session?.access_token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             asset,
