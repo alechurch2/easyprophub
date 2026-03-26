@@ -97,14 +97,18 @@ async function metaapiTradeRequest(metaAccountId: string, body: Record<string, u
   });
 
   const rawBody = await res.text();
-  console.log(`[ExecuteTrade] Trade response: ${res.status} ${rawBody.substring(0, 500)}`);
+  console.log(`[ExecuteTrade] Trade response FULL: ${res.status} ${rawBody}`);
 
   let parsed: any = null;
   try {
     parsed = JSON.parse(rawBody);
   } catch { /* ignore */ }
 
-  return { status: res.status, ok: res.ok, body: parsed, rawBody };
+  // MetaApi can return HTTP 200 with an error inside the body (stringCode/numericCode)
+  const hasProviderError = parsed?.stringCode && parsed.stringCode.startsWith("ERR_");
+  const isReallyOk = res.ok && !hasProviderError;
+
+  return { status: res.status, ok: isReallyOk, body: parsed, rawBody };
 }
 
 // ========== MAIN HANDLER ==========
@@ -202,21 +206,23 @@ Deno.serve(async (req) => {
     const normalizedDirection = direction.toLowerCase();
     const isMarket = (order_type || "market").toLowerCase() === "market";
     
+    // Normalize symbol: MT5 uses "XAUUSD" not "XAU/USD"
+    const normalizedSymbol = asset.replace("/", "");
+    console.log(`[ExecuteTrade] Symbol normalization: "${asset}" -> "${normalizedSymbol}"`);
+
     let tradeBody: Record<string, unknown>;
 
     if (isMarket) {
-      // Market order
       tradeBody = {
         actionType: normalizedDirection.includes("buy") ? "ORDER_TYPE_BUY" : "ORDER_TYPE_SELL",
-        symbol: asset,
+        symbol: normalizedSymbol,
         volume: Number(lot_size),
       };
     } else {
-      // Pending order (limit)
       const isBuy = normalizedDirection.includes("buy");
       tradeBody = {
         actionType: isBuy ? "ORDER_TYPE_BUY_LIMIT" : "ORDER_TYPE_SELL_LIMIT",
-        symbol: asset,
+        symbol: normalizedSymbol,
         volume: Number(lot_size),
         openPrice: Number(entry_price),
       };
@@ -233,7 +239,7 @@ Deno.serve(async (req) => {
 
     // Update execution log with result
     const finalStatus = result.ok ? "success" : "failed";
-    const errorMsg = result.ok ? null : (result.body?.message || result.rawBody?.substring(0, 500) || "Errore provider");
+    const errorMsg = result.ok ? null : (result.body?.stringCode ? `${result.body.stringCode}: ${result.body.message}` : result.body?.message || result.rawBody?.substring(0, 500) || "Errore provider");
 
     await supabase
       .from("order_execution_logs")
