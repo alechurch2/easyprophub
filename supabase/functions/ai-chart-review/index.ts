@@ -263,7 +263,7 @@ const ANALYSIS_TOOL_EASY = {
         cosa_aspettare: { type: "string", description: "Cosa dovrebbe succedere per avere un setup interessante (1-2 punti concreti). Compilare se non ci sono setup." },
         livello_prudenza: { type: "string", enum: ["alto", "medio", "basso"], description: "Quanto è rischioso operare adesso. Compilare se non ci sono setup." },
       },
-      required: ["leggibilita_immagine", "signal_quality", "setups", "expected_duration", "conclusione"],
+      required: ["leggibilita_immagine", "signal_quality", "setup_strength", "setups", "expected_duration", "conclusione"],
       additionalProperties: false,
     },
   },
