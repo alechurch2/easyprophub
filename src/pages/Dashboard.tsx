@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
+import { trackEvent } from "@/lib/analytics";
 
 interface Announcement {
   id: string;
@@ -152,6 +154,9 @@ export default function Dashboard() {
           </h1>
           <p className="text-muted-foreground mt-1">{BRAND.description}</p>
         </div>
+
+        {/* Onboarding */}
+        <OnboardingChecklist />
 
         {/* License & Status */}
         <div className="grid grid-cols-1 gap-3 mb-6">

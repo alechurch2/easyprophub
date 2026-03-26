@@ -6,8 +6,9 @@ import {
   Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone, Bot,
   Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft,
   ThumbsUp, ThumbsDown, Star, MessageSquare, Link2, GraduationCap, Search, ArrowUpDown, Wallet,
-  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle
+  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity
 } from "lucide-react";
+import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -2056,6 +2057,7 @@ export default function Admin() {
             <TabsTrigger value="ai-chat" className="flex-1 min-w-[80px]"><Bot className="h-3 w-3 mr-1" />AI Chat</TabsTrigger>
             <TabsTrigger value="accounts" className="flex-1 min-w-[80px]"><Wallet className="h-3 w-3 mr-1" />Conti</TabsTrigger>
             <TabsTrigger value="announcements" className="flex-1 min-w-[80px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
+            <TabsTrigger value="analytics" className="flex-1 min-w-[80px]"><Activity className="h-3 w-3 mr-1" />Analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><AdminUsers /></TabsContent>
@@ -2067,6 +2069,7 @@ export default function Admin() {
           <TabsContent value="ai-chat"><AdminAIChat /></TabsContent>
           <TabsContent value="accounts"><AdminAccounts /></TabsContent>
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
+          <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,6 +54,7 @@ export default function Support() {
 
   useEffect(() => {
     loadTickets();
+    trackEvent("support_opened", { page: "support", section: "support" });
   }, []);
 
   const loadTickets = async () => {

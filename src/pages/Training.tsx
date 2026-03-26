@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { trackEvent } from "@/lib/analytics";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +47,7 @@ export default function Training() {
 
   useEffect(() => {
     loadData();
+    trackEvent("course_opened", { page: "training", section: "training" });
   }, []);
 
   const loadData = async () => {

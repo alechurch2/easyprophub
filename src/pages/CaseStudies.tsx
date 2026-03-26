@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { trackEvent } from "@/lib/analytics";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { GraduationCap, Loader2, ArrowLeft, Search, ArrowUpDown, Star, Tag } from "lucide-react";
@@ -25,6 +26,7 @@ export default function CaseStudies() {
 
   useEffect(() => {
     loadReviews();
+    trackEvent("library_opened", { page: "case-studies", section: "library" });
   }, []);
 
   const loadReviews = async () => {

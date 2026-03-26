@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { trackEvent } from "@/lib/analytics";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -71,6 +72,7 @@ export default function AIAssistant() {
   // Load conversations
   useEffect(() => {
     if (!user) return;
+    trackEvent("chat_opened", { page: "ai-assistant", section: "ai-assistant" });
     supabase
       .from("ai_chat_conversations")
       .select("*")
