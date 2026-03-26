@@ -1283,8 +1283,18 @@ function AdminAccounts() {
   useEffect(() => { load(); }, []);
 
   const toggleTradingEnabled = async (accountId: string, currentValue: boolean) => {
-    await supabase.from("trading_accounts").update({ trading_execution_enabled: !currentValue } as any).eq("id", accountId);
-    toast.success(`Trading ${!currentValue ? "abilitato" : "disabilitato"}`);
+    const newValue = !currentValue;
+    const { error, count } = await supabase
+      .from("trading_accounts")
+      .update({ trading_execution_enabled: newValue } as any)
+      .eq("id", accountId);
+    if (error) {
+      console.error("[admin] toggleTradingEnabled failed:", error);
+      toast.error("Errore aggiornamento trading: " + error.message);
+      return;
+    }
+    console.log(`[admin] toggleTradingEnabled account=${accountId} → ${newValue}`);
+    toast.success(`Trading ${newValue ? "abilitato" : "disabilitato"}`);
     load();
   };
 
