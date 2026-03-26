@@ -110,6 +110,10 @@ function roundTo2(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function buildHistorySyncWindow(lastSuccessfulSyncAt?: string | null): HistorySyncWindow {
   const now = new Date();
   const fallbackStart = new Date(now.getTime() - INITIAL_HISTORY_LOOKBACK_DAYS * MS_IN_DAY);
@@ -201,7 +205,7 @@ function calculateClosedTradeMetrics(closedTrades: ClosedTradeMetricSource[], fl
 }
 
 async function recalculateAccountOverviewFromDatabase(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   accountId: string,
   liveOverview: ProviderAccountData["overview"],
 ) {
@@ -215,7 +219,14 @@ async function recalculateAccountOverviewFromDatabase(
     throw new Error(`Errore lettura storico chiuso per metriche: ${error.message}`);
   }
 
-  const closedTrades = (closedTradesRows ?? []).filter((trade) => !!trade.closed_at).map((trade) => ({
+  const typedClosedTradesRows = (closedTradesRows ?? []) as Array<{
+    asset: string;
+    closed_at: string | null;
+    duration_minutes: number | null;
+    profit_loss: number | null;
+  }>;
+
+  const closedTrades = typedClosedTradesRows.filter((trade) => !!trade.closed_at).map((trade) => ({
     asset: trade.asset,
     closed_at: trade.closed_at as string,
     duration_minutes: trade.duration_minutes,
