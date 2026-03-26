@@ -97,14 +97,18 @@ async function metaapiTradeRequest(metaAccountId: string, body: Record<string, u
   });
 
   const rawBody = await res.text();
-  console.log(`[ExecuteTrade] Trade response: ${res.status} ${rawBody.substring(0, 500)}`);
+  console.log(`[ExecuteTrade] Trade response FULL: ${res.status} ${rawBody}`);
 
   let parsed: any = null;
   try {
     parsed = JSON.parse(rawBody);
   } catch { /* ignore */ }
 
-  return { status: res.status, ok: res.ok, body: parsed, rawBody };
+  // MetaApi can return HTTP 200 with an error inside the body (stringCode/numericCode)
+  const hasProviderError = parsed?.stringCode && parsed.stringCode.startsWith("ERR_");
+  const isReallyOk = res.ok && !hasProviderError;
+
+  return { status: res.status, ok: isReallyOk, body: parsed, rawBody };
 }
 
 // ========== MAIN HANDLER ==========
