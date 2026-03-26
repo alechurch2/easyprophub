@@ -581,8 +581,16 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
     if (isEasy) {
       if (!analysis.setups) analysis.setups = [];
       if (!analysis.signal_quality) analysis.signal_quality = "media";
+      if (!analysis.setup_strength) analysis.setup_strength = analysis.setups.length > 0 ? 3 : 1;
+      analysis.setup_strength = Math.max(1, Math.min(5, Math.round(analysis.setup_strength)));
       if (!analysis.expected_duration) analysis.expected_duration = "Non determinabile";
       if (analysis.setups.length > 2) analysis.setups = analysis.setups.slice(0, 2);
+      // Normalize execution_type on each setup
+      for (const s of analysis.setups) {
+        if (!s.execution_type) {
+          s.execution_type = (s.tipo?.toLowerCase().includes("limit")) ? "limit" : "market";
+        }
+      }
       // Ensure context fields exist for no-setup case
       if (analysis.setups.length === 0) {
         if (!analysis.contesto_mercato) analysis.contesto_mercato = analysis.conclusione || "Contesto non disponibile";
