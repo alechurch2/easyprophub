@@ -1683,6 +1683,247 @@ function AdminAICosts() {
   );
 }
 
+// ---- Requests Management Tab ----
+function AdminRequests() {
+  const [accountRequests, setAccountRequests] = useState<any[]>([]);
+  const [brokerRequests, setBrokerRequests] = useState<any[]>([]);
+  const [supportedBrokers, setSupportedBrokers] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [adminNotes, setAdminNotes] = useState<Record<string, string>>({});
+
+  const load = async () => {
+    const [ar, br, sb, pr] = await Promise.all([
+      supabase.from("account_connection_requests").select("*").order("created_at", { ascending: false }),
+      supabase.from("broker_support_requests").select("*").order("created_at", { ascending: false }),
+      supabase.from("supported_brokers").select("*").order("name"),
+      supabase.from("profiles").select("user_id, full_name"),
+    ]);
+    if (ar.data) setAccountRequests(ar.data);
+    if (br.data) setBrokerRequests(br.data);
+    if (sb.data) setSupportedBrokers(sb.data);
+    if (pr.data) {
+      const map: Record<string, string> = {};
+      pr.data.forEach((p: any) => { map[p.user_id] = p.full_name || p.user_id.slice(0, 12); });
+      setProfiles(map);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const handleAccountRequest = async (id: string, status: string, userId: string) => {
+    const note = adminNotes[id] || null;
+    await supabase.from("account_connection_requests").update({
+      status,
+      admin_note: note,
+      reviewed_at: new Date().toISOString(),
+    } as any).eq("id", id);
+
+    if (status === "approved") {
+      // Increase user's account limit
+      const { data: existing } = await supabase.from("user_account_limits").select("*").eq("user_id", userId).single();
+      if (existing) {
+        await supabase.from("user_account_limits").update({ max_accounts: (existing as any).max_accounts + 1 } as any).eq("id", (existing as any).id);
+      } else {
+        await supabase.from("user_account_limits").insert({ user_id: userId, max_accounts: 2 } as any);
+      }
+      toast.success("Richiesta approvata. Limite conti utente aumentato.");
+    } else {
+      toast.success("Richiesta rifiutata.");
+    }
+    load();
+  };
+
+  const handleBrokerRequest = async (id: string, status: string, action: "global" | "user_only", userId: string, brokerName: string) => {
+    const note = adminNotes[id] || null;
+    
+    if (status === "approved" && action === "global") {
+      // Add broker globally
+      const { data: newBroker } = await supabase.from("supported_brokers").insert({
+        name: brokerName,
+        platforms: ["MT4", "MT5"],
+      } as any).select().single();
+      
+      await supabase.from("broker_support_requests").update({
+        status,
+        admin_note: note,
+        approved_broker_id: newBroker ? (newBroker as any).id : null,
+        reviewed_at: new Date().toISOString(),
+      } as any).eq("id", id);
+      toast.success(`Broker "${brokerName}" aggiunto come supportato globalmente.`);
+    } else if (status === "approved" && action === "user_only") {
+      // Add user-specific override
+      await supabase.from("user_broker_overrides").insert({
+        user_id: userId,
+        broker_name: brokerName,
+      } as any);
+      await supabase.from("broker_support_requests").update({
+        status,
+        admin_note: note,
+        reviewed_at: new Date().toISOString(),
+      } as any).eq("id", id);
+      toast.success(`Broker "${brokerName}" autorizzato solo per questo utente.`);
+    } else {
+      await supabase.from("broker_support_requests").update({
+        status,
+        admin_note: note,
+        reviewed_at: new Date().toISOString(),
+      } as any).eq("id", id);
+      toast.success("Richiesta rifiutata.");
+    }
+    load();
+  };
+
+  const statusBadge = (s: string) => {
+    if (s === "approved") return <Badge className="bg-success/10 text-success text-[10px]">Approvata</Badge>;
+    if (s === "rejected") return <Badge className="bg-destructive/10 text-destructive text-[10px]">Rifiutata</Badge>;
+    return <Badge className="bg-amber-500/10 text-amber-600 text-[10px]">In attesa</Badge>;
+  };
+
+  if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
+
+  const pendingAccountReqs = accountRequests.filter(r => r.status === "pending").length;
+  const pendingBrokerReqs = brokerRequests.filter(r => r.status === "pending").length;
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Richieste conti</p>
+          <p className="text-xl font-bold text-foreground">{accountRequests.length}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Conti in attesa</p>
+          <p className={cn("text-xl font-bold", pendingAccountReqs > 0 ? "text-amber-500" : "text-foreground")}>{pendingAccountReqs}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Richieste broker</p>
+          <p className="text-xl font-bold text-foreground">{brokerRequests.length}</p>
+        </div>
+        <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Broker in attesa</p>
+          <p className={cn("text-xl font-bold", pendingBrokerReqs > 0 ? "text-amber-500" : "text-foreground")}>{pendingBrokerReqs}</p>
+        </div>
+      </div>
+
+      {/* Supported Brokers Management */}
+      <div className="card-premium p-4">
+        <h4 className="text-sm font-semibold text-foreground mb-3">🏦 Broker supportati</h4>
+        <div className="space-y-2">
+          {supportedBrokers.map((b: any) => (
+            <div key={b.id} className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <Badge className={b.is_active ? "bg-success/10 text-success" : "bg-secondary text-muted-foreground"}>
+                  {b.is_active ? "Attivo" : "Disattivato"}
+                </Badge>
+                <span className="text-foreground font-medium">{b.name}</span>
+                <span className="text-xs text-muted-foreground">{(b.platforms || []).join(", ")}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Account Connection Requests */}
+      <div className="card-premium p-4">
+        <h4 className="text-sm font-semibold text-foreground mb-3">📋 Richieste conti aggiuntivi</h4>
+        {accountRequests.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nessuna richiesta.</p>
+        ) : (
+          <div className="space-y-3">
+            {accountRequests.map((r: any) => (
+              <div key={r.id} className={cn("card-premium p-3", r.status === "pending" && "border-amber-500/30")}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">{profiles[r.user_id] || r.user_id.slice(0, 12)}</span>
+                    {statusBadge(r.status)}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString("it-IT")}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-2">
+                  <div><span className="text-muted-foreground">Broker:</span> <span className="text-foreground">{r.broker}</span></div>
+                  <div><span className="text-muted-foreground">Piattaforma:</span> <span className="text-foreground">{r.platform}</span></div>
+                  <div><span className="text-muted-foreground">Server:</span> <span className="text-foreground">{r.server || "—"}</span></div>
+                  <div><span className="text-muted-foreground">Tipo:</span> <span className="text-foreground">{r.account_type || "—"}</span></div>
+                </div>
+                {r.note && <p className="text-xs text-muted-foreground mb-2">📝 {r.note}</p>}
+                {r.admin_note && <p className="text-xs text-primary mb-2">💬 Admin: {r.admin_note}</p>}
+                {r.status === "pending" && (
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <Input
+                      placeholder="Nota admin (opzionale)"
+                      className="h-7 text-xs flex-1 min-w-[150px]"
+                      value={adminNotes[r.id] || ""}
+                      onChange={(e) => setAdminNotes(prev => ({ ...prev, [r.id]: e.target.value }))}
+                    />
+                    <Button size="sm" className="h-7 text-xs" onClick={() => handleAccountRequest(r.id, "approved", r.user_id)}>
+                      <Check className="h-3 w-3 mr-1" />Approva
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => handleAccountRequest(r.id, "rejected", r.user_id)}>
+                      <X className="h-3 w-3 mr-1" />Rifiuta
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Broker Support Requests */}
+      <div className="card-premium p-4">
+        <h4 className="text-sm font-semibold text-foreground mb-3">🆕 Richieste nuovi broker</h4>
+        {brokerRequests.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nessuna richiesta.</p>
+        ) : (
+          <div className="space-y-3">
+            {brokerRequests.map((r: any) => (
+              <div key={r.id} className={cn("card-premium p-3", r.status === "pending" && "border-amber-500/30")}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">{profiles[r.user_id] || r.user_id.slice(0, 12)}</span>
+                    {statusBadge(r.status)}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString("it-IT")}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs mb-2">
+                  <div><span className="text-muted-foreground">Broker:</span> <span className="text-foreground font-medium">{r.broker_name}</span></div>
+                  <div><span className="text-muted-foreground">Piattaforma:</span> <span className="text-foreground">{r.platform}</span></div>
+                  <div><span className="text-muted-foreground">Server:</span> <span className="text-foreground">{r.server || "—"}</span></div>
+                  <div><span className="text-muted-foreground">Link:</span> <span className="text-foreground">{r.reference_link ? "✅" : "—"}</span></div>
+                </div>
+                {r.note && <p className="text-xs text-muted-foreground mb-2">📝 {r.note}</p>}
+                {r.admin_note && <p className="text-xs text-primary mb-2">💬 Admin: {r.admin_note}</p>}
+                {r.status === "pending" && (
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <Input
+                      placeholder="Nota admin (opzionale)"
+                      className="h-7 text-xs flex-1 min-w-[150px]"
+                      value={adminNotes[r.id] || ""}
+                      onChange={(e) => setAdminNotes(prev => ({ ...prev, [r.id]: e.target.value }))}
+                    />
+                    <Button size="sm" className="h-7 text-xs" onClick={() => handleBrokerRequest(r.id, "approved", "global", r.user_id, r.broker_name)}>
+                      <Check className="h-3 w-3 mr-1" />Approva globale
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleBrokerRequest(r.id, "approved", "user_only", r.user_id, r.broker_name)}>
+                      <Check className="h-3 w-3 mr-1" />Solo utente
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-destructive" onClick={() => handleBrokerRequest(r.id, "rejected", "global", r.user_id, r.broker_name)}>
+                      <X className="h-3 w-3 mr-1" />Rifiuta
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ---- Main Admin Page ----
 export default function Admin() {
   return (
@@ -1701,6 +1942,7 @@ export default function Admin() {
         <Tabs defaultValue="users">
           <TabsList className="mb-6 w-full flex flex-wrap gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
             <TabsTrigger value="users" className="flex-1 min-w-[80px]"><Users className="h-3 w-3 mr-1" />Utenti</TabsTrigger>
+            <TabsTrigger value="requests" className="flex-1 min-w-[80px]"><Link2 className="h-3 w-3 mr-1" />Richieste</TabsTrigger>
             <TabsTrigger value="ai-costs" className="flex-1 min-w-[80px]"><BarChart3 className="h-3 w-3 mr-1" />Costi AI</TabsTrigger>
             <TabsTrigger value="courses" className="flex-1 min-w-[80px]"><BookOpen className="h-3 w-3 mr-1" />Corsi</TabsTrigger>
             <TabsTrigger value="support" className="flex-1 min-w-[80px]"><HeadphonesIcon className="h-3 w-3 mr-1" />Supporto</TabsTrigger>
@@ -1711,6 +1953,7 @@ export default function Admin() {
           </TabsList>
 
           <TabsContent value="users"><AdminUsers /></TabsContent>
+          <TabsContent value="requests"><AdminRequests /></TabsContent>
           <TabsContent value="ai-costs"><AdminAICosts /></TabsContent>
           <TabsContent value="courses"><AdminCourses /></TabsContent>
           <TabsContent value="support"><AdminSupport /></TabsContent>

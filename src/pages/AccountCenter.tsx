@@ -97,12 +97,197 @@ interface SyncLog {
   trades_synced: number;
 }
 
-// ---- Connect Account Dialog ----
+// ---- Supported Brokers Hook ----
+function useSupportedBrokers() {
+  const [brokers, setBrokers] = useState<{ id: string; name: string; platforms: string[] }[]>([]);
+  useEffect(() => {
+    supabase.from("supported_brokers").select("id, name, platforms").eq("is_active", true).then(({ data }) => {
+      if (data) setBrokers(data as any);
+    });
+  }, []);
+  return brokers;
+}
+
+// ---- Account Limit Hook ----
+function useAccountLimit(userId: string | undefined) {
+  const [limitInfo, setLimitInfo] = useState<{ current_count: number; max_allowed: number; can_connect: boolean } | null>(null);
+  const refresh = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase.rpc("check_account_limit", { _user_id: userId });
+    if (data) setLimitInfo(data as any);
+  }, [userId]);
+  useEffect(() => { refresh(); }, [refresh]);
+  return { limitInfo, refresh };
+}
+
+// ---- Request Extra Account Form ----
+function RequestExtraAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { user } = useAuth();
+  const brokers = useSupportedBrokers();
+  const [broker, setBroker] = useState("");
+  const [platform, setPlatform] = useState("MT5");
+  const [server, setServer] = useState("");
+  const [accountType, setAccountType] = useState("live");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!broker.trim() || !user) { toast.error("Seleziona un broker"); return; }
+    setSaving(true);
+    const { error } = await supabase.from("account_connection_requests").insert({
+      user_id: user.id,
+      broker: broker.trim(),
+      platform,
+      server: server.trim() || null,
+      account_type: accountType,
+      note: note.trim() || null,
+    } as any);
+    if (error) { toast.error("Errore nell'invio della richiesta"); }
+    else { toast.success("Richiesta conto aggiuntivo inviata! L'admin la valuterà."); onSaved(); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="card-premium p-6 animate-fade-in">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-heading font-semibold text-foreground text-lg">Richiedi conto aggiuntivo</h3>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">Hai già raggiunto il limite di conti collegabili. Compila i dettagli per richiedere l'attivazione di un conto aggiuntivo.</p>
+      <div className="space-y-3">
+        <div>
+          <Label className="text-foreground">Broker *</Label>
+          <Select value={broker} onValueChange={setBroker}>
+            <SelectTrigger className="mt-1"><SelectValue placeholder="Seleziona broker" /></SelectTrigger>
+            <SelectContent>
+              {brokers.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-foreground">Piattaforma</Label>
+            <Select value={platform} onValueChange={setPlatform}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MT4">MT4</SelectItem>
+                <SelectItem value="MT5">MT5</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-foreground">Tipo conto</Label>
+            <Select value={accountType} onValueChange={setAccountType}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="live">Live</SelectItem>
+                <SelectItem value="demo">Demo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div>
+          <Label className="text-foreground">Server (opzionale)</Label>
+          <Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: TMGM-MT5" className="mt-1" />
+        </div>
+        <div>
+          <Label className="text-foreground">Nota / Motivazione</Label>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Perché hai bisogno di un conto aggiuntivo?" className="mt-1" rows={2} />
+        </div>
+        <div className="flex gap-2 justify-end pt-2">
+          <Button variant="outline" onClick={onClose} disabled={saving}>Annulla</Button>
+          <Button onClick={handleSubmit} disabled={!broker.trim() || saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            Invia richiesta
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Request New Broker Form ----
+function RequestNewBrokerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { user } = useAuth();
+  const [brokerName, setBrokerName] = useState("");
+  const [platform, setPlatform] = useState("MT5");
+  const [server, setServer] = useState("");
+  const [note, setNote] = useState("");
+  const [referenceLink, setReferenceLink] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!brokerName.trim() || !user) { toast.error("Inserisci il nome del broker"); return; }
+    setSaving(true);
+    const { error } = await supabase.from("broker_support_requests").insert({
+      user_id: user.id,
+      broker_name: brokerName.trim(),
+      platform,
+      server: server.trim() || null,
+      note: note.trim() || null,
+      reference_link: referenceLink.trim() || null,
+    } as any);
+    if (error) { toast.error("Errore nell'invio della richiesta"); }
+    else { toast.success("Richiesta nuovo broker inviata! L'admin la valuterà."); onSaved(); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="card-premium p-6 animate-fade-in">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-heading font-semibold text-foreground text-lg">Richiedi supporto nuovo broker</h3>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">Il broker che vuoi usare non è ancora supportato? Invia una richiesta e l'admin valuterà l'attivazione.</p>
+      <div className="space-y-3">
+        <div>
+          <Label className="text-foreground">Nome broker *</Label>
+          <Input value={brokerName} onChange={(e) => setBrokerName(e.target.value)} placeholder="Es: ICMarkets" className="mt-1" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-foreground">Piattaforma</Label>
+            <Select value={platform} onValueChange={setPlatform}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MT4">MT4</SelectItem>
+                <SelectItem value="MT5">MT5</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-foreground">Server (opzionale)</Label>
+            <Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: ICMarketsSC-MT5" className="mt-1" />
+          </div>
+        </div>
+        <div>
+          <Label className="text-foreground">Link o referenza (opzionale)</Label>
+          <Input value={referenceLink} onChange={(e) => setReferenceLink(e.target.value)} placeholder="https://..." className="mt-1" />
+        </div>
+        <div>
+          <Label className="text-foreground">Nota aggiuntiva</Label>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Dettagli aggiuntivi..." className="mt-1" rows={2} />
+        </div>
+        <div className="flex gap-2 justify-end pt-2">
+          <Button variant="outline" onClick={onClose} disabled={saving}>Annulla</Button>
+          <Button onClick={handleSubmit} disabled={!brokerName.trim() || saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            Invia richiesta
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Connect Account Dialog (updated with broker selector) ----
 function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { user } = useAuth();
+  const brokers = useSupportedBrokers();
   const [name, setName] = useState("");
   const [platform, setPlatform] = useState("MT5");
   const [broker, setBroker] = useState("");
+  const [showBrokerRequest, setShowBrokerRequest] = useState(false);
   const [server, setServer] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [investorPassword, setInvestorPassword] = useState("");
@@ -110,15 +295,18 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
   const [saving, setSaving] = useState(false);
   const [connectionStep, setConnectionStep] = useState("");
 
+  if (showBrokerRequest) {
+    return <RequestNewBrokerForm onClose={() => setShowBrokerRequest(false)} onSaved={() => { setShowBrokerRequest(false); onSaved(); }} />;
+  }
+
   const handleSave = async () => {
-    if (!name.trim() || !accountNumber.trim() || !server.trim() || !investorPassword.trim() || !user) {
-      toast.error("Compila login, server e investor password");
+    if (!name.trim() || !accountNumber.trim() || !server.trim() || !investorPassword.trim() || !broker || !user) {
+      toast.error("Compila tutti i campi obbligatori");
       return;
     }
     setSaving(true);
     setConnectionStep("Creazione account...");
 
-    // 1. Create account as pending
     const { data: account, error } = await supabase.from("trading_accounts").insert({
       user_id: user.id,
       account_name: name.trim(),
@@ -140,7 +328,6 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
       return;
     }
 
-    // 2. Connect via MetaApi (provisioning + deploy + wait)
     setConnectionStep("Connessione a MetaApi in corso...");
     toast.info("Connessione al broker in corso. Può richiedere fino a 90 secondi...");
     let connectSuccess = false;
@@ -171,11 +358,17 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
         result.success = false;
       }
 
+      if (result.code === "ACCOUNT_LIMIT_REACHED" || result.code === "BROKER_NOT_SUPPORTED") {
+        toast.error(result.error);
+        setSaving(false);
+        setConnectionStep("");
+        return;
+      }
+
       if (result.success) {
         connectSuccess = true;
         setConnectionStep("Sincronizzazione dati...");
         toast.success("Conto collegato! Avvio prima sincronizzazione...");
-        // 3. Run first sync
         const syncRes = await fetch(
           `https://${projectId}.supabase.co/functions/v1/account-sync`,
           {
@@ -206,7 +399,6 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
       toast.error(`Errore durante la connessione al broker: ${err.message || "Sconosciuto"}`);
     }
 
-    // If connect failed, delete orphan record
     if (!connectSuccess) {
       await supabase.from("trading_accounts").delete().eq("id", (account as any).id);
     }
@@ -230,6 +422,22 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
         </div>
 
         <div>
+          <Label className="text-foreground">Broker *</Label>
+          <Select value={broker} onValueChange={setBroker}>
+            <SelectTrigger className="mt-1"><SelectValue placeholder="Seleziona broker supportato" /></SelectTrigger>
+            <SelectContent>
+              {brokers.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <button
+            onClick={() => setShowBrokerRequest(true)}
+            className="text-xs text-primary hover:underline mt-1 inline-block"
+          >
+            Il tuo broker non è nella lista? Richiedi supporto →
+          </button>
+        </div>
+
+        <div>
           <Label className="text-foreground">Piattaforma</Label>
           <Select value={platform} onValueChange={setPlatform}>
             <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
@@ -242,24 +450,18 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <Label className="text-foreground">Broker</Label>
-            <Input value={broker} onChange={(e) => setBroker(e.target.value)} placeholder="Es: ICMarkets" className="mt-1" />
-          </div>
-          <div>
             <Label className="text-foreground">Server *</Label>
-            <Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: ICMarketsSC-MT5" className="mt-1" />
+            <Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: TMGM-MT5" className="mt-1" />
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-foreground">Login (numero conto) *</Label>
             <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="Es: 12345678" className="mt-1" />
           </div>
-          <div>
-            <Label className="text-foreground">Investor Password *</Label>
-            <Input type="password" value={investorPassword} onChange={(e) => setInvestorPassword(e.target.value)} placeholder="Password read-only" className="mt-1" />
-          </div>
+        </div>
+
+        <div>
+          <Label className="text-foreground">Investor Password *</Label>
+          <Input type="password" value={investorPassword} onChange={(e) => setInvestorPassword(e.target.value)} placeholder="Password read-only" className="mt-1" />
         </div>
 
         <div>
@@ -286,7 +488,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
 
         <div className="flex gap-2 justify-end pt-2">
           <Button variant="outline" onClick={onClose} disabled={saving}>Annulla</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || !accountNumber.trim() || !server.trim() || !investorPassword.trim() || saving}>
+          <Button onClick={handleSave} disabled={!name.trim() || !accountNumber.trim() || !server.trim() || !investorPassword.trim() || !broker || saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
             Collega conto
           </Button>
@@ -989,6 +1191,9 @@ export default function AccountCenter() {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showConnect, setShowConnect] = useState(false);
+  const [showExtraRequest, setShowExtraRequest] = useState(false);
+  const [showBrokerRequest, setShowBrokerRequest] = useState(false);
+  const { limitInfo, refresh: refreshLimit } = useAccountLimit(user?.id);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -1406,9 +1611,17 @@ export default function AccountCenter() {
               <p className="text-sm text-muted-foreground">Monitora i tuoi conti trading</p>
             </div>
           </div>
-          <Button onClick={() => setShowConnect(true)} size="sm">
-            <Plus className="h-4 w-4 mr-1" /> Collega conto
-          </Button>
+          {limitInfo?.can_connect ? (
+            <Button onClick={() => setShowConnect(true)} size="sm">
+              <Plus className="h-4 w-4 mr-1" /> Collega conto
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button onClick={() => setShowExtraRequest(true)} size="sm" variant="outline">
+                <Plus className="h-4 w-4 mr-1" /> Richiedi conto aggiuntivo
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Live Status Indicator */}
@@ -1433,7 +1646,33 @@ export default function AccountCenter() {
         {/* Connect Form */}
         {showConnect && (
           <div className="mb-6">
-            <ConnectAccountForm onClose={() => setShowConnect(false)} onSaved={() => { setShowConnect(false); loadData(); }} />
+            <ConnectAccountForm onClose={() => setShowConnect(false)} onSaved={() => { setShowConnect(false); refreshLimit(); loadData(); }} />
+          </div>
+        )}
+
+        {/* Extra Account Request Form */}
+        {showExtraRequest && (
+          <div className="mb-6">
+            <RequestExtraAccountForm onClose={() => setShowExtraRequest(false)} onSaved={() => { setShowExtraRequest(false); }} />
+          </div>
+        )}
+
+        {/* New Broker Request Form */}
+        {showBrokerRequest && (
+          <div className="mb-6">
+            <RequestNewBrokerForm onClose={() => setShowBrokerRequest(false)} onSaved={() => { setShowBrokerRequest(false); }} />
+          </div>
+        )}
+
+        {/* Account limit info */}
+        {limitInfo && !limitInfo.can_connect && accounts.length > 0 && !showExtraRequest && (
+          <div className="card-premium p-3 mb-4 border-amber-500/20 bg-amber-500/5">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-muted-foreground">
+                <p><strong>Limite raggiunto.</strong> Hai già {limitInfo.current_count}/{limitInfo.max_allowed} conto/i collegato/i. Per collegare un conto aggiuntivo, invia una richiesta all'admin.</p>
+              </div>
+            </div>
           </div>
         )}
 

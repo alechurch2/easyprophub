@@ -1138,6 +1138,19 @@ Deno.serve(async (req) => {
 
     // === CONNECT (MetaApi provisioning) ===
     if (action === "connect_metaapi") {
+      // --- SERVER-SIDE ENFORCEMENT: account limit ---
+      const { data: limitCheck } = await supabase.rpc("check_account_limit", { _user_id: user.id });
+      if (limitCheck && !limitCheck.can_connect) {
+        console.log(`[connect_metaapi] BLOCKED: user ${user.id} has ${limitCheck.current_count}/${limitCheck.max_allowed} accounts`);
+        return new Response(JSON.stringify({
+          error: `Hai già raggiunto il limite di ${limitCheck.max_allowed} conto/i collegato/i. Richiedi un conto aggiuntivo dall'Account Center.`,
+          code: "ACCOUNT_LIMIT_REACHED",
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const { data: account } = await supabase
         .from("trading_accounts")
         .select("*")
@@ -1150,6 +1163,27 @@ Deno.serve(async (req) => {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      // --- SERVER-SIDE ENFORCEMENT: broker check ---
+      const brokerName = account.broker || "";
+      if (brokerName) {
+        const { data: brokerAllowed } = await supabase.rpc("is_broker_allowed", {
+          _user_id: user.id,
+          _broker_name: brokerName,
+        });
+        if (brokerAllowed === false) {
+          console.log(`[connect_metaapi] BLOCKED: broker "${brokerName}" not supported for user ${user.id}`);
+          // Clean up the pending account record
+          await supabase.from("trading_accounts").delete().eq("id", account_id);
+          return new Response(JSON.stringify({
+            error: `Il broker "${brokerName}" non è attualmente supportato. Richiedi il supporto per questo broker dall'Account Center.`,
+            code: "BROKER_NOT_SUPPORTED",
+          }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       try {
