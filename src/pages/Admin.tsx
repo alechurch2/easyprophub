@@ -2057,6 +2057,7 @@ export default function Admin() {
             <TabsTrigger value="ai-chat" className="flex-1 min-w-[80px]"><Bot className="h-3 w-3 mr-1" />AI Chat</TabsTrigger>
             <TabsTrigger value="accounts" className="flex-1 min-w-[80px]"><Wallet className="h-3 w-3 mr-1" />Conti</TabsTrigger>
             <TabsTrigger value="announcements" className="flex-1 min-w-[80px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
+            <TabsTrigger value="analytics" className="flex-1 min-w-[80px]"><Activity className="h-3 w-3 mr-1" />Analytics</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><AdminUsers /></TabsContent>
@@ -2068,6 +2069,7 @@ export default function Admin() {
           <TabsContent value="ai-chat"><AdminAIChat /></TabsContent>
           <TabsContent value="accounts"><AdminAccounts /></TabsContent>
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
+          <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>
