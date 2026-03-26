@@ -392,49 +392,72 @@ async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Prom
 
 // Fetch account data from MetaApi
 async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountData> {
-  // Get account information (balance, equity, etc.)
+  // 1. Get account information (balance, equity, etc.)
+  console.log("[Sync:AccountInfo] Fetching account-information...");
   const accountInfo = await metaapiClientRequest(metaAccountId, "/account-information");
+  console.log(`[Sync:AccountInfo] Raw data: balance=${accountInfo?.balance} equity=${accountInfo?.equity} margin=${accountInfo?.margin} freeMargin=${accountInfo?.freeMargin} marginLevel=${accountInfo?.marginLevel} leverage=${accountInfo?.leverage} currency=${accountInfo?.currency}`);
 
-  // Get open positions
+  // 2. Get open positions
+  console.log("[Sync:Positions] Fetching positions...");
   const positions = await metaapiClientRequest(metaAccountId, "/positions");
+  const positionsArr = Array.isArray(positions) ? positions : [];
+  console.log(`[Sync:Positions] Received ${positionsArr.length} open positions`);
 
-  // Get history deals (last 30 days)
-  const startTime = new Date(Date.now() - 30 * 86400000).toISOString();
+  // 3. Get history deals (last 90 days for better metrics)
+  const startTime = new Date(Date.now() - 90 * 86400000).toISOString();
   const endTime = new Date().toISOString();
+  console.log(`[Sync:History] Fetching history-deals from ${startTime} to ${endTime}...`);
   const historyOrders = await metaapiClientRequest(
     metaAccountId,
     `/history-deals/time/${startTime}/${endTime}`
   );
+  const dealsArr = Array.isArray(historyOrders) ? historyOrders : [];
+  console.log(`[Sync:History] Received ${dealsArr.length} raw deals`);
 
-  const balance = accountInfo.balance || 0;
-  const equity = accountInfo.equity || 0;
+  // Log deal types for debugging
+  const dealTypeCounts: Record<string, number> = {};
+  for (const d of dealsArr) {
+    const key = `${d.type || "unknown"}/${d.entryType || "unknown"}`;
+    dealTypeCounts[key] = (dealTypeCounts[key] || 0) + 1;
+  }
+  console.log(`[Sync:History] Deal type breakdown: ${JSON.stringify(dealTypeCounts)}`);
+
+  const balance = accountInfo?.balance || 0;
+  const equity = accountInfo?.equity || 0;
   const floatingPnl = equity - balance;
 
-  const openPositions = (positions || []).map((p: any) => ({
-    external_trade_id: `metaapi-pos-${p.id}`,
-    asset: p.symbol,
-    direction: p.type === "POSITION_TYPE_BUY" ? "buy" : "sell",
-    lot_size: p.volume || 0,
-    entry_price: p.openPrice || 0,
-    stop_loss: p.stopLoss || null,
-    take_profit: p.takeProfit || null,
-    profit_loss: p.profit || 0,
-    opened_at: p.time || new Date().toISOString(),
-  }));
+  // Map open positions
+  const openPositions = positionsArr.map((p: any) => {
+    console.log(`[Sync:Positions] Position: id=${p.id} symbol=${p.symbol} type=${p.type} volume=${p.volume} profit=${p.profit} openPrice=${p.openPrice}`);
+    return {
+      external_trade_id: `metaapi-pos-${p.id}`,
+      asset: p.symbol,
+      direction: p.type === "POSITION_TYPE_BUY" ? "buy" : "sell",
+      lot_size: p.volume || 0,
+      entry_price: p.openPrice || 0,
+      stop_loss: p.stopLoss || null,
+      take_profit: p.takeProfit || null,
+      profit_loss: p.profit || 0,
+      opened_at: p.time || new Date().toISOString(),
+    };
+  });
 
   // Process history deals into closed trades
-  // MetaApi returns individual deals; we need to pair entry/exit deals
   const dealsByPosition: Record<string, any[]> = {};
-  for (const deal of (historyOrders || [])) {
-    if (deal.type === "DEAL_TYPE_BALANCE" || deal.type === "DEAL_TYPE_CREDIT") continue;
+  let filteredDeals = 0;
+  for (const deal of dealsArr) {
+    if (deal.type === "DEAL_TYPE_BALANCE" || deal.type === "DEAL_TYPE_CREDIT") {
+      filteredDeals++;
+      continue;
+    }
     const posId = deal.positionId || deal.id;
     if (!dealsByPosition[posId]) dealsByPosition[posId] = [];
     dealsByPosition[posId].push(deal);
   }
+  console.log(`[Sync:History] Filtered out ${filteredDeals} balance/credit deals. Remaining positions to process: ${Object.keys(dealsByPosition).length}`);
 
   const closedTrades: ProviderAccountData["closedTrades"] = [];
   for (const [posId, deals] of Object.entries(dealsByPosition)) {
-    // Entry deals: DEAL_ENTRY_IN, Exit deals: DEAL_ENTRY_OUT
     const entryDeals = deals.filter((d: any) => d.entryType === "DEAL_ENTRY_IN");
     const exitDeals = deals.filter((d: any) => d.entryType === "DEAL_ENTRY_OUT");
 
@@ -444,6 +467,7 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
       const openTime = new Date(entry.time);
       const closeTime = new Date(exit.time);
       const durationMins = Math.round((closeTime.getTime() - openTime.getTime()) / 60000);
+      const pnl = exitDeals.reduce((sum: number, d: any) => sum + (d.profit || 0) + (d.swap || 0) + (d.commission || 0), 0);
 
       closedTrades.push({
         external_trade_id: `metaapi-deal-${posId}`,
@@ -452,25 +476,64 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
         lot_size: entry.volume || 0,
         entry_price: entry.price || 0,
         exit_price: exit.price || 0,
-        stop_loss: null, // not available in deals
+        stop_loss: null,
         take_profit: null,
-        profit_loss: exitDeals.reduce((sum: number, d: any) => sum + (d.profit || 0) + (d.swap || 0) + (d.commission || 0), 0),
+        profit_loss: Math.round(pnl * 100) / 100,
         opened_at: openTime.toISOString(),
         closed_at: closeTime.toISOString(),
         duration_minutes: durationMins,
       });
+    } else {
+      console.log(`[Sync:History] Position ${posId}: ${entryDeals.length} entries, ${exitDeals.length} exits - skipped (incomplete)`);
     }
   }
+  console.log(`[Sync:History] Processed ${closedTrades.length} closed trades from deals`);
+
+  // Calculate metrics from closed trades
+  const wins = closedTrades.filter(t => t.profit_loss > 0);
+  const losses = closedTrades.filter(t => t.profit_loss < 0);
+  const totalPnl = closedTrades.reduce((s, t) => s + t.profit_loss, 0);
+  const grossProfit = wins.reduce((s, t) => s + t.profit_loss, 0);
+  const grossLoss = Math.abs(losses.reduce((s, t) => s + t.profit_loss, 0));
+  const winRate = closedTrades.length > 0 ? (wins.length / closedTrades.length) * 100 : 0;
+  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 99.99 : 0);
+
+  // Calculate daily PnL (trades closed today)
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const dailyTrades = closedTrades.filter(t => new Date(t.closed_at) >= todayStart);
+  const dailyPnl = dailyTrades.reduce((s, t) => s + t.profit_loss, 0) + floatingPnl;
+
+  // Calculate weekly PnL (trades closed this week, Monday-based)
+  const weekStart = new Date();
+  const dayOfWeek = weekStart.getDay();
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  weekStart.setDate(weekStart.getDate() - diffToMonday);
+  weekStart.setHours(0, 0, 0, 0);
+  const weeklyTrades = closedTrades.filter(t => new Date(t.closed_at) >= weekStart);
+  const weeklyPnl = weeklyTrades.reduce((s, t) => s + t.profit_loss, 0) + floatingPnl;
+
+  // Calculate drawdown: if positions are open, use (balance - equity) / balance
+  // Otherwise use max historical drawdown from closed trades
+  let drawdown = 0;
+  if (balance > 0 && equity < balance) {
+    drawdown = Math.round(((balance - equity) / balance) * 10000) / 100;
+  }
+
+  console.log(`[Sync:Metrics] Calculated: winRate=${winRate.toFixed(1)}% profitFactor=${profitFactor.toFixed(2)} totalPnl=${totalPnl.toFixed(2)} dailyPnl=${dailyPnl.toFixed(2)} weeklyPnl=${weeklyPnl.toFixed(2)} drawdown=${drawdown.toFixed(2)}% floatingPnl=${floatingPnl.toFixed(2)} wins=${wins.length} losses=${losses.length} openPositions=${openPositions.length}`);
 
   return {
     overview: {
       balance: Math.round(balance * 100) / 100,
       equity: Math.round(equity * 100) / 100,
       profit_loss: Math.round(floatingPnl * 100) / 100,
-      drawdown: accountInfo.marginLevel ? Math.round((1 - accountInfo.equity / accountInfo.balance) * 10000) / 100 : 0,
-      daily_pnl: 0, // Would need daily comparison
-      weekly_pnl: 0,
+      drawdown,
+      daily_pnl: Math.round(dailyPnl * 100) / 100,
+      weekly_pnl: Math.round(weeklyPnl * 100) / 100,
       open_positions_count: openPositions.length,
+      // Extra metrics to save
+      win_rate: Math.round(winRate * 100) / 100,
+      profit_factor: Math.round(profitFactor * 100) / 100,
     },
     openPositions,
     closedTrades,
