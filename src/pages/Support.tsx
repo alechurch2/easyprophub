@@ -54,6 +54,7 @@ export default function Support() {
 
   useEffect(() => {
     loadTickets();
+    trackEvent("support_opened", { page: "support", section: "support" });
   }, []);
 
   const loadTickets = async () => {
