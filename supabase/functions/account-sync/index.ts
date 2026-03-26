@@ -1177,6 +1177,11 @@ Deno.serve(async (req) => {
       const { data: limitCheck } = await supabase.rpc("check_account_limit", { _user_id: user.id });
       if (limitCheck && !limitCheck.can_connect) {
         console.log(`[connect_metaapi] BLOCKED: user ${user.id} has ${limitCheck.current_count}/${limitCheck.max_allowed} accounts`);
+        // Clean up the pending account record so it doesn't linger
+        if (account_id) {
+          await supabase.from("trading_accounts").delete().eq("id", account_id);
+          console.log(`[connect_metaapi] Cleaned up pending account record: ${account_id}`);
+        }
         return new Response(JSON.stringify({
           error: `Hai già raggiunto il limite di ${limitCheck.max_allowed} conto/i collegato/i. Richiedi un conto aggiuntivo dall'Account Center.`,
           code: "ACCOUNT_LIMIT_REACHED",
