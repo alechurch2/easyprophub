@@ -79,6 +79,8 @@ LOGICA DI DECISIONE (segui quest'ordine):
 IMPORTANTE: Non essere eccessivamente restrittivo. Se il grafico mostra una struttura leggibile e un contesto operativo plausibile, proponi almeno un'idea operativa anche se non perfetta. Riserva il "nessun setup" solo a contesti realmente poco chiari o privi di struttura.
 
 TIPI DI OPERAZIONE: Buy, Sell, Buy Limit, Sell Limit
+- Usa Buy / Sell per segnali a mercato (esecuzione immediata, setup forte e chiaro)
+- Usa Buy Limit / Sell Limit per setup da attendere (prezzo non ancora al livello desiderato)
 MASSIMO: 2 setup. Se proponi 2, devono essere coerenti tra loro.
 
 ADATTAMENTO AL TIMEFRAME:
