@@ -749,6 +749,75 @@ export type Database = {
           },
         ]
       }
+      order_execution_logs: {
+        Row: {
+          account_id: string
+          asset: string
+          created_at: string
+          direction: string
+          entry_price: number
+          error_message: string | null
+          id: string
+          lot_size: number
+          order_type: string
+          provider_response: Json | null
+          review_id: string | null
+          status: string
+          stop_loss: number | null
+          take_profit: number | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          asset: string
+          created_at?: string
+          direction: string
+          entry_price: number
+          error_message?: string | null
+          id?: string
+          lot_size: number
+          order_type?: string
+          provider_response?: Json | null
+          review_id?: string | null
+          status?: string
+          stop_loss?: number | null
+          take_profit?: number | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          asset?: string
+          created_at?: string
+          direction?: string
+          entry_price?: number
+          error_message?: string | null
+          id?: string
+          lot_size?: number
+          order_type?: string
+          provider_response?: Json | null
+          review_id?: string | null
+          status?: string
+          stop_loss?: number | null
+          take_profit?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_execution_logs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_execution_logs_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "ai_chart_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       premium_review_usage: {
         Row: {
           created_at: string
@@ -1017,6 +1086,7 @@ export type Database = {
           broker: string | null
           connection_status: string
           created_at: string
+          credential_mode: string
           daily_pnl: number | null
           drawdown: number | null
           equity: number | null
@@ -1035,6 +1105,7 @@ export type Database = {
           read_only_mode: boolean
           server: string | null
           sync_status: string
+          trading_execution_enabled: boolean
           updated_at: string
           user_id: string
           user_note: string | null
@@ -1048,6 +1119,7 @@ export type Database = {
           broker?: string | null
           connection_status?: string
           created_at?: string
+          credential_mode?: string
           daily_pnl?: number | null
           drawdown?: number | null
           equity?: number | null
@@ -1066,6 +1138,7 @@ export type Database = {
           read_only_mode?: boolean
           server?: string | null
           sync_status?: string
+          trading_execution_enabled?: boolean
           updated_at?: string
           user_id: string
           user_note?: string | null
@@ -1079,6 +1152,7 @@ export type Database = {
           broker?: string | null
           connection_status?: string
           created_at?: string
+          credential_mode?: string
           daily_pnl?: number | null
           drawdown?: number | null
           equity?: number | null
@@ -1097,6 +1171,7 @@ export type Database = {
           read_only_mode?: boolean
           server?: string | null
           sync_status?: string
+          trading_execution_enabled?: boolean
           updated_at?: string
           user_id?: string
           user_note?: string | null
