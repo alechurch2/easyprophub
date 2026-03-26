@@ -1327,6 +1327,97 @@ Deno.serve(async (req) => {
           rawDealsCount: 0,
         };
 
+        // ===== RECONCILIATION: Detect disappeared positions =====
+        // 1. Snapshot previous open positions BEFORE deleting them
+        const { data: previousOpenRows } = await supabase
+          .from("account_trade_history")
+          .select("external_trade_id, asset, direction, lot_size, entry_price, opened_at")
+          .eq("account_id", account_id)
+          .eq("status", "open");
+        const previousOpenMap = new Map<string, any>();
+        for (const row of previousOpenRows ?? []) {
+          if (row.external_trade_id) previousOpenMap.set(row.external_trade_id, row);
+        }
+        console.log(`[Reconciliation] Previous open positions snapshot: ${previousOpenMap.size}`);
+
+        // 2. Determine which positions disappeared
+        const currentOpenIds = new Set(data.openPositions.map(p => p.external_trade_id));
+        const closedByIncrementalIds = new Set(data.closedTrades.map(t => {
+          // Map from metaapi-deal-{posId} back to metaapi-pos-{posId}
+          const posId = extractPositionIdFromExternalTradeId(t.external_trade_id);
+          return posId ? `metaapi-pos-${posId}` : null;
+        }).filter(Boolean));
+
+        const newDisappeared: PendingClosure[] = [];
+        for (const [extId, row] of previousOpenMap.entries()) {
+          if (!currentOpenIds.has(extId)) {
+            // Position disappeared - check if incremental deals already captured it
+            if (closedByIncrementalIds.has(extId)) {
+              console.log(`[Reconciliation] Position ${extId} disappeared but already found in incremental deals - OK`);
+              continue;
+            }
+            const posIdHint = extractPositionIdFromExternalTradeId(extId);
+            // Also check if deal version already exists
+            const dealExtId = posIdHint ? `metaapi-deal-${posIdHint}` : null;
+            if (dealExtId && data.closedTrades.some(t => t.external_trade_id === dealExtId)) {
+              console.log(`[Reconciliation] Position ${extId} disappeared and found as deal ${dealExtId} in incremental - OK`);
+              continue;
+            }
+            console.log(`[Reconciliation] ⚠️ Position DISAPPEARED: ${extId} asset=${row.asset} direction=${row.direction} - queuing for reconciliation`);
+            newDisappeared.push({
+              external_trade_id: extId,
+              asset: row.asset,
+              direction: row.direction,
+              lot_size: Number(row.lot_size || 0),
+              entry_price: Number(row.entry_price || 0),
+              opened_at: row.opened_at,
+              disappeared_at: new Date().toISOString(),
+              retries: 0,
+              position_id_hint: posIdHint ?? undefined,
+            });
+          }
+        }
+
+        // 3. Load existing pending closures from account metadata
+        const existingMetadata = (account.metadata && typeof account.metadata === "object") ? account.metadata as Record<string, unknown> : {};
+        const existingPendingClosures: PendingClosure[] = Array.isArray(existingMetadata.pendingClosures) 
+          ? existingMetadata.pendingClosures as PendingClosure[] 
+          : [];
+        
+        // Merge new disappeared with existing pending (avoid duplicates by external_trade_id)
+        const allPendingMap = new Map<string, PendingClosure>();
+        for (const pc of existingPendingClosures) allPendingMap.set(pc.external_trade_id, pc);
+        for (const pc of newDisappeared) {
+          if (!allPendingMap.has(pc.external_trade_id)) allPendingMap.set(pc.external_trade_id, pc);
+        }
+        const allPendingClosures = Array.from(allPendingMap.values());
+        console.log(`[Reconciliation] Total pending closures to process: ${allPendingClosures.length} (existing=${existingPendingClosures.length} new=${newDisappeared.length})`);
+
+        // 4. Run reconciliation with wider history if needed
+        let reconciliationResult = { resolved: [] as PendingClosure[], stillPending: [] as PendingClosure[], newClosedTrades: [] as ProviderAccountData["closedTrades"] };
+        if (allPendingClosures.length > 0 && account.provider_type === "metaapi" && account.provider_account_id) {
+          reconciliationResult = await reconcilePendingClosures(
+            account.provider_account_id,
+            allPendingClosures,
+            supabase,
+            account_id,
+            user.id,
+          );
+          // Add reconciled trades to the closed trades list
+          data.closedTrades.push(...reconciliationResult.newClosedTrades);
+          console.log(`[Reconciliation] Added ${reconciliationResult.newClosedTrades.length} reconciled trades to closed trades list`);
+        }
+
+        syncDebug.reconciliation = {
+          previous_open_count: previousOpenMap.size,
+          current_open_count: data.openPositions.length,
+          new_disappeared: newDisappeared.length,
+          existing_pending: existingPendingClosures.length,
+          resolved: reconciliationResult.resolved.length,
+          still_pending: reconciliationResult.stillPending.length,
+          reconciled_trades: reconciliationResult.newClosedTrades.length,
+        };
+
         // Upsert open positions: delete old, insert new
         const { count: deletedOpen } = await supabase.from("account_trade_history")
           .delete({ count: "exact" })
