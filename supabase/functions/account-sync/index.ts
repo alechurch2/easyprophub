@@ -1222,14 +1222,14 @@ Deno.serve(async (req) => {
       }
 
       try {
-        console.log("[connect_metaapi] Starting for account_id:", account_id);
+        console.log(`[connect_metaapi] Starting for account_id=${account_id} broker="${account.broker || "unknown"}" platform="${account.platform}" server="${account.server}"`);
 
         await supabase.from("trading_accounts").update({
           connection_status: "syncing",
           sync_status: "running",
         }).eq("id", account_id);
 
-        // 1. Create MetaApi account
+        // 1. Create MetaApi account (broker-aware provisioning profile selection)
         console.log("[connect_metaapi] Step 1: Creating MetaApi account...");
         const metaAccountId = await createMetaApiAccount(account);
         console.log("[connect_metaapi] Step 1 done. MetaApi ID:", metaAccountId);
