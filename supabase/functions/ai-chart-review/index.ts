@@ -63,25 +63,40 @@ REGOLE FONDAMENTALI:
 `;
 
 // ============================================================
-// 🔧 STRATEGIA EASY — Analisi semplificata ed EQUILIBRATA
+// 🔧 STRATEGIA EASY — Sempre market order principale + pending opzionali
 // ============================================================
 const CUSTOM_STRATEGY_EASY = `
 
-Analizza lo screenshot del grafico e fornisci un'analisi SEMPLIFICATA e UTILE.
+Analizza lo screenshot del grafico e fornisci un'analisi SEMPLIFICATA e OPERATIVA.
 
-OBIETTIVO: Fornire valore all'utente in OGNI caso — sia con setup operativi, sia con analisi del contesto quando non c'è un trade chiaro.
+OBIETTIVO: Fornire SEMPRE un segnale principale a mercato (Buy o Sell), con un livello di forza da 1 a 5. In aggiunta, puoi proporre ordini pending come alternative di precisione.
 
-LOGICA DI DECISIONE (segui quest'ordine):
-1. Se il contesto è chiaro e ci sono livelli definiti → proponi 1-2 setup operativi
-2. Se il contesto è discreto ma non ideale → proponi 1 setup PRUDENTE con avvertenze chiare
-3. Se il contesto è debole o ambiguo → NON proporre setup, ma fornisci analisi del contesto utile
+STRUTTURA OBBLIGATORIA DELL'OUTPUT:
 
-IMPORTANTE: Non essere eccessivamente restrittivo. Se il grafico mostra una struttura leggibile e un contesto operativo plausibile, proponi almeno un'idea operativa anche se non perfetta. Riserva il "nessun setup" solo a contesti realmente poco chiari o privi di struttura.
+A. SEGNALE PRINCIPALE (SEMPRE PRESENTE — obbligatorio):
+- Deve essere SEMPRE un ordine a mercato: "Buy" o "Sell"
+- Con entry di riferimento (prezzo attuale approssimativo), stop_loss, take_profit
+- Con setup_strength da 1 a 5:
+  1 = molto debole / no operatività consigliata
+  2 = debole / alta prudenza
+  3 = discreto / minimo consigliabile
+  4 = buono / segnale affidabile
+  5 = forte / alta convinzione
+- Se setup_strength < 3: il segnale è da considerare solo informativo, non consigliato per il copy
+- Se setup_strength >= 3: il segnale è copiabile con prudenza
 
-TIPI DI OPERAZIONE: Buy, Sell, Buy Limit, Sell Limit
-- Usa Buy / Sell per segnali a mercato (esecuzione immediata, setup forte e chiaro)
-- Usa Buy Limit / Sell Limit per setup da attendere (prezzo non ancora al livello desiderato)
-MASSIMO: 2 setup. Se proponi 2, devono essere coerenti tra loro.
+B. ORDINI PENDING AGGIUNTIVI (OPZIONALI — 0, 1 o 2):
+- Possono essere: Buy Limit, Sell Limit, Buy Stop, Sell Stop
+- Sono alternative di precisione o ingressi migliori
+- NON sostituiscono il segnale principale
+- Hanno il loro livello di forza indipendente (pending_strength 1-5)
+
+LOGICA DI DECISIONE:
+1. Analizza il grafico e determina il bias direzionale
+2. Genera SEMPRE il segnale principale a mercato nella direzione del bias
+3. Assegna la forza del segnale onestamente (1-5)
+4. Se esistono livelli di prezzo migliori per entrare, aggiungi ordini pending
+5. Se il contesto è molto debole (forza 1-2), fornisci comunque il segnale market ma con warning chiaro
 
 ADATTAMENTO AL TIMEFRAME:
 - M1-M15: setup intraday brevi, SL/TP stretti
@@ -93,22 +108,13 @@ Per ogni setup indica:
 - tipo, entry_range, stop_loss, take_profit, sl_pips, tp_pips
 - spiegazione: perché questo setup? Cosa sta vedendo il sistema? (2-3 frasi semplici)
 
-QUANDO NON C'È SETUP — ANALISI DEL CONTESTO OBBLIGATORIA:
-Se non proponi setup, DEVI comunque fornire:
-- contesto_mercato: cosa sta facendo il prezzo adesso (1-2 frasi semplici)
-- perche_no_setup: perché non c'è un'operazione valida (1 frase chiara)
-- cosa_aspettare: cosa dovrebbe succedere per avere un setup interessante (1-2 punti concreti)
-- livello_prudenza: "alto", "medio" o "basso" — quanto è rischioso operare adesso
-
-Questo rende l'analisi utile anche senza trade.
-
-QUALITÀ DEL SEGNALE:
+QUALITÀ DEL SEGNALE (signal_quality):
 - "alta": contesto chiaro, struttura coerente, livelli precisi
 - "media": elementi presenti ma contesto non perfetto
 - "bassa": pochi elementi, massima prudenza
 
 STILE: Linguaggio semplice, diretto, comprensibile per chi inizia. Frasi brevi.
-NON forzare trade casuali. NON inventare livelli. NON promettere risultati.
+NON inventare livelli. NON promettere risultati.
 `;
 
 // ============================================================
@@ -162,18 +168,19 @@ REGOLE:
 
 CONTESTO: ti verranno forniti asset, timeframe e tipo di richiesta.`;
 
-const SYSTEM_PROMPT_EASY = `Sei un analista tecnico che comunica in modo semplice e diretto. Analizza screenshot di grafici e fornisci idee operative chiare O analisi del contesto utili.
+const SYSTEM_PROMPT_EASY = `Sei un analista tecnico che comunica in modo semplice e diretto. Analizza screenshot di grafici e fornisci SEMPRE un segnale principale a mercato, più eventuali ordini pending aggiuntivi.
 
 STRATEGIA:
 ${CUSTOM_STRATEGY_EASY}
 
 REGOLE:
 1. Analizza SOLO ciò che vedi nell'immagine.
-2. Se l'immagine non è leggibile, dichiaralo e NON proporre setup.
+2. Se l'immagine non è leggibile, dichiaralo ma fornisci comunque il segnale principale basato su ciò che riesci a leggere.
 3. Rispondi SOLO tramite la funzione "easy_chart_analysis".
-4. Massimo 2 setup. Se non c'è setup, array vuoto per "setups" ma COMPILA i campi di contesto (contesto_mercato, perche_no_setup, cosa_aspettare, livello_prudenza).
-5. Linguaggio semplice e comprensibile.
-6. IMPORTANTE: non essere troppo restrittivo. Se c'è una lettura operativa plausibile, proponi almeno un setup prudente.
+4. Il campo "primary_signal" è OBBLIGATORIO e deve essere SEMPRE un ordine a mercato (Buy o Sell).
+5. Il campo "pending_setups" è opzionale (0-2 ordini pending aggiuntivi).
+6. Linguaggio semplice e comprensibile.
+7. Assegna setup_strength onestamente: se il segnale è debole, dì 1 o 2. Non gonfiare il punteggio.
 
 CONTESTO: ti verranno forniti asset, timeframe e dimensione del conto.`;
 
@@ -186,12 +193,11 @@ ${PREMIUM_ENHANCEMENT}
 
 REGOLE:
 1. Analizza SOLO ciò che vedi nell'immagine.
-2. Se l'immagine non è leggibile, dichiaralo e NON proporre setup.
+2. Se l'immagine non è leggibile, dichiaralo ma fornisci comunque il segnale principale.
 3. Rispondi SOLO tramite la funzione "easy_chart_analysis".
-4. Massimo 2 setup. Se non c'è setup, array vuoto ma COMPILA i campi di contesto.
+4. Il campo "primary_signal" è OBBLIGATORIO.
 5. Linguaggio chiaro, dettagliato ma comprensibile.
-6. IMPORTANTE: non essere troppo restrittivo. Proponi setup quando il contesto lo permette.
-7. Le spiegazioni devono essere più articolate rispetto alla versione standard.
+6. Le spiegazioni devono essere più articolate rispetto alla versione standard.
 
 CONTESTO: ti verranno forniti asset, timeframe e dimensione del conto.`;
 
@@ -226,44 +232,69 @@ const ANALYSIS_TOOL_PRO = {
   },
 };
 
+const SETUP_SCHEMA = {
+  type: "object",
+  properties: {
+    tipo: { type: "string", description: "Tipo di operazione." },
+    entry_range: { type: "string", description: "Livello o range di entrata." },
+    stop_loss: { type: "string", description: "Livello dello stop loss." },
+    take_profit: { type: "string", description: "Livello del take profit." },
+    sl_pips: { type: "number", description: "Distanza SL in pips." },
+    tp_pips: { type: "number", description: "Distanza TP in pips." },
+    spiegazione: { type: "string", description: "Spiegazione breve: perché questo setup? (2-3 frasi)" },
+  },
+  required: ["tipo", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
+};
+
 const ANALYSIS_TOOL_EASY = {
   type: "function",
   function: {
     name: "easy_chart_analysis",
-    description: "Restituisce un'analisi semplificata con idee operative O analisi del contesto utile.",
+    description: "Restituisce un'analisi Easy con segnale principale a mercato obbligatorio + pending opzionali.",
     parameters: {
       type: "object",
       properties: {
         leggibilita_immagine: { type: "string", description: "Qualità dell'immagine. Es: 'Chiara', 'Parziale', 'Non leggibile'." },
         signal_quality: { type: "string", enum: ["alta", "media", "bassa"], description: "Qualità complessiva del segnale." },
-        setup_strength: { type: "integer", description: "Forza del setup da 1 a 5. 1=debole/prudenza alta, 2=moderato, 3=discreto, 4=buono, 5=forte/immediato." },
-        setups: {
+        setup_strength: { type: "integer", description: "Forza del segnale principale da 1 a 5. 1=molto debole, 2=debole, 3=discreto/minimo consigliabile, 4=buono, 5=forte." },
+        primary_signal: {
+          type: "object",
+          description: "Segnale principale OBBLIGATORIO — sempre a mercato (Buy o Sell).",
+          properties: {
+            tipo: { type: "string", enum: ["Buy", "Sell"], description: "Direzione: Buy o Sell. Sempre market order." },
+            entry_range: { type: "string", description: "Prezzo di riferimento corrente per l'entry." },
+            stop_loss: { type: "string", description: "Livello dello stop loss." },
+            take_profit: { type: "string", description: "Livello del take profit." },
+            sl_pips: { type: "number", description: "Distanza SL in pips." },
+            tp_pips: { type: "number", description: "Distanza TP in pips." },
+            spiegazione: { type: "string", description: "Perché questo segnale? Cosa vede il sistema? (2-3 frasi)" },
+          },
+          required: ["tipo", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
+        },
+        pending_setups: {
           type: "array",
-          description: "Array di 0-2 setup operativi. Vuoto se nessun setup valido.",
+          description: "Ordini pending aggiuntivi opzionali (0-2). Alternative di precisione.",
           items: {
             type: "object",
             properties: {
-              tipo: { type: "string", enum: ["Buy", "Sell", "Buy Limit", "Sell Limit"], description: "Tipo di operazione. Usa Buy/Sell per market, Buy Limit/Sell Limit per pending." },
-              execution_type: { type: "string", enum: ["market", "limit"], description: "Tipo di esecuzione: market (immediata) o limit (pendente)." },
-              entry_range: { type: "string", description: "Livello o range di entrata." },
+              tipo: { type: "string", enum: ["Buy Limit", "Sell Limit", "Buy Stop", "Sell Stop"], description: "Tipo di ordine pending." },
+              pending_strength: { type: "integer", description: "Forza di questo setup pending da 1 a 5." },
+              entry_range: { type: "string", description: "Livello di entrata del pending." },
               stop_loss: { type: "string", description: "Livello dello stop loss." },
               take_profit: { type: "string", description: "Livello del take profit." },
               sl_pips: { type: "number", description: "Distanza SL in pips." },
               tp_pips: { type: "number", description: "Distanza TP in pips." },
-              spiegazione: { type: "string", description: "Spiegazione breve: perché questo setup? Cosa vede il sistema? (2-3 frasi)" },
+              spiegazione: { type: "string", description: "Perché questo ordine pending? (2-3 frasi)" },
             },
-            required: ["tipo", "execution_type", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
+            required: ["tipo", "pending_strength", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
           },
         },
         expected_duration: { type: "string", description: "Durata attesa del trade (es: '2-4 ore', '1-3 giorni')." },
         warning: { type: "string", description: "Eventuali avvertenze." },
         conclusione: { type: "string", description: "Conclusione sintetica." },
-        no_setup_reason: { type: "string", description: "Se nessun setup: motivo principale in 1 frase." },
-        contesto_mercato: { type: "string", description: "Cosa sta facendo il prezzo adesso (1-2 frasi semplici). Compilare SEMPRE, specialmente se non ci sono setup." },
-        cosa_aspettare: { type: "string", description: "Cosa dovrebbe succedere per avere un setup interessante (1-2 punti concreti). Compilare se non ci sono setup." },
-        livello_prudenza: { type: "string", enum: ["alto", "medio", "basso"], description: "Quanto è rischioso operare adesso. Compilare se non ci sono setup." },
+        contesto_mercato: { type: "string", description: "Cosa sta facendo il prezzo adesso (1-2 frasi semplici)." },
       },
-      required: ["leggibilita_immagine", "signal_quality", "setup_strength", "setups", "expected_duration", "conclusione"],
+      required: ["leggibilita_immagine", "signal_quality", "setup_strength", "primary_signal", "expected_duration", "conclusione"],
       additionalProperties: false,
     },
   },
@@ -280,7 +311,7 @@ const MODEL_COSTS: Record<string, { input: number; output: number; perCall: numb
 
 function estimateAICost(model: string, tokensIn: number, tokensOut: number): number {
   const costs = MODEL_COSTS[model];
-  if (!costs) return 0.005; // fallback per-call estimate
+  if (!costs) return 0.005;
   if (tokensIn > 0 || tokensOut > 0) {
     return (tokensIn / 1000) * costs.input + (tokensOut / 1000) * costs.output;
   }
@@ -290,7 +321,6 @@ function estimateAICost(model: string, tokensIn: number, tokensOut: number): num
 async function checkUsageLimits(supabase: any, userId: string, functionType: string, isAdmin: boolean): Promise<string | null> {
   if (isAdmin) return null;
 
-  // Get applicable limits (user-specific override OR global)
   const { data: limits } = await supabase
     .from("ai_usage_limits")
     .select("*")
@@ -304,7 +334,6 @@ async function checkUsageLimits(supabase: any, userId: string, functionType: str
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
   for (const limit of limits) {
-    // User-specific overrides global
     const hasUserOverride = limits.some((l: any) => l.user_id === userId && l.limit_type === limit.limit_type);
     if (limit.user_id === null && hasUserOverride) continue;
 
@@ -472,7 +501,11 @@ METADATI:
 
 ${user_note ? `NOTA UTENTE: ${user_note}` : ""}
 
-IMPORTANTE: Se il contesto è discreto o buono, proponi almeno un setup operativo. Riserva il "nessun setup" solo a contesti realmente poco chiari. Se non proponi setup, fornisci comunque analisi del contesto con contesto_mercato, cosa_aspettare e livello_prudenza.
+ISTRUZIONI CRITICHE:
+1. DEVI sempre fornire un "primary_signal" con tipo "Buy" o "Sell" (ordine a mercato).
+2. Assegna setup_strength da 1 a 5 onestamente.
+3. Se vuoi suggerire ingressi più precisi, aggiungili come "pending_setups".
+4. Fornisci anche contesto_mercato per dare valore informativo.
 
 Usa ESCLUSIVAMENTE la funzione "easy_chart_analysis" per restituire l'output.`
       : `Analizza questo grafico secondo la strategia predefinita.${tierLabel}
@@ -590,23 +623,65 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
 
     // Validate and normalize
     if (isEasy) {
-      if (!analysis.setups) analysis.setups = [];
-      if (!analysis.signal_quality) analysis.signal_quality = "media";
-      if (!analysis.setup_strength) analysis.setup_strength = analysis.setups.length > 0 ? 3 : 1;
-      analysis.setup_strength = Math.max(1, Math.min(5, Math.round(analysis.setup_strength)));
-      if (!analysis.expected_duration) analysis.expected_duration = "Non determinabile";
-      if (analysis.setups.length > 2) analysis.setups = analysis.setups.slice(0, 2);
-      // Normalize execution_type on each setup
-      for (const s of analysis.setups) {
-        if (!s.execution_type) {
-          s.execution_type = (s.tipo?.toLowerCase().includes("limit")) ? "limit" : "market";
+      // Ensure primary_signal exists
+      if (!analysis.primary_signal) {
+        // Backward compat: if old format with setups array, migrate first setup as primary
+        if (analysis.setups && analysis.setups.length > 0) {
+          const first = analysis.setups[0];
+          analysis.primary_signal = {
+            tipo: first.tipo?.includes("Buy") ? "Buy" : "Sell",
+            entry_range: first.entry_range,
+            stop_loss: first.stop_loss,
+            take_profit: first.take_profit,
+            sl_pips: first.sl_pips,
+            tp_pips: first.tp_pips,
+            spiegazione: first.spiegazione,
+          };
+          // Remaining setups become pending
+          if (analysis.setups.length > 1) {
+            analysis.pending_setups = analysis.setups.slice(1).map((s: any) => ({
+              ...s,
+              pending_strength: analysis.setup_strength || 3,
+            }));
+          }
+          delete analysis.setups;
+        } else {
+          // Fallback: create a minimal primary signal
+          analysis.primary_signal = {
+            tipo: "Buy",
+            entry_range: "N/A",
+            stop_loss: "N/A",
+            take_profit: "N/A",
+            sl_pips: 0,
+            tp_pips: 0,
+            spiegazione: "Segnale non determinabile dal grafico fornito.",
+          };
+          if (!analysis.setup_strength) analysis.setup_strength = 1;
         }
       }
-      // Ensure context fields exist for no-setup case
-      if (analysis.setups.length === 0) {
-        if (!analysis.contesto_mercato) analysis.contesto_mercato = analysis.conclusione || "Contesto non disponibile";
-        if (!analysis.livello_prudenza) analysis.livello_prudenza = "alto";
+
+      // Ensure primary_signal.tipo is pure market (Buy or Sell)
+      const pt = analysis.primary_signal.tipo?.toLowerCase() || "";
+      if (pt.includes("buy")) analysis.primary_signal.tipo = "Buy";
+      else analysis.primary_signal.tipo = "Sell";
+
+      // Normalize setup_strength
+      if (!analysis.signal_quality) analysis.signal_quality = "media";
+      if (!analysis.setup_strength) analysis.setup_strength = 3;
+      analysis.setup_strength = Math.max(1, Math.min(5, Math.round(analysis.setup_strength)));
+
+      if (!analysis.expected_duration) analysis.expected_duration = "Non determinabile";
+      if (!analysis.pending_setups) analysis.pending_setups = [];
+      if (analysis.pending_setups.length > 2) analysis.pending_setups = analysis.pending_setups.slice(0, 2);
+
+      // Normalize pending setups
+      for (const s of analysis.pending_setups) {
+        if (!s.pending_strength) s.pending_strength = 3;
+        s.pending_strength = Math.max(1, Math.min(5, Math.round(s.pending_strength)));
       }
+
+      // Remove legacy setups field if present
+      delete analysis.setups;
     } else {
       const requiredFields = [
         "leggibilita_immagine", "contesto", "bias", "struttura", "liquidita",
