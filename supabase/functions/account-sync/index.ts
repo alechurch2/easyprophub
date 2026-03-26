@@ -110,8 +110,30 @@ type ClosedTradeMetricSource = {
 
 const INITIAL_HISTORY_LOOKBACK_DAYS = 90;
 const HISTORY_SYNC_BUFFER_MINUTES = 15;
+const RECONCILIATION_LOOKBACK_HOURS = 48;
+const RECONCILIATION_MAX_RETRIES = 20;
 const MS_IN_DAY = 86400000;
 const MS_IN_MINUTE = 60000;
+const MS_IN_HOUR = 3600000;
+
+// ========== PENDING CLOSURE TYPES ==========
+interface PendingClosure {
+  external_trade_id: string;
+  asset: string;
+  direction: string;
+  lot_size: number;
+  entry_price: number;
+  opened_at: string;
+  disappeared_at: string;
+  retries: number;
+  position_id_hint?: string; // raw MetaApi positionId for targeted search
+}
+
+function extractPositionIdFromExternalTradeId(externalTradeId: string): string | null {
+  // external_trade_id format: "metaapi-pos-{positionId}" or "metaapi-deal-{positionId}"
+  const match = externalTradeId.match(/metaapi-(?:pos|deal)-(.+)/);
+  return match ? match[1] : null;
+}
 
 function getHostFromUrl(url: string) {
   try {
