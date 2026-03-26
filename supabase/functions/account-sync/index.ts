@@ -15,6 +15,8 @@ interface ProviderAccountData {
     daily_pnl: number;
     weekly_pnl: number;
     open_positions_count: number;
+    win_rate?: number;
+    profit_factor?: number;
   };
   openPositions: Array<{
     external_trade_id: string;
