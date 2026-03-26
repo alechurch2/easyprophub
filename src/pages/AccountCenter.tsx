@@ -1404,7 +1404,7 @@ export default function AccountCenter() {
         {/* Live Status Indicator */}
         <div className="flex items-center justify-between mb-6">
           <LiveStatusIndicator mode={liveMode} lastUpdate={lastRealtimeUpdate} />
-          <p className="text-[10px] text-muted-foreground">Auto-sync ogni 30s</p>
+          <p className="text-[10px] text-muted-foreground">Auto-sync: 30s attivo · 90s inattivo</p>
         </div>
 
         {/* Disclaimer */}
