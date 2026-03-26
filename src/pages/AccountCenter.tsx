@@ -964,9 +964,23 @@ function LiveStatusIndicator({ mode, lastUpdate }: { mode: "live" | "syncing" | 
   );
 }
 
+// ---- Info Banner ----
+function SyncDelayBanner() {
+  return (
+    <div className="rounded-lg border border-border bg-muted/50 p-3 mb-6 flex items-start gap-2">
+      <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+      <p className="text-xs text-muted-foreground">
+        Balance ed equity si aggiornano rapidamente. Storico operazioni, PnL giornaliero/settimanale e metriche possono aggiornarsi con un leggero ritardo.
+      </p>
+    </div>
+  );
+}
+
 // ---- Main Page ----
-const AUTO_SYNC_INTERVAL = 30_000; // 30 seconds
-const FAST_REFRESH_DEBOUNCE = 3_000; // 3 seconds debounce for fast refresh
+const SYNC_INTERVAL_ACTIVE = 30_000;   // 30s when page visible & user active
+const SYNC_INTERVAL_INACTIVE = 90_000; // 90s when page hidden or user idle
+const USER_IDLE_TIMEOUT = 60_000;      // 60s of no interaction = idle
+const FAST_REFRESH_DEBOUNCE = 3_000;
 
 export default function AccountCenter() {
   const { user } = useAuth();
@@ -980,11 +994,18 @@ export default function AccountCenter() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [liveMode, setLiveMode] = useState<"live" | "syncing" | "fallback" | "offline">("offline");
   const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const autoSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSyncingRef = useRef(false);
-  // Fast refresh: track previous account snapshots to detect position closures
   const prevAccountSnapshotsRef = useRef<Map<string, { positions: number; balance: number }>>(new Map());
   const fastRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Smart sync: track page visibility & user activity
+  const isPageVisibleRef = useRef(true);
+  const isUserActiveRef = useRef(true);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track sync stats per account (for admin monitoring)
+  const syncCountsRef = useRef<Map<string, number>>(new Map());
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -1014,6 +1035,16 @@ export default function AccountCenter() {
       });
     });
   }, [loadData]);
+
+  // Auto-select account if only one exists
+  useEffect(() => {
+    const syncable = accounts.filter(a => a.provider_account_id && a.connection_status === 'connected');
+    if (syncable.length === 1) {
+      setSelectedAccountId(syncable[0].id);
+    } else if (syncable.length === 0) {
+      setSelectedAccountId(null);
+    }
+  }, [accounts]);
 
   // ---- Fast Refresh: trigger immediate sync when position closure detected ----
   const triggerFastRefresh = useCallback(async (accountId: string, reason: string) => {
@@ -1152,7 +1183,35 @@ export default function AccountCenter() {
     };
   }, [user, scheduleFastRefresh]);
 
-  // ---- Auto-sync every 30s (general sync) ----
+  // ---- Page visibility & user activity tracking ----
+  useEffect(() => {
+    const handleVisibility = () => {
+      isPageVisibleRef.current = !document.hidden;
+      console.log(`[SmartSync] Page visibility: ${isPageVisibleRef.current ? 'visible' : 'hidden'}`);
+    };
+    const resetIdle = () => {
+      isUserActiveRef.current = true;
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        isUserActiveRef.current = false;
+        console.log('[SmartSync] User idle');
+      }, USER_IDLE_TIMEOUT);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('mousemove', resetIdle, { passive: true });
+    window.addEventListener('keydown', resetIdle, { passive: true });
+    window.addEventListener('touchstart', resetIdle, { passive: true });
+    resetIdle();
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('mousemove', resetIdle);
+      window.removeEventListener('keydown', resetIdle);
+      window.removeEventListener('touchstart', resetIdle);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, []);
+
+  // ---- Smart auto-sync: interval based on visibility/activity, scoped to selected account ----
   const runAutoSync = useCallback(async () => {
     if (!user || isSyncingRef.current || accounts.length === 0) return;
 
@@ -1161,16 +1220,23 @@ export default function AccountCenter() {
     );
     if (syncableAccounts.length === 0) return;
 
+    // Scope: if user is looking at a specific account, sync only that one
+    const toSync = selectedAccountId
+      ? syncableAccounts.filter(a => a.id === selectedAccountId)
+      : syncableAccounts;
+
+    if (toSync.length === 0) return;
+
     isSyncingRef.current = true;
     setLiveMode('syncing');
-    console.log('[AutoSync] Starting general sync cycle...');
+    const mode = isPageVisibleRef.current && isUserActiveRef.current ? 'active' : 'inactive';
+    console.log(`[AutoSync] Starting sync (${mode}), ${toSync.length}/${syncableAccounts.length} accounts`);
 
     try {
       const { data: session } = await supabase.auth.getSession();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
-      for (const acc of syncableAccounts) {
-        // Save pre-sync snapshot for fast refresh detection
+      for (const acc of toSync) {
         prevAccountSnapshotsRef.current.set(acc.id, {
           positions: acc.open_positions_count,
           balance: acc.balance,
@@ -1190,8 +1256,9 @@ export default function AccountCenter() {
           );
           const rawText = await res.text();
           const result = rawText ? JSON.parse(rawText) : {};
+          syncCountsRef.current.set(acc.id, (syncCountsRef.current.get(acc.id) || 0) + 1);
           if (result.success) {
-            console.log(`[AutoSync] ${acc.account_name}: OK, ${result.trades_synced} new trades`);
+            console.log(`[AutoSync] ${acc.account_name}: OK, ${result.trades_synced} new trades (total syncs: ${syncCountsRef.current.get(acc.id)})`);
           } else {
             console.warn(`[AutoSync] ${acc.account_name}: ${result.error || 'Unknown error'}`);
           }
@@ -1206,14 +1273,24 @@ export default function AccountCenter() {
       setLiveMode('live');
       setLastRealtimeUpdate(new Date().toISOString());
     }
-  }, [user, accounts]);
+  }, [user, accounts, selectedAccountId]);
 
+  // Dynamic interval based on visibility + activity
   useEffect(() => {
     if (accounts.length === 0) return;
 
-    autoSyncRef.current = setInterval(runAutoSync, AUTO_SYNC_INTERVAL);
+    const scheduleNext = () => {
+      const isActive = isPageVisibleRef.current && isUserActiveRef.current;
+      const interval = isActive ? SYNC_INTERVAL_ACTIVE : SYNC_INTERVAL_INACTIVE;
+      console.log(`[SmartSync] Next sync in ${interval / 1000}s (${isActive ? 'active' : 'inactive'})`);
+      autoSyncRef.current = setTimeout(() => {
+        runAutoSync().finally(scheduleNext);
+      }, interval);
+    };
+
+    scheduleNext();
     return () => {
-      if (autoSyncRef.current) clearInterval(autoSyncRef.current);
+      if (autoSyncRef.current) clearTimeout(autoSyncRef.current);
     };
   }, [runAutoSync, accounts.length]);
 
@@ -1337,7 +1414,7 @@ export default function AccountCenter() {
         {/* Live Status Indicator */}
         <div className="flex items-center justify-between mb-6">
           <LiveStatusIndicator mode={liveMode} lastUpdate={lastRealtimeUpdate} />
-          <p className="text-[10px] text-muted-foreground">Auto-sync ogni 30s</p>
+          <p className="text-[10px] text-muted-foreground">Auto-sync: 30s attivo · 90s inattivo</p>
         </div>
 
         {/* Disclaimer */}
@@ -1349,6 +1426,9 @@ export default function AccountCenter() {
             </p>
           </div>
         </div>
+
+        {/* Sync Delay Info Banner */}
+        <SyncDelayBanner />
 
         {/* Connect Form */}
         {showConnect && (
