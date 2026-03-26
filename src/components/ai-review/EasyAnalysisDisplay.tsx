@@ -125,8 +125,7 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
   const canExecuteTrade = tradingAccount &&
     tradingAccount.credential_mode === "master" &&
     tradingAccount.trading_execution_enabled &&
-    tradingAccount.connection_status === "connected" &&
-    !tradingAccount.read_only_mode;
+    tradingAccount.connection_status === "connected";
 
   const getAccountIneligibleReason = (): string | null => {
     if (!accountChecked) return null;
