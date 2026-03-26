@@ -79,6 +79,8 @@ LOGICA DI DECISIONE (segui quest'ordine):
 IMPORTANTE: Non essere eccessivamente restrittivo. Se il grafico mostra una struttura leggibile e un contesto operativo plausibile, proponi almeno un'idea operativa anche se non perfetta. Riserva il "nessun setup" solo a contesti realmente poco chiari o privi di struttura.
 
 TIPI DI OPERAZIONE: Buy, Sell, Buy Limit, Sell Limit
+- Usa Buy / Sell per segnali a mercato (esecuzione immediata, setup forte e chiaro)
+- Usa Buy Limit / Sell Limit per setup da attendere (prezzo non ancora al livello desiderato)
 MASSIMO: 2 setup. Se proponi 2, devono essere coerenti tra loro.
 
 ADATTAMENTO AL TIMEFRAME:
@@ -234,13 +236,15 @@ const ANALYSIS_TOOL_EASY = {
       properties: {
         leggibilita_immagine: { type: "string", description: "Qualità dell'immagine. Es: 'Chiara', 'Parziale', 'Non leggibile'." },
         signal_quality: { type: "string", enum: ["alta", "media", "bassa"], description: "Qualità complessiva del segnale." },
+        setup_strength: { type: "integer", description: "Forza del setup da 1 a 5. 1=debole/prudenza alta, 2=moderato, 3=discreto, 4=buono, 5=forte/immediato." },
         setups: {
           type: "array",
           description: "Array di 0-2 setup operativi. Vuoto se nessun setup valido.",
           items: {
             type: "object",
             properties: {
-              tipo: { type: "string", enum: ["Buy", "Sell", "Buy Limit", "Sell Limit"], description: "Tipo di operazione." },
+              tipo: { type: "string", enum: ["Buy", "Sell", "Buy Limit", "Sell Limit"], description: "Tipo di operazione. Usa Buy/Sell per market, Buy Limit/Sell Limit per pending." },
+              execution_type: { type: "string", enum: ["market", "limit"], description: "Tipo di esecuzione: market (immediata) o limit (pendente)." },
               entry_range: { type: "string", description: "Livello o range di entrata." },
               stop_loss: { type: "string", description: "Livello dello stop loss." },
               take_profit: { type: "string", description: "Livello del take profit." },
@@ -248,7 +252,7 @@ const ANALYSIS_TOOL_EASY = {
               tp_pips: { type: "number", description: "Distanza TP in pips." },
               spiegazione: { type: "string", description: "Spiegazione breve: perché questo setup? Cosa vede il sistema? (2-3 frasi)" },
             },
-            required: ["tipo", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
+            required: ["tipo", "execution_type", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
           },
         },
         expected_duration: { type: "string", description: "Durata attesa del trade (es: '2-4 ore', '1-3 giorni')." },
@@ -259,7 +263,7 @@ const ANALYSIS_TOOL_EASY = {
         cosa_aspettare: { type: "string", description: "Cosa dovrebbe succedere per avere un setup interessante (1-2 punti concreti). Compilare se non ci sono setup." },
         livello_prudenza: { type: "string", enum: ["alto", "medio", "basso"], description: "Quanto è rischioso operare adesso. Compilare se non ci sono setup." },
       },
-      required: ["leggibilita_immagine", "signal_quality", "setups", "expected_duration", "conclusione"],
+      required: ["leggibilita_immagine", "signal_quality", "setup_strength", "setups", "expected_duration", "conclusione"],
       additionalProperties: false,
     },
   },
@@ -577,8 +581,16 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
     if (isEasy) {
       if (!analysis.setups) analysis.setups = [];
       if (!analysis.signal_quality) analysis.signal_quality = "media";
+      if (!analysis.setup_strength) analysis.setup_strength = analysis.setups.length > 0 ? 3 : 1;
+      analysis.setup_strength = Math.max(1, Math.min(5, Math.round(analysis.setup_strength)));
       if (!analysis.expected_duration) analysis.expected_duration = "Non determinabile";
       if (analysis.setups.length > 2) analysis.setups = analysis.setups.slice(0, 2);
+      // Normalize execution_type on each setup
+      for (const s of analysis.setups) {
+        if (!s.execution_type) {
+          s.execution_type = (s.tipo?.toLowerCase().includes("limit")) ? "limit" : "market";
+        }
+      }
       // Ensure context fields exist for no-setup case
       if (analysis.setups.length === 0) {
         if (!analysis.contesto_mercato) analysis.contesto_mercato = analysis.conclusione || "Contesto non disponibile";
