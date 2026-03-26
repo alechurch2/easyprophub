@@ -43,7 +43,44 @@ interface ProviderAccountData {
     closed_at: string;
     duration_minutes: number;
   }>;
+  debug?: {
+    history: {
+      dealTypeCounts: Record<string, number>;
+      filteredDeals: number;
+      mappedClosedTrades: SimplifiedClosedTradeDebug[];
+      providerCloseDealsCount: number;
+      rawDeals: SimplifiedMetaApiDeal[];
+      rawDealsCount: number;
+    };
+  };
 }
+
+type SimplifiedMetaApiDeal = {
+  entryType: string | null;
+  id: string | null;
+  orderId: string | null;
+  positionId: string | null;
+  profit: number;
+  symbol: string | null;
+  time: string | null;
+  type: string | null;
+};
+
+type SimplifiedClosedTradeDebug = {
+  close_time: string;
+  direction: string;
+  external_trade_id: string;
+  open_time: string;
+  profit: number;
+  status: "closed";
+  symbol: string;
+};
+
+type TradeWriteDecision = SimplifiedClosedTradeDebug & {
+  action: "deduplicated" | "ignored" | "inserted" | "unchanged" | "updated";
+  changed_fields?: string[];
+  reason?: string;
+};
 
 // ========== METAAPI PROVIDER ==========
 const METAAPI_BASE = "https://mt-provisioning-api-v1.agiliumtrade.agiliumtrade.ai";
@@ -112,6 +149,64 @@ function roundTo2(value: number) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function normalizeEntryType(deal: any): string {
+  return deal?.entryType || deal?.entry || "unknown";
+}
+
+function summarizeMetaApiDeal(deal: any): SimplifiedMetaApiDeal {
+  return {
+    entryType: deal?.entryType ?? deal?.entry ?? null,
+    id: deal?.id != null ? String(deal.id) : null,
+    orderId: deal?.orderId != null ? String(deal.orderId) : null,
+    positionId: deal?.positionId != null ? String(deal.positionId) : null,
+    profit: roundTo2(Number(deal?.profit || 0)),
+    symbol: deal?.symbol ?? null,
+    time: deal?.time ?? null,
+    type: deal?.type ?? null,
+  };
+}
+
+function summarizeClosedTradeDebug(trade: ProviderAccountData["closedTrades"][number]): SimplifiedClosedTradeDebug {
+  return {
+    close_time: trade.closed_at,
+    direction: trade.direction,
+    external_trade_id: trade.external_trade_id,
+    open_time: trade.opened_at,
+    profit: roundTo2(Number(trade.profit_loss || 0)),
+    status: "closed",
+    symbol: trade.asset,
+  };
+}
+
+function getChangedFields(existing: any, incoming: any) {
+  const comparableFields = [
+    "asset",
+    "direction",
+    "lot_size",
+    "entry_price",
+    "exit_price",
+    "stop_loss",
+    "take_profit",
+    "profit_loss",
+    "status",
+    "opened_at",
+    "closed_at",
+    "duration_minutes",
+  ];
+
+  return comparableFields.filter((field) => {
+    const currentValue = existing?.[field] ?? null;
+    const incomingValue = incoming?.[field] ?? null;
+    return currentValue !== incomingValue;
+  });
+}
+
+function logTradeWriteDecision(decision: TradeWriteDecision) {
+  console.log(
+    `[Sync:DB:Write] action=${decision.action} external_trade_id=${decision.external_trade_id} status=${decision.status} open_time=${decision.open_time} close_time=${decision.close_time} profit=${decision.profit} symbol=${decision.symbol} direction=${decision.direction}${decision.reason ? ` reason=${decision.reason}` : ""}${decision.changed_fields?.length ? ` changed_fields=${decision.changed_fields.join(",")}` : ""}`,
+  );
 }
 
 function buildHistorySyncWindow(lastSuccessfulSyncAt?: string | null): HistorySyncWindow {
@@ -261,26 +356,7 @@ async function recalculateAccountOverviewFromDatabase(
 }
 
 function shouldUpdateClosedTradeRecord(existing: any, incoming: any) {
-  const comparableFields = [
-    "asset",
-    "direction",
-    "lot_size",
-    "entry_price",
-    "exit_price",
-    "stop_loss",
-    "take_profit",
-    "profit_loss",
-    "status",
-    "opened_at",
-    "closed_at",
-    "duration_minutes",
-  ];
-
-  return comparableFields.some((field) => {
-    const currentValue = existing?.[field] ?? null;
-    const incomingValue = incoming?.[field] ?? null;
-    return currentValue !== incomingValue;
-  });
+  return getChangedFields(existing, incoming).length > 0;
 }
 
 function collectMetaApiClientBaseCandidates(accountMeta: any) {
@@ -631,17 +707,17 @@ async function fetchMetaApiData(metaAccountId: string, historyWindow?: HistorySy
   }
   console.log(`[Sync:History] Received ${dealsArr.length} raw deals`);
 
-  // Log first 5 raw deals for debugging field names
-  for (let i = 0; i < Math.min(dealsArr.length, 5); i++) {
-    const d = dealsArr[i];
-    console.log(`[Sync:History] Raw deal[${i}]: id=${d.id} type=${d.type} entryType=${d.entryType} entry=${d.entry} positionId=${d.positionId} symbol=${d.symbol} volume=${d.volume} price=${d.price} profit=${d.profit} swap=${d.swap} commission=${d.commission} time=${d.time}`);
-  }
+  const rawDealsDebug = dealsArr.map(summarizeMetaApiDeal);
+  rawDealsDebug.forEach((deal, index) => {
+    console.log(
+      `[Sync:History:Deal] index=${index} id=${deal.id ?? "n/a"} positionId=${deal.positionId ?? "n/a"} orderId=${deal.orderId ?? "n/a"} profit=${deal.profit} time=${deal.time ?? "n/a"} type=${deal.type ?? "n/a"} entryType=${deal.entryType ?? "n/a"} symbol=${deal.symbol ?? "n/a"}`,
+    );
+  });
 
   // Log deal types for debugging
   const dealTypeCounts: Record<string, number> = {};
   for (const d of dealsArr) {
-    // MetaApi may use "entryType" or "entry" depending on API version
-    const entryField = d.entryType || d.entry || "unknown";
+    const entryField = normalizeEntryType(d);
     const key = `${d.type || "unknown"}/${entryField}`;
     dealTypeCounts[key] = (dealTypeCounts[key] || 0) + 1;
   }
@@ -668,11 +744,6 @@ async function fetchMetaApiData(metaAccountId: string, historyWindow?: HistorySy
   });
 
   // Process history deals into closed trades
-  // Normalize entryType field - MetaApi uses "entryType" or "entry"
-  const normalizeEntryType = (deal: any): string => {
-    return deal.entryType || deal.entry || "unknown";
-  };
-
   const dealsByPosition: Record<string, any[]> = {};
   let filteredDeals = 0;
   for (const deal of dealsArr) {
@@ -688,6 +759,7 @@ async function fetchMetaApiData(metaAccountId: string, historyWindow?: HistorySy
   console.log(`[Sync:History] Filtered out ${filteredDeals} balance/credit/bonus deals. Remaining positions to process: ${Object.keys(dealsByPosition).length}`);
 
   const closedTrades: ProviderAccountData["closedTrades"] = [];
+  const mappedClosedTradesDebug: SimplifiedClosedTradeDebug[] = [];
   for (const [posId, deals] of Object.entries(dealsByPosition)) {
     const sortedDeals = [...deals].sort((a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime());
     const entryDeals = sortedDeals.filter((d: any) => normalizeEntryType(d) === "DEAL_ENTRY_IN");
@@ -716,6 +788,11 @@ async function fetchMetaApiData(metaAccountId: string, historyWindow?: HistorySy
         closed_at: closeTime.toISOString(),
         duration_minutes: durationMins,
       });
+      const tradeDebug = summarizeClosedTradeDebug(closedTrades[closedTrades.length - 1]);
+      mappedClosedTradesDebug.push(tradeDebug);
+      console.log(
+        `[Sync:History:MappedTrade] external_trade_id=${tradeDebug.external_trade_id} status=${tradeDebug.status} open_time=${tradeDebug.open_time} close_time=${tradeDebug.close_time} profit=${tradeDebug.profit} symbol=${tradeDebug.symbol} direction=${tradeDebug.direction} source=entry+exit positionId=${posId}`,
+      );
     } else if (exitDeals.length > 0 && entryDeals.length === 0) {
       // Exit-only case: entry deal may be outside the time window
       // Still save the trade using exit deal data
@@ -742,6 +819,11 @@ async function fetchMetaApiData(metaAccountId: string, historyWindow?: HistorySy
         closed_at: closeTime.toISOString(),
         duration_minutes: Math.max(durationMins, 0),
       });
+      const tradeDebug = summarizeClosedTradeDebug(closedTrades[closedTrades.length - 1]);
+      mappedClosedTradesDebug.push(tradeDebug);
+      console.log(
+        `[Sync:History:MappedTrade] external_trade_id=${tradeDebug.external_trade_id} status=${tradeDebug.status} open_time=${tradeDebug.open_time} close_time=${tradeDebug.close_time} profit=${tradeDebug.profit} symbol=${tradeDebug.symbol} direction=${tradeDebug.direction} source=exit-only positionId=${posId}`,
+      );
     } else {
       // Entry-only means position is still open, or something unusual
       console.log(`[Sync:History] Position ${posId}: ${entryDeals.length} entries, ${exitDeals.length} exits, entryTypes=${sortedDeals.map((d: any) => normalizeEntryType(d)).join(",")} - skipped`);
@@ -774,6 +856,16 @@ async function fetchMetaApiData(metaAccountId: string, historyWindow?: HistorySy
       open_positions_count: openPositions.length,
       win_rate: provisionalMetrics.winRate,
       profit_factor: provisionalMetrics.profitFactor,
+    },
+    debug: {
+      history: {
+        dealTypeCounts,
+        filteredDeals,
+        mappedClosedTrades: mappedClosedTradesDebug,
+        providerCloseDealsCount: rawDealsDebug.filter((deal) => deal.entryType === "DEAL_ENTRY_OUT").length,
+        rawDeals: rawDealsDebug,
+        rawDealsCount: rawDealsDebug.length,
+      },
     },
     openPositions,
     closedTrades,
@@ -1063,13 +1155,33 @@ Deno.serve(async (req) => {
         connection_status: "syncing",
       }).eq("id", account_id);
 
+      const syncDebug: Record<string, unknown> = {
+        account_id,
+        account_provider_id: account.provider_account_id,
+        action: "sync",
+      };
+
       try {
         const historyWindow = buildHistorySyncWindow(account.last_successful_sync_at);
+        syncDebug.history_window = {
+          buffer_minutes: historyWindow.bufferMinutes,
+          end_time: historyWindow.endTime,
+          mode: historyWindow.mode,
+          start_time: historyWindow.startTime,
+        };
         console.log(
           `[Sync:History] Using time range start=${historyWindow.startTime} end=${historyWindow.endTime} mode=${historyWindow.mode} bufferMinutes=${historyWindow.bufferMinutes} lastSuccessfulSyncAt=${account.last_successful_sync_at ?? "none"}`,
         );
 
         const data = await fetchAccountData(account, historyWindow);
+        syncDebug.provider = data.debug?.history ?? {
+          dealTypeCounts: {},
+          filteredDeals: 0,
+          mappedClosedTrades: [],
+          providerCloseDealsCount: 0,
+          rawDeals: [],
+          rawDealsCount: 0,
+        };
 
         // Upsert open positions: delete old, insert new
         const { count: deletedOpen } = await supabase.from("account_trade_history")
@@ -1100,9 +1212,23 @@ Deno.serve(async (req) => {
         }
 
         // Upsert closed trades (deduplicate by stable external_trade_id)
-        const dedupedClosedTrades = Array.from(
-          new Map(data.closedTrades.map((trade) => [trade.external_trade_id, trade])).values(),
-        );
+        const dedupedClosedTradesMap = new Map<string, ProviderAccountData["closedTrades"][number]>();
+        const writeDecisions: TradeWriteDecision[] = [];
+        for (const trade of data.closedTrades) {
+          const tradeDebug = summarizeClosedTradeDebug(trade);
+          const existingDedupedTrade = dedupedClosedTradesMap.get(trade.external_trade_id);
+          if (existingDedupedTrade) {
+            const decision: TradeWriteDecision = {
+              ...tradeDebug,
+              action: "deduplicated",
+              reason: "duplicate external_trade_id in provider payload; keeping last mapped trade",
+            };
+            writeDecisions.push(decision);
+            logTradeWriteDecision(decision);
+          }
+          dedupedClosedTradesMap.set(trade.external_trade_id, trade);
+        }
+        const dedupedClosedTrades = Array.from(dedupedClosedTradesMap.values());
         const closedTradeIds = dedupedClosedTrades.map((trade) => trade.external_trade_id);
         const existingClosedTrades = new Map<string, any>();
 
@@ -1152,14 +1278,35 @@ Deno.serve(async (req) => {
             const { error: tradeErr } = await supabase.from("account_trade_history").insert(payload);
             if (tradeErr) {
               console.error(`[Sync:DB] Trade insert error for ${trade.external_trade_id}: ${tradeErr.message}`);
+              const decision: TradeWriteDecision = {
+                ...summarizeClosedTradeDebug(trade),
+                action: "ignored",
+                reason: `insert_error:${tradeErr.message}`,
+              };
+              writeDecisions.push(decision);
+              logTradeWriteDecision(decision);
             } else {
               tradesInserted++;
+              const decision: TradeWriteDecision = {
+                ...summarizeClosedTradeDebug(trade),
+                action: "inserted",
+              };
+              writeDecisions.push(decision);
+              logTradeWriteDecision(decision);
             }
             continue;
           }
 
-          if (!shouldUpdateClosedTradeRecord(existing, payload)) {
+          const changedFields = getChangedFields(existing, payload);
+          if (changedFields.length === 0) {
             tradesUnchanged++;
+            const decision: TradeWriteDecision = {
+              ...summarizeClosedTradeDebug(trade),
+              action: "unchanged",
+              reason: "same mapped payload already present in database",
+            };
+            writeDecisions.push(decision);
+            logTradeWriteDecision(decision);
             continue;
           }
 
@@ -1170,15 +1317,69 @@ Deno.serve(async (req) => {
 
           if (tradeUpdateErr) {
             console.error(`[Sync:DB] Trade update error for ${trade.external_trade_id}: ${tradeUpdateErr.message}`);
+            const decision: TradeWriteDecision = {
+              ...summarizeClosedTradeDebug(trade),
+              action: "ignored",
+              changed_fields: changedFields,
+              reason: `update_error:${tradeUpdateErr.message}`,
+            };
+            writeDecisions.push(decision);
+            logTradeWriteDecision(decision);
           } else {
             tradesUpdated++;
+            const decision: TradeWriteDecision = {
+              ...summarizeClosedTradeDebug(trade),
+              action: "updated",
+              changed_fields: changedFields,
+            };
+            writeDecisions.push(decision);
+            logTradeWriteDecision(decision);
           }
         }
 
         console.log(`[Sync:DB] Closed trades: received=${data.closedTrades.length} deduped=${dedupedClosedTrades.length} inserted=${tradesInserted} updated=${tradesUpdated} unchanged=${tradesUnchanged}`);
 
+        const { data: dbStateRows, error: dbStateError } = await supabase
+          .from("account_trade_history")
+          .select("external_trade_id, status, opened_at, closed_at, profit_loss, asset, direction")
+          .eq("account_id", account_id)
+          .eq("status", "closed")
+          .order("closed_at", { ascending: false })
+          .limit(10);
+
+        if (dbStateError) {
+          console.error(`[Sync:DB:State] Snapshot query error: ${dbStateError.message}`);
+        }
+
+        const dbStateSnapshot = (dbStateRows ?? []).map((row: any) => ({
+          close_time: row.closed_at,
+          direction: row.direction,
+          external_trade_id: row.external_trade_id,
+          open_time: row.opened_at,
+          profit: roundTo2(Number(row.profit_loss || 0)),
+          status: row.status,
+          symbol: row.asset,
+        }));
+
+        dbStateSnapshot.forEach((row) => {
+          console.log(
+            `[Sync:DB:State] external_trade_id=${row.external_trade_id ?? "n/a"} status=${row.status} open_time=${row.open_time ?? "n/a"} close_time=${row.close_time ?? "n/a"} profit=${row.profit} symbol=${row.symbol ?? "n/a"} direction=${row.direction ?? "n/a"}`,
+          );
+        });
+
+        syncDebug.database = {
+          latest_closed_trades_snapshot: dbStateSnapshot,
+          write_decisions: writeDecisions,
+        };
+
         const recalculated = await recalculateAccountOverviewFromDatabase(supabase, account_id, data.overview);
         const successfulSyncAt = new Date().toISOString();
+        syncDebug.metrics = recalculated.summary;
+        syncDebug.verdict = {
+          db_closed_trade_snapshot_present: dbStateSnapshot.length > 0,
+          db_write_happened: tradesInserted + tradesUpdated > 0,
+          provider_close_deal_received: Boolean(data.debug?.history?.providerCloseDealsCount),
+        };
 
         console.log(`[Sync:DB] Saving overview to trading_accounts: balance=${recalculated.overview.balance} equity=${recalculated.overview.equity} pnl=${recalculated.overview.profit_loss} drawdown=${recalculated.overview.drawdown} dailyPnl=${recalculated.overview.daily_pnl} weeklyPnl=${recalculated.overview.weekly_pnl} openPositions=${recalculated.overview.open_positions_count} winRate=${recalculated.overview.win_rate} profitFactor=${recalculated.overview.profit_factor}`);
 
@@ -1201,6 +1402,7 @@ Deno.serve(async (req) => {
 
         if (syncLog) {
           await supabase.from("account_sync_logs").update({
+            metadata: syncDebug,
             status: "completed",
             completed_at: new Date().toISOString(),
             trades_synced: tradesInserted,
@@ -1222,6 +1424,9 @@ Deno.serve(async (req) => {
 
       } catch (err) {
         const errorMessage = getErrorMessage(err);
+        syncDebug.error = {
+          message: errorMessage,
+        };
         await supabase.from("trading_accounts").update({
           sync_status: "error",
           connection_status: "failed",
@@ -1233,6 +1438,7 @@ Deno.serve(async (req) => {
             status: "failed",
             completed_at: new Date().toISOString(),
             error_message: errorMessage,
+            metadata: syncDebug,
           }).eq("id", syncLog.id);
         }
 
