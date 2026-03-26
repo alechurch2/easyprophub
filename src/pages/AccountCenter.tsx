@@ -1191,6 +1191,9 @@ export default function AccountCenter() {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [showConnect, setShowConnect] = useState(false);
+  const [showExtraRequest, setShowExtraRequest] = useState(false);
+  const [showBrokerRequest, setShowBrokerRequest] = useState(false);
+  const { limitInfo, refresh: refreshLimit } = useAccountLimit(user?.id);
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
