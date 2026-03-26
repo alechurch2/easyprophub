@@ -101,7 +101,9 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
           accountSize={review.account_size || undefined}
           asset={review.asset}
           reviewId={review.id}
+          riskPercent={(review as any).risk_percent || undefined}
         />
+      
       ) : (
         <AnalysisDisplay analysis={review.analysis} />
       )}
