@@ -743,16 +743,51 @@ async function metaapiClientRequest(accountId: string, path: string) {
   throw new Error(`MetaApi client TLS/network error. metadataEndpoint=${routing.metadataEndpoint} originalUrl=${originalUrl} checkedFields=${routing.checkedFields.join(",") || "none"} attempts=${JSON.stringify(attemptsSummary)}`);
 }
 
+// ========== BROKER → PROVISIONING PROFILE MAPPING ==========
+function resolveProvisioningProfileId(brokerName: string): { profileId: string | null; source: string } {
+  const normalizedBroker = (brokerName || "").trim().toLowerCase();
+
+  // Broker-specific secrets mapping
+  const brokerSecretMap: Record<string, string> = {
+    tmgm: "METAAPI_PROVISIONING_PROFILE_ID",            // existing secret, backwards compatible
+    fundedelite: "METAAPI_PROVISIONING_PROFILE_ID_FUNDEDELITE",
+  };
+
+  // Try broker-specific secret first
+  const secretName = brokerSecretMap[normalizedBroker];
+  if (secretName) {
+    const profileId = Deno.env.get(secretName);
+    if (profileId) {
+      console.log(`[MetaApi:Profile] Broker "${brokerName}" → secret "${secretName}" → profileId found`);
+      return { profileId, source: `broker-specific:${secretName}` };
+    }
+    console.warn(`[MetaApi:Profile] Broker "${brokerName}" → secret "${secretName}" NOT SET or empty`);
+  }
+
+  // Fallback: global provisioning profile
+  const globalProfile = Deno.env.get("METAAPI_PROVISIONING_PROFILE_ID");
+  if (globalProfile) {
+    console.log(`[MetaApi:Profile] Broker "${brokerName}" → using GLOBAL fallback profile`);
+    return { profileId: globalProfile, source: "global-fallback" };
+  }
+
+  // No profile at all
+  console.warn(`[MetaApi:Profile] Broker "${brokerName}" → NO provisioning profile available (no broker-specific, no global)`);
+  return { profileId: null, source: "none" };
+}
+
 // Deploy a MetaApi account and wait for it to connect
 async function createMetaApiAccount(account: any): Promise<string> {
   const token = Deno.env.get("METAAPI_TOKEN");
   if (!token) throw new Error("METAAPI_TOKEN non configurato");
 
   // Configurable reliability: defaults to "regular" to avoid 403 on demo/test accounts
-  // Set METAAPI_RELIABILITY_DEFAULT=high in secrets when ready for production
   const reliability = Deno.env.get("METAAPI_RELIABILITY_DEFAULT") || "regular";
-  const provisioningProfileId = Deno.env.get("METAAPI_PROVISIONING_PROFILE_ID");
-  console.log("[MetaApi] Using reliability:", reliability, "provisioningProfileId:", provisioningProfileId || "none");
+
+  // Resolve provisioning profile based on broker
+  const brokerName = account.broker || "";
+  const { profileId, source } = resolveProvisioningProfileId(brokerName);
+  console.log(`[MetaApi] Creating account: broker="${brokerName}" reliability="${reliability}" provisioningProfile=${profileId || "none"} source="${source}"`);
 
   const payload: Record<string, unknown> = {
     login: String(account.account_number),
@@ -766,8 +801,8 @@ async function createMetaApiAccount(account: any): Promise<string> {
   };
 
   // Use provisioning profile when available (required for some brokers)
-  if (provisioningProfileId) {
-    payload.provisioningProfileId = provisioningProfileId;
+  if (profileId) {
+    payload.provisioningProfileId = profileId;
   }
 
   console.log("[MetaApi] Creating account with payload:", JSON.stringify({ ...payload, password: "***" }));
@@ -777,7 +812,7 @@ async function createMetaApiAccount(account: any): Promise<string> {
     body: JSON.stringify(payload),
   });
 
-  console.log("[MetaApi] Account created, id:", result.id);
+  console.log("[MetaApi] Account created, id:", result.id, "broker:", brokerName, "profileSource:", source);
   if (!result.id) {
     throw new Error(`MetaApi non ha restituito un account ID. Risposta: ${JSON.stringify(result)}`);
   }
