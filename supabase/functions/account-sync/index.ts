@@ -110,8 +110,30 @@ type ClosedTradeMetricSource = {
 
 const INITIAL_HISTORY_LOOKBACK_DAYS = 90;
 const HISTORY_SYNC_BUFFER_MINUTES = 15;
+const RECONCILIATION_LOOKBACK_HOURS = 48;
+const RECONCILIATION_MAX_RETRIES = 20;
 const MS_IN_DAY = 86400000;
 const MS_IN_MINUTE = 60000;
+const MS_IN_HOUR = 3600000;
+
+// ========== PENDING CLOSURE TYPES ==========
+interface PendingClosure {
+  external_trade_id: string;
+  asset: string;
+  direction: string;
+  lot_size: number;
+  entry_price: number;
+  opened_at: string;
+  disappeared_at: string;
+  retries: number;
+  position_id_hint?: string; // raw MetaApi positionId for targeted search
+}
+
+function extractPositionIdFromExternalTradeId(externalTradeId: string): string | null {
+  // external_trade_id format: "metaapi-pos-{positionId}" or "metaapi-deal-{positionId}"
+  const match = externalTradeId.match(/metaapi-(?:pos|deal)-(.+)/);
+  return match ? match[1] : null;
+}
 
 function getHostFromUrl(url: string) {
   try {
@@ -357,6 +379,128 @@ async function recalculateAccountOverviewFromDatabase(
 
 function shouldUpdateClosedTradeRecord(existing: any, incoming: any) {
   return getChangedFields(existing, incoming).length > 0;
+}
+
+// ========== RECONCILIATION: WIDER HISTORY SEARCH ==========
+async function reconcilePendingClosures(
+  metaAccountId: string,
+  pendingClosures: PendingClosure[],
+  supabase: any,
+  accountId: string,
+  userId: string,
+): Promise<{ resolved: PendingClosure[]; stillPending: PendingClosure[]; newClosedTrades: ProviderAccountData["closedTrades"] }> {
+  if (pendingClosures.length === 0) {
+    return { resolved: [], stillPending: [], newClosedTrades: [] };
+  }
+
+  console.log(`[Reconciliation] Processing ${pendingClosures.length} pending closures`);
+
+  // Fetch wider history window (48h back)
+  const now = new Date();
+  const wideStart = new Date(now.getTime() - RECONCILIATION_LOOKBACK_HOURS * MS_IN_HOUR);
+  console.log(`[Reconciliation] Wide history search: start=${wideStart.toISOString()} end=${now.toISOString()} (${RECONCILIATION_LOOKBACK_HOURS}h window)`);
+
+  let wideDeals: any[] = [];
+  try {
+    const wideResponse = await metaapiClientRequest(
+      metaAccountId,
+      `/history-deals/time/${wideStart.toISOString()}/${now.toISOString()}`
+    );
+    if (Array.isArray(wideResponse)) {
+      wideDeals = wideResponse;
+    } else if (wideResponse && Array.isArray(wideResponse.deals)) {
+      wideDeals = wideResponse.deals;
+    }
+    console.log(`[Reconciliation] Wide history returned ${wideDeals.length} raw deals`);
+  } catch (err) {
+    console.error(`[Reconciliation] Wide history fetch failed: ${getErrorMessage(err)}`);
+    // Return all as still pending
+    return {
+      resolved: [],
+      stillPending: pendingClosures.map(pc => ({ ...pc, retries: pc.retries + 1 })),
+      newClosedTrades: [],
+    };
+  }
+
+  // Build positionId -> deals map from wide history
+  const dealsByPosition: Record<string, any[]> = {};
+  for (const deal of wideDeals) {
+    if (deal.type === "DEAL_TYPE_BALANCE" || deal.type === "DEAL_TYPE_CREDIT" ||
+        deal.type === "DEAL_TYPE_BONUS" || deal.type === "DEAL_TYPE_CORRECTION") {
+      continue;
+    }
+    const posId = deal.positionId || deal.id;
+    if (!dealsByPosition[posId]) dealsByPosition[posId] = [];
+    dealsByPosition[posId].push(deal);
+  }
+
+  const resolved: PendingClosure[] = [];
+  const stillPending: PendingClosure[] = [];
+  const newClosedTrades: ProviderAccountData["closedTrades"] = [];
+
+  for (const pending of pendingClosures) {
+    const positionId = pending.position_id_hint || extractPositionIdFromExternalTradeId(pending.external_trade_id);
+    console.log(`[Reconciliation] Searching close deal for ${pending.external_trade_id} positionId=${positionId ?? "unknown"} asset=${pending.asset} retries=${pending.retries}`);
+
+    if (!positionId || !dealsByPosition[positionId]) {
+      // Not found - check retry limit
+      if (pending.retries >= RECONCILIATION_MAX_RETRIES) {
+        console.warn(`[Reconciliation] GIVING UP on ${pending.external_trade_id} after ${pending.retries} retries`);
+        resolved.push(pending); // remove from queue
+      } else {
+        console.log(`[Reconciliation] NOT FOUND yet: ${pending.external_trade_id} (retry ${pending.retries + 1}/${RECONCILIATION_MAX_RETRIES})`);
+        stillPending.push({ ...pending, retries: pending.retries + 1 });
+      }
+      continue;
+    }
+
+    // Found deals for this positionId - try to build closed trade
+    const posDeals = dealsByPosition[positionId];
+    const sortedDeals = [...posDeals].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    const entryDeals = sortedDeals.filter((d) => normalizeEntryType(d) === "DEAL_ENTRY_IN");
+    const exitDeals = sortedDeals.filter((d) => normalizeEntryType(d) === "DEAL_ENTRY_OUT");
+
+    if (exitDeals.length > 0) {
+      // Found the close deal!
+      const entry = entryDeals.length > 0 ? entryDeals[0] : null;
+      const exit = exitDeals[exitDeals.length - 1];
+      const openTime = entry ? new Date(entry.time) : new Date(pending.opened_at);
+      const closeTime = new Date(exit.time);
+      const durationMins = Math.round((closeTime.getTime() - openTime.getTime()) / 60000);
+      const pnl = exitDeals.reduce((sum: number, d: any) => sum + (d.profit || 0) + (d.swap || 0) + (d.commission || 0), 0);
+
+      const closedTrade = {
+        external_trade_id: `metaapi-deal-${positionId}`,
+        asset: exit.symbol || pending.asset,
+        direction: entry ? (entry.type === "DEAL_TYPE_BUY" ? "buy" : "sell") : pending.direction,
+        lot_size: entry?.volume || exit.volume || pending.lot_size,
+        entry_price: entry?.price || pending.entry_price,
+        exit_price: exit.price || 0,
+        stop_loss: null,
+        take_profit: null,
+        profit_loss: roundTo2(pnl),
+        opened_at: openTime.toISOString(),
+        closed_at: closeTime.toISOString(),
+        duration_minutes: Math.max(durationMins, 0),
+      };
+
+      console.log(`[Reconciliation] ✅ FOUND close deal for ${pending.external_trade_id} -> profit=${closedTrade.profit_loss} closed_at=${closedTrade.closed_at}`);
+      newClosedTrades.push(closedTrade);
+      resolved.push(pending);
+    } else {
+      // Has entry deals but no exit yet
+      if (pending.retries >= RECONCILIATION_MAX_RETRIES) {
+        console.warn(`[Reconciliation] GIVING UP on ${pending.external_trade_id} after ${pending.retries} retries (entry found but no exit)`);
+        resolved.push(pending);
+      } else {
+        console.log(`[Reconciliation] Entry found but no exit yet for ${pending.external_trade_id} (retry ${pending.retries + 1}/${RECONCILIATION_MAX_RETRIES})`);
+        stillPending.push({ ...pending, retries: pending.retries + 1 });
+      }
+    }
+  }
+
+  console.log(`[Reconciliation] Summary: resolved=${resolved.length} stillPending=${stillPending.length} newClosedTrades=${newClosedTrades.length}`);
+  return { resolved, stillPending, newClosedTrades };
 }
 
 function collectMetaApiClientBaseCandidates(accountMeta: any) {
@@ -1183,6 +1327,97 @@ Deno.serve(async (req) => {
           rawDealsCount: 0,
         };
 
+        // ===== RECONCILIATION: Detect disappeared positions =====
+        // 1. Snapshot previous open positions BEFORE deleting them
+        const { data: previousOpenRows } = await supabase
+          .from("account_trade_history")
+          .select("external_trade_id, asset, direction, lot_size, entry_price, opened_at")
+          .eq("account_id", account_id)
+          .eq("status", "open");
+        const previousOpenMap = new Map<string, any>();
+        for (const row of previousOpenRows ?? []) {
+          if (row.external_trade_id) previousOpenMap.set(row.external_trade_id, row);
+        }
+        console.log(`[Reconciliation] Previous open positions snapshot: ${previousOpenMap.size}`);
+
+        // 2. Determine which positions disappeared
+        const currentOpenIds = new Set(data.openPositions.map(p => p.external_trade_id));
+        const closedByIncrementalIds = new Set(data.closedTrades.map(t => {
+          // Map from metaapi-deal-{posId} back to metaapi-pos-{posId}
+          const posId = extractPositionIdFromExternalTradeId(t.external_trade_id);
+          return posId ? `metaapi-pos-${posId}` : null;
+        }).filter(Boolean));
+
+        const newDisappeared: PendingClosure[] = [];
+        for (const [extId, row] of previousOpenMap.entries()) {
+          if (!currentOpenIds.has(extId)) {
+            // Position disappeared - check if incremental deals already captured it
+            if (closedByIncrementalIds.has(extId)) {
+              console.log(`[Reconciliation] Position ${extId} disappeared but already found in incremental deals - OK`);
+              continue;
+            }
+            const posIdHint = extractPositionIdFromExternalTradeId(extId);
+            // Also check if deal version already exists
+            const dealExtId = posIdHint ? `metaapi-deal-${posIdHint}` : null;
+            if (dealExtId && data.closedTrades.some(t => t.external_trade_id === dealExtId)) {
+              console.log(`[Reconciliation] Position ${extId} disappeared and found as deal ${dealExtId} in incremental - OK`);
+              continue;
+            }
+            console.log(`[Reconciliation] ⚠️ Position DISAPPEARED: ${extId} asset=${row.asset} direction=${row.direction} - queuing for reconciliation`);
+            newDisappeared.push({
+              external_trade_id: extId,
+              asset: row.asset,
+              direction: row.direction,
+              lot_size: Number(row.lot_size || 0),
+              entry_price: Number(row.entry_price || 0),
+              opened_at: row.opened_at,
+              disappeared_at: new Date().toISOString(),
+              retries: 0,
+              position_id_hint: posIdHint ?? undefined,
+            });
+          }
+        }
+
+        // 3. Load existing pending closures from account metadata
+        const existingMetadata = (account.metadata && typeof account.metadata === "object") ? account.metadata as Record<string, unknown> : {};
+        const existingPendingClosures: PendingClosure[] = Array.isArray(existingMetadata.pendingClosures) 
+          ? existingMetadata.pendingClosures as PendingClosure[] 
+          : [];
+        
+        // Merge new disappeared with existing pending (avoid duplicates by external_trade_id)
+        const allPendingMap = new Map<string, PendingClosure>();
+        for (const pc of existingPendingClosures) allPendingMap.set(pc.external_trade_id, pc);
+        for (const pc of newDisappeared) {
+          if (!allPendingMap.has(pc.external_trade_id)) allPendingMap.set(pc.external_trade_id, pc);
+        }
+        const allPendingClosures = Array.from(allPendingMap.values());
+        console.log(`[Reconciliation] Total pending closures to process: ${allPendingClosures.length} (existing=${existingPendingClosures.length} new=${newDisappeared.length})`);
+
+        // 4. Run reconciliation with wider history if needed
+        let reconciliationResult = { resolved: [] as PendingClosure[], stillPending: [] as PendingClosure[], newClosedTrades: [] as ProviderAccountData["closedTrades"] };
+        if (allPendingClosures.length > 0 && account.provider_type === "metaapi" && account.provider_account_id) {
+          reconciliationResult = await reconcilePendingClosures(
+            account.provider_account_id,
+            allPendingClosures,
+            supabase,
+            account_id,
+            user.id,
+          );
+          // Add reconciled trades to the closed trades list
+          data.closedTrades.push(...reconciliationResult.newClosedTrades);
+          console.log(`[Reconciliation] Added ${reconciliationResult.newClosedTrades.length} reconciled trades to closed trades list`);
+        }
+
+        syncDebug.reconciliation = {
+          previous_open_count: previousOpenMap.size,
+          current_open_count: data.openPositions.length,
+          new_disappeared: newDisappeared.length,
+          existing_pending: existingPendingClosures.length,
+          resolved: reconciliationResult.resolved.length,
+          still_pending: reconciliationResult.stillPending.length,
+          reconciled_trades: reconciliationResult.newClosedTrades.length,
+        };
+
         // Upsert open positions: delete old, insert new
         const { count: deletedOpen } = await supabase.from("account_trade_history")
           .delete({ count: "exact" })
@@ -1383,6 +1618,16 @@ Deno.serve(async (req) => {
 
         console.log(`[Sync:DB] Saving overview to trading_accounts: balance=${recalculated.overview.balance} equity=${recalculated.overview.equity} pnl=${recalculated.overview.profit_loss} drawdown=${recalculated.overview.drawdown} dailyPnl=${recalculated.overview.daily_pnl} weeklyPnl=${recalculated.overview.weekly_pnl} openPositions=${recalculated.overview.open_positions_count} winRate=${recalculated.overview.win_rate} profitFactor=${recalculated.overview.profit_factor}`);
 
+        // Persist pending closures in account metadata
+        const updatedMetadata = {
+          ...existingMetadata,
+          pendingClosures: reconciliationResult.stillPending,
+          lastReconciliationAt: new Date().toISOString(),
+        };
+        if (reconciliationResult.stillPending.length > 0) {
+          console.log(`[Reconciliation] Persisting ${reconciliationResult.stillPending.length} pending closures for next sync`);
+        }
+
         await supabase.from("trading_accounts").update({
           balance: recalculated.overview.balance,
           equity: recalculated.overview.equity,
@@ -1398,6 +1643,7 @@ Deno.serve(async (req) => {
           last_sync_at: successfulSyncAt,
           last_successful_sync_at: successfulSyncAt,
           last_sync_error: null,
+          metadata: updatedMetadata,
         }).eq("id", account_id);
 
         if (syncLog) {
