@@ -357,7 +357,8 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Token non valido" }), {
+      console.error("[AUTH] getUser failed:", authError?.message, "token length:", token?.length);
+      return new Response(JSON.stringify({ error: "Token non valido", detail: authError?.message || "user null" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
