@@ -964,9 +964,23 @@ function LiveStatusIndicator({ mode, lastUpdate }: { mode: "live" | "syncing" | 
   );
 }
 
+// ---- Info Banner ----
+function SyncDelayBanner() {
+  return (
+    <div className="rounded-lg border border-border bg-muted/50 p-3 mb-6 flex items-start gap-2">
+      <Clock className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+      <p className="text-xs text-muted-foreground">
+        Balance ed equity si aggiornano rapidamente. Storico operazioni, PnL giornaliero/settimanale e metriche possono aggiornarsi con un leggero ritardo.
+      </p>
+    </div>
+  );
+}
+
 // ---- Main Page ----
-const AUTO_SYNC_INTERVAL = 30_000; // 30 seconds
-const FAST_REFRESH_DEBOUNCE = 3_000; // 3 seconds debounce for fast refresh
+const SYNC_INTERVAL_ACTIVE = 30_000;   // 30s when page visible & user active
+const SYNC_INTERVAL_INACTIVE = 90_000; // 90s when page hidden or user idle
+const USER_IDLE_TIMEOUT = 60_000;      // 60s of no interaction = idle
+const FAST_REFRESH_DEBOUNCE = 3_000;
 
 export default function AccountCenter() {
   const { user } = useAuth();
