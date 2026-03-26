@@ -1618,6 +1618,16 @@ Deno.serve(async (req) => {
 
         console.log(`[Sync:DB] Saving overview to trading_accounts: balance=${recalculated.overview.balance} equity=${recalculated.overview.equity} pnl=${recalculated.overview.profit_loss} drawdown=${recalculated.overview.drawdown} dailyPnl=${recalculated.overview.daily_pnl} weeklyPnl=${recalculated.overview.weekly_pnl} openPositions=${recalculated.overview.open_positions_count} winRate=${recalculated.overview.win_rate} profitFactor=${recalculated.overview.profit_factor}`);
 
+        // Persist pending closures in account metadata
+        const updatedMetadata = {
+          ...existingMetadata,
+          pendingClosures: reconciliationResult.stillPending,
+          lastReconciliationAt: new Date().toISOString(),
+        };
+        if (reconciliationResult.stillPending.length > 0) {
+          console.log(`[Reconciliation] Persisting ${reconciliationResult.stillPending.length} pending closures for next sync`);
+        }
+
         await supabase.from("trading_accounts").update({
           balance: recalculated.overview.balance,
           equity: recalculated.overview.equity,
@@ -1633,6 +1643,7 @@ Deno.serve(async (req) => {
           last_sync_at: successfulSyncAt,
           last_successful_sync_at: successfulSyncAt,
           last_sync_error: null,
+          metadata: updatedMetadata,
         }).eq("id", account_id);
 
         if (syncLog) {
