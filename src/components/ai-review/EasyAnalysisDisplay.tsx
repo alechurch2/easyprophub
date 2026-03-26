@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { fullLotCalculation, RISK_PERCENT, TARGET_PERCENT } from "./lotSizeCalculator";
+import { fullLotCalculationFromPrices, RISK_PERCENT, TARGET_PERCENT } from "./lotSizeCalculator";
 import { TradeExecutionModal } from "./TradeExecutionModal";
 
 interface EasySetup {

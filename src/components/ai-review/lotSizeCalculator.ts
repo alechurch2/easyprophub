@@ -93,17 +93,29 @@ export function calculateRR(slPips: number, tpPips: number): number | null {
   return Math.round((tpPips / slPips) * 100) / 100;
 }
 
+/**
+ * Convert a price distance to pips for a given asset
+ */
+export function priceToPips(priceDistance: number, asset: string): number | null {
+  const config = getAssetConfig(asset);
+  if (!config) return null;
+  return Math.round(Math.abs(priceDistance) / config.pipSize * 100) / 100;
+}
+
 export interface LotCalculationResult {
   lotSize: number;
   riskAmount: number;
   targetAmount: number;
   theoreticalProfit: number | null;
   rrRatio: number | null;
+  slPips: number;
+  tpPips: number;
   formula: string;
 }
 
 /**
- * Full lot size calculation with all details
+ * Full lot size calculation with all details — single source of truth.
+ * Accepts raw prices and computes everything from asset config.
  */
 export function fullLotCalculation(
   accountSize: number,
@@ -124,5 +136,30 @@ export function fullLotCalculation(
 
   const formula = `Rischio ${(RISK_PERCENT * 100).toFixed(1)}% di ${accountSize.toLocaleString()}$ = ${riskAmount.toFixed(2)}$ | SL ${slPips} pip × ${config.pipValuePerLot}$/pip/lot → Lotto: ${lotSize}`;
 
-  return { lotSize, riskAmount, targetAmount, theoreticalProfit, rrRatio, formula };
+  return { lotSize, riskAmount, targetAmount, theoreticalProfit, rrRatio, slPips, tpPips, formula };
+}
+
+/**
+ * Full lot calculation from price levels — THE preferred entry point.
+ * Computes pip distances from actual prices, ensuring full consistency.
+ */
+export function fullLotCalculationFromPrices(
+  accountSize: number,
+  entryPrice: number,
+  slPrice: number,
+  tpPrice: number,
+  asset: string
+): LotCalculationResult | null {
+  const config = getAssetConfig(asset);
+  if (!config || accountSize <= 0 || entryPrice <= 0) return null;
+
+  const slDistance = Math.abs(entryPrice - slPrice);
+  const tpDistance = Math.abs(tpPrice - entryPrice);
+
+  const slPips = Math.round(slDistance / config.pipSize * 100) / 100;
+  const tpPips = Math.round(tpDistance / config.pipSize * 100) / 100;
+
+  if (slPips <= 0) return null;
+
+  return fullLotCalculation(accountSize, slPips, tpPips, asset);
 }
