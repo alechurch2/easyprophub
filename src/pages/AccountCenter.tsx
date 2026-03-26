@@ -579,7 +579,7 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting }: { ac
                 {acc.provider_type === "metaapi" ? "⚡ MetaApi" : acc.provider_type === "mock" ? "📊 Demo" : acc.provider_type}
               </Badge>
               <SyncStatusBadge status={acc.sync_status} />
-              <StatusBadge status={acc.connection_status} />
+              <StatusBadge status={acc.connection_status} lastError={acc.last_sync_error} />
               <Button
                 size="sm"
                 variant="outline"
