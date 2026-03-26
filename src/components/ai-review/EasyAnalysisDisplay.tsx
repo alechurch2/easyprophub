@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Minus, Eye, Search, Shield, Send } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Minus, Eye, Search, Shield, Send, Zap, Timer } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { TradeExecutionModal } from "./TradeExecutionModal";
 
 interface EasySetup {
   tipo: string;
+  execution_type?: string;
   entry_range: string;
   stop_loss: string;
   take_profit: string;
@@ -21,6 +22,7 @@ interface EasySetup {
 interface EasyAnalysis {
   leggibilita_immagine: string;
   signal_quality: string;
+  setup_strength?: number;
   setups: EasySetup[];
   warning?: string;
   conclusione: string;
@@ -42,12 +44,25 @@ interface TradingAccount {
   read_only_mode: boolean;
 }
 
+// ── Helpers ──
+
 function qualityColor(q: string) {
   switch (q?.toLowerCase()) {
     case "alta": return "bg-success/10 text-success border-success/20";
     case "media": return "bg-warning/10 text-warning border-warning/20";
     case "bassa": return "bg-destructive/10 text-destructive border-destructive/20";
     default: return "bg-muted text-muted-foreground";
+  }
+}
+
+function strengthLabel(n: number): { label: string; color: string; emoji: string } {
+  switch (n) {
+    case 1: return { label: "Debole", color: "bg-destructive/10 text-destructive border-destructive/20", emoji: "🔴" };
+    case 2: return { label: "Moderato", color: "bg-warning/10 text-warning border-warning/20", emoji: "🟠" };
+    case 3: return { label: "Discreto", color: "bg-warning/10 text-warning border-warning/20", emoji: "🟡" };
+    case 4: return { label: "Buono", color: "bg-success/10 text-success border-success/20", emoji: "🟢" };
+    case 5: return { label: "Forte", color: "bg-success/10 text-success border-success/20", emoji: "💚" };
+    default: return { label: "N/A", color: "bg-muted text-muted-foreground", emoji: "⚪" };
   }
 }
 
@@ -75,21 +90,19 @@ function directionColor(tipo: string) {
 }
 
 function parsePrice(value: string): number {
-  // Try to extract a single number from strings like "1.0850" or "1.0850 - 1.0860"
   const nums = value.match(/[\d.]+/g);
   if (!nums || nums.length === 0) return 0;
-  // For ranges, take the midpoint
-  if (nums.length >= 2) {
-    return (parseFloat(nums[0]) + parseFloat(nums[1])) / 2;
-  }
+  if (nums.length >= 2) return (parseFloat(nums[0]) + parseFloat(nums[1])) / 2;
   return parseFloat(nums[0]);
 }
 
-function determineOrderType(tipo: string): string {
-  const t = tipo?.toLowerCase() || "";
-  if (t.includes("limit")) return "limit";
-  return "market";
+function determineOrderType(setup: EasySetup): string {
+  if (setup.execution_type) return setup.execution_type;
+  const t = setup.tipo?.toLowerCase() || "";
+  return t.includes("limit") ? "limit" : "market";
 }
+
+// ── Component ──
 
 export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: { analysis: any; accountSize?: number; asset?: string; reviewId?: string }) {
   const { user } = useAuth();
@@ -110,10 +123,7 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
       .eq("user_id", user!.id)
       .eq("connection_status", "connected")
       .limit(1);
-    
-    if (data && data.length > 0) {
-      setTradingAccount(data[0] as any);
-    }
+    if (data && data.length > 0) setTradingAccount(data[0] as any);
     setAccountChecked(true);
   };
 
@@ -121,6 +131,8 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
 
   const data = analysis as EasyAnalysis;
   const hasSetups = data.setups && data.setups.length > 0;
+  const strength = data.setup_strength || (hasSetups ? 3 : 1);
+  const strengthInfo = strengthLabel(strength);
 
   const canExecuteTrade = tradingAccount &&
     tradingAccount.credential_mode === "master" &&
@@ -143,16 +155,20 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
 
   return (
     <div className="space-y-4">
-      {/* Header: Quality + Duration */}
+      {/* Header badges */}
       <div className="flex flex-wrap items-center gap-3">
         <Badge className={cn("text-sm px-3 py-1", qualityColor(data.signal_quality))}>
           <BarChart3 className="h-3.5 w-3.5 mr-1" />
           Qualità: {data.signal_quality || "N/A"}
         </Badge>
+        <Badge className={cn("text-sm px-3 py-1", strengthInfo.color)}>
+          <Zap className="h-3.5 w-3.5 mr-1" />
+          Forza: {strengthInfo.emoji} {strength}/5 — {strengthInfo.label}
+        </Badge>
         {data.expected_duration && (
           <Badge variant="secondary" className="text-sm px-3 py-1">
             <Clock className="h-3.5 w-3.5 mr-1" />
-            Durata attesa: {data.expected_duration}
+            Durata: {data.expected_duration}
           </Badge>
         )}
         <Badge variant="outline" className="text-xs px-2 py-0.5">
@@ -160,7 +176,7 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
         </Badge>
       </div>
 
-      {/* No setup case — Enhanced context analysis */}
+      {/* No setup case */}
       {!hasSetups && (
         <div className="space-y-3">
           {data.contesto_mercato && (
@@ -172,7 +188,6 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
               <p className="text-sm text-foreground">{data.contesto_mercato}</p>
             </div>
           )}
-
           <div className="card-premium p-4 border-warning/20">
             <div className="flex items-center gap-2 mb-2">
               <ShieldAlert className="h-4 w-4 text-warning" />
@@ -182,7 +197,6 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
               {data.no_setup_reason || "Il contesto attuale non permette di proporre un'idea operativa affidabile."}
             </p>
           </div>
-
           {data.cosa_aspettare && (
             <div className="card-premium p-4 border-primary/20">
               <div className="flex items-center gap-2 mb-2">
@@ -192,7 +206,6 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
               <p className="text-sm text-foreground">{data.cosa_aspettare}</p>
             </div>
           )}
-
           {data.livello_prudenza && (
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-muted-foreground" />
@@ -211,6 +224,8 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
         const slPrice = parsePrice(setup.stop_loss);
         const tpPrice = parsePrice(setup.take_profit);
         const setupHasValidPrices = entryPrice > 0 && slPrice > 0 && tpPrice > 0;
+        const orderType = determineOrderType(setup);
+        const isMarket = orderType === "market";
 
         const lotCalc = (accountSize && asset && setupHasValidPrices)
           ? fullLotCalculationFromPrices(accountSize, entryPrice, slPrice, tpPrice, asset)
@@ -220,10 +235,14 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
           <div key={i} className={cn("rounded-xl border p-5 space-y-3", directionColor(setup.tipo))}>
             <div className="flex items-center gap-3">
               {directionIcon(setup.tipo)}
-              <div>
+              <div className="flex-1">
                 <h3 className="font-heading font-semibold text-foreground text-lg">{setup.tipo}</h3>
                 <p className="text-xs text-muted-foreground">Idea operativa {i + 1}</p>
               </div>
+              <Badge variant="outline" className={cn("text-xs px-2.5 py-1", isMarket ? "border-primary/40 text-primary" : "border-warning/40 text-warning")}>
+                {isMarket ? <Zap className="h-3 w-3 mr-1" /> : <Timer className="h-3 w-3 mr-1" />}
+                {isMarket ? "Market" : "Limit"}
+              </Badge>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
@@ -283,7 +302,7 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
                     onClick={() => handleCopyToAccount(setup, lotCalc)}
                   >
                     <Send className="h-3.5 w-3.5 mr-2" />
-                    Copia sul conto
+                    Copia sul conto ({isMarket ? "Market" : "Limit"})
                   </Button>
                 ) : (
                   <div className="text-center">
@@ -326,7 +345,7 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
           trade={{
             asset: asset || "N/A",
             direction: selectedSetup.setup.tipo,
-            orderType: determineOrderType(selectedSetup.setup.tipo),
+            orderType: determineOrderType(selectedSetup.setup),
             entryPrice: parsePrice(selectedSetup.setup.entry_range),
             stopLoss: parsePrice(selectedSetup.setup.stop_loss),
             takeProfit: parsePrice(selectedSetup.setup.take_profit),

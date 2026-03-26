@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,13 +28,49 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
   const [customAccount, setCustomAccount] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Connected account state
+  const [connectedEquity, setConnectedEquity] = useState<number | null>(null);
+  const [connectedAccountName, setConnectedAccountName] = useState<string | null>(null);
+  const [loadingAccount, setLoadingAccount] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    loadConnectedAccount();
+  }, [user]);
+
+  const loadConnectedAccount = async () => {
+    setLoadingAccount(true);
+    const { data } = await supabase
+      .from("trading_accounts")
+      .select("account_name, equity, balance, connection_status")
+      .eq("user_id", user!.id)
+      .eq("connection_status", "connected")
+      .limit(1);
+
+    if (data && data.length > 0) {
+      const acc = data[0] as any;
+      const eq = acc.equity && acc.equity > 0 ? acc.equity : acc.balance || 0;
+      setConnectedEquity(eq);
+      setConnectedAccountName(acc.account_name);
+    }
+    setLoadingAccount(false);
+  };
+
   const isCustom = accountPreset === "custom";
-  const accountSize = isCustom ? parseInt(customAccount) || 0 : parseInt(accountPreset);
+  const isLinked = accountPreset === "linked";
+  const accountSize = isLinked
+    ? (connectedEquity || 0)
+    : isCustom
+      ? parseInt(customAccount) || 0
+      : parseInt(accountPreset);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) { toast.error("Carica uno screenshot del grafico"); return; }
-    if (accountSize <= 0) { toast.error("Inserisci la dimensione del conto"); return; }
+    if (accountSize <= 0) {
+      toast.error(isLinked ? "Nessun conto collegato con equity valida" : "Inserisci la dimensione del conto");
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -120,6 +156,12 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
               </ToggleGroupItem>
             ))}
             <ToggleGroupItem value="custom" className="text-xs px-4">Personalizzato</ToggleGroupItem>
+            {connectedEquity && connectedEquity > 0 && (
+              <ToggleGroupItem value="linked" className="text-xs px-4 gap-1">
+                <Link2 className="h-3 w-3" />
+                Conto collegato
+              </ToggleGroupItem>
+            )}
           </ToggleGroup>
           {isCustom && (
             <Input
@@ -130,6 +172,14 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
               className="mt-2 max-w-[200px]"
               min={1}
             />
+          )}
+          {isLinked && connectedEquity && (
+            <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <p className="text-xs text-muted-foreground">Equity corrente del conto collegato:</p>
+              <p className="text-sm font-semibold text-foreground">
+                {connectedAccountName} — ${connectedEquity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
           )}
         </div>
 
