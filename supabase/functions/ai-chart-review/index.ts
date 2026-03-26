@@ -413,7 +413,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { asset, timeframe, request_type, screenshot_url, user_note, parent_review_id, review_mode, account_size, review_tier } = body;
+    const { asset, timeframe, request_type, screenshot_url, user_note, parent_review_id, review_mode, account_size, review_tier, risk_percent } = body;
 
     if (!asset || !timeframe || !request_type) {
       return new Response(
