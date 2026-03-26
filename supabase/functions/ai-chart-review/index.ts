@@ -354,14 +354,24 @@ serve(async (req) => {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      console.error("[AUTH] getUser failed:", authError?.message, "token length:", token?.length);
-      return new Response(JSON.stringify({ error: "Token non valido", detail: authError?.message || "user null" }), {
+    const token = authHeader.replace("Bearer ", "").trim();
+
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const userId = claimsData?.claims?.sub;
+
+    if (claimsError || !userId) {
+      console.error("[AUTH] getClaims failed:", claimsError?.message, "token length:", token?.length);
+      return new Response(JSON.stringify({ error: "Token non valido", detail: claimsError?.message || "claims missing" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { error: authError } = await supabase.auth.getUser(token);
+    if (authError) {
+      console.warn("[AUTH] getUser warning, continuing with verified JWT claims:", authError.message, "user_id:", userId);
+    }
+
+    const user = { id: userId };
 
     // Check license validity server-side
     const { data: licenseCheck } = await supabase.rpc("is_license_valid", { _user_id: user.id });

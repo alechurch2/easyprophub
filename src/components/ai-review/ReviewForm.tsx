@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES, REQUEST_TYPES } from "./types";
 
 interface Props {
@@ -40,14 +41,20 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
       const { data: urlData } = supabase.storage.from("chart-screenshots").getPublicUrl(filePath);
       const screenshotUrl = urlData.publicUrl;
 
-      const { data: session } = await supabase.auth.getSession();
+      const { token, error: tokenError } = await getValidFunctionAuthToken();
+      if (tokenError || !token) {
+        toast.error(tokenError || "Sessione non valida. Effettua di nuovo il login.");
+        setSubmitting(false);
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chart-review`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.session?.access_token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             asset,
