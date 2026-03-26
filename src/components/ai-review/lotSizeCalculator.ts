@@ -24,7 +24,7 @@ const ASSET_CONFIGS: Record<string, AssetConfig> = {
   "EUR/USD": { pipSize: 0.0001, pipValuePerLot: 10 },
   "GBP/USD": { pipSize: 0.0001, pipValuePerLot: 10 },
   "USD/JPY": { pipSize: 0.01, pipValuePerLot: 6.5 },
-  "XAU/USD": { pipSize: 0.01, pipValuePerLot: 1, tickSize: 0.01 }, // 1 pip = $0.01, lot = 100oz → $1/pip
+  "XAU/USD": { pipSize: 0.10, pipValuePerLot: 10, tickSize: 0.01 }, // 1 pip = $0.10, lot = 100oz → $10/pip
   "BTC/USD": { pipSize: 1, pipValuePerLot: 1, tickSize: 1 },
   "ETH/USD": { pipSize: 0.01, pipValuePerLot: 0.01, tickSize: 0.01 },
   "US30":    { pipSize: 1, pipValuePerLot: 1, tickSize: 1 },
