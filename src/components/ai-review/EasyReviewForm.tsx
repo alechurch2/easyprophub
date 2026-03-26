@@ -126,6 +126,9 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
         setSubmitting(false);
         return;
       }
+      trackEvent("review_completed", { page: "ai-review", section: "ai-review", metadata: { mode: "easy", tier: reviewTier, asset } });
+      trackEvent(reviewTier === "premium" ? "review_premium_used" : "review_standard_used", { section: "ai-review" });
+      trackEvent("review_easy_used", { section: "ai-review" });
       toast.success(`Analisi ${reviewTier === "premium" ? "premium " : ""}completata!`);
       onClose();
       onSuccess();
