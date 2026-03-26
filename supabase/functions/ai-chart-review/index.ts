@@ -252,7 +252,7 @@ const ANALYSIS_TOOL_EASY = {
               tp_pips: { type: "number", description: "Distanza TP in pips." },
               spiegazione: { type: "string", description: "Spiegazione breve: perché questo setup? Cosa vede il sistema? (2-3 frasi)" },
             },
-            required: ["tipo", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
+            required: ["tipo", "execution_type", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
           },
         },
         expected_duration: { type: "string", description: "Durata attesa del trade (es: '2-4 ore', '1-3 giorni')." },
