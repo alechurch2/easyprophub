@@ -57,6 +57,25 @@ type MetaApiClientBaseCandidate = {
   source: string;
 };
 
+type HistorySyncWindow = {
+  bufferMinutes: number;
+  endTime: string;
+  mode: "incremental" | "initial_lookback";
+  startTime: string;
+};
+
+type ClosedTradeMetricSource = {
+  asset: string;
+  closed_at: string;
+  duration_minutes: number | null;
+  profit_loss: number;
+};
+
+const INITIAL_HISTORY_LOOKBACK_DAYS = 90;
+const HISTORY_SYNC_BUFFER_MINUTES = 15;
+const MS_IN_DAY = 86400000;
+const MS_IN_MINUTE = 60000;
+
 function getHostFromUrl(url: string) {
   try {
     return new URL(url).host;
@@ -85,6 +104,172 @@ function buildRegionalMetaApiClientBase(region: unknown) {
 
   const normalizedRegion = region.trim();
   return `https://mt-client-api-v1.${normalizedRegion}.agiliumtrade.ai`;
+}
+
+function roundTo2(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function buildHistorySyncWindow(lastSuccessfulSyncAt?: string | null): HistorySyncWindow {
+  const now = new Date();
+  const fallbackStart = new Date(now.getTime() - INITIAL_HISTORY_LOOKBACK_DAYS * MS_IN_DAY);
+
+  if (!lastSuccessfulSyncAt) {
+    return {
+      bufferMinutes: HISTORY_SYNC_BUFFER_MINUTES,
+      endTime: now.toISOString(),
+      mode: "initial_lookback",
+      startTime: fallbackStart.toISOString(),
+    };
+  }
+
+  const parsedLastSuccessfulSync = new Date(lastSuccessfulSyncAt);
+  if (Number.isNaN(parsedLastSuccessfulSync.getTime())) {
+    console.warn(`[Sync:History] Invalid last_successful_sync_at=${lastSuccessfulSyncAt}, falling back to ${INITIAL_HISTORY_LOOKBACK_DAYS}d lookback`);
+    return {
+      bufferMinutes: HISTORY_SYNC_BUFFER_MINUTES,
+      endTime: now.toISOString(),
+      mode: "initial_lookback",
+      startTime: fallbackStart.toISOString(),
+    };
+  }
+
+  const startTime = new Date(parsedLastSuccessfulSync.getTime() - HISTORY_SYNC_BUFFER_MINUTES * MS_IN_MINUTE);
+  return {
+    bufferMinutes: HISTORY_SYNC_BUFFER_MINUTES,
+    endTime: now.toISOString(),
+    mode: "incremental",
+    startTime: (startTime.getTime() > now.getTime() ? now : startTime).toISOString(),
+  };
+}
+
+function calculateClosedTradeMetrics(closedTrades: ClosedTradeMetricSource[], floatingPnl: number, balance: number, equity: number) {
+  const wins = closedTrades.filter((trade) => trade.profit_loss > 0);
+  const losses = closedTrades.filter((trade) => trade.profit_loss < 0);
+  const totalPnl = closedTrades.reduce((sum, trade) => sum + trade.profit_loss, 0);
+  const avgPnl = closedTrades.length > 0 ? totalPnl / closedTrades.length : 0;
+  const grossProfit = wins.reduce((sum, trade) => sum + trade.profit_loss, 0);
+  const grossLoss = Math.abs(losses.reduce((sum, trade) => sum + trade.profit_loss, 0));
+  const winRate = closedTrades.length > 0 ? (wins.length / closedTrades.length) * 100 : 0;
+  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 99.99 : 0);
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const dailyPnl = closedTrades
+    .filter((trade) => new Date(trade.closed_at) >= todayStart)
+    .reduce((sum, trade) => sum + trade.profit_loss, 0) + floatingPnl;
+
+  const weekStart = new Date();
+  const dayOfWeek = weekStart.getDay();
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  weekStart.setDate(weekStart.getDate() - diffToMonday);
+  weekStart.setHours(0, 0, 0, 0);
+  const weeklyPnl = closedTrades
+    .filter((trade) => new Date(trade.closed_at) >= weekStart)
+    .reduce((sum, trade) => sum + trade.profit_loss, 0) + floatingPnl;
+
+  let drawdown = 0;
+  if (balance > 0 && equity < balance) {
+    drawdown = ((balance - equity) / balance) * 100;
+  }
+
+  const bestTrade = closedTrades.reduce<ClosedTradeMetricSource | null>((best, trade) => {
+    if (!best || trade.profit_loss > best.profit_loss) return trade;
+    return best;
+  }, null);
+
+  const worstTrade = closedTrades.reduce<ClosedTradeMetricSource | null>((worst, trade) => {
+    if (!worst || trade.profit_loss < worst.profit_loss) return trade;
+    return worst;
+  }, null);
+
+  return {
+    avgPnl: roundTo2(avgPnl),
+    bestTrade,
+    dailyPnl: roundTo2(dailyPnl),
+    drawdown: roundTo2(drawdown),
+    grossLoss: roundTo2(grossLoss),
+    grossProfit: roundTo2(grossProfit),
+    profitFactor: roundTo2(profitFactor),
+    totalPnl: roundTo2(totalPnl),
+    weeklyPnl: roundTo2(weeklyPnl),
+    winRate: roundTo2(winRate),
+    wins: wins.length,
+    losses: losses.length,
+    worstTrade,
+  };
+}
+
+async function recalculateAccountOverviewFromDatabase(
+  supabase: ReturnType<typeof createClient>,
+  accountId: string,
+  liveOverview: ProviderAccountData["overview"],
+) {
+  const { data: closedTradesRows, error } = await supabase
+    .from("account_trade_history")
+    .select("asset, closed_at, duration_minutes, profit_loss")
+    .eq("account_id", accountId)
+    .eq("status", "closed");
+
+  if (error) {
+    throw new Error(`Errore lettura storico chiuso per metriche: ${error.message}`);
+  }
+
+  const closedTrades = (closedTradesRows ?? []).filter((trade) => !!trade.closed_at).map((trade) => ({
+    asset: trade.asset,
+    closed_at: trade.closed_at as string,
+    duration_minutes: trade.duration_minutes,
+    profit_loss: Number(trade.profit_loss || 0),
+  }));
+
+  const metrics = calculateClosedTradeMetrics(
+    closedTrades,
+    Number(liveOverview.profit_loss || 0),
+    Number(liveOverview.balance || 0),
+    Number(liveOverview.equity || 0),
+  );
+
+  console.log(
+    `[Sync:Metrics] Recalculated from DB: closedTrades=${closedTrades.length} wins=${metrics.wins} losses=${metrics.losses} totalPnl=${metrics.totalPnl.toFixed(2)} avgPnl=${metrics.avgPnl.toFixed(2)} winRate=${metrics.winRate.toFixed(2)}% profitFactor=${metrics.profitFactor.toFixed(2)} dailyPnl=${metrics.dailyPnl.toFixed(2)} weeklyPnl=${metrics.weeklyPnl.toFixed(2)} bestTrade=${metrics.bestTrade ? `${metrics.bestTrade.asset}:${metrics.bestTrade.profit_loss.toFixed(2)}` : "n/a"} worstTrade=${metrics.worstTrade ? `${metrics.worstTrade.asset}:${metrics.worstTrade.profit_loss.toFixed(2)}` : "n/a"}`,
+  );
+
+  return {
+    overview: {
+      balance: roundTo2(Number(liveOverview.balance || 0)),
+      daily_pnl: metrics.dailyPnl,
+      drawdown: metrics.drawdown,
+      equity: roundTo2(Number(liveOverview.equity || 0)),
+      open_positions_count: Number(liveOverview.open_positions_count || 0),
+      profit_factor: metrics.profitFactor,
+      profit_loss: roundTo2(Number(liveOverview.profit_loss || 0)),
+      weekly_pnl: metrics.weeklyPnl,
+      win_rate: metrics.winRate,
+    },
+    summary: metrics,
+  };
+}
+
+function shouldUpdateClosedTradeRecord(existing: any, incoming: any) {
+  const comparableFields = [
+    "asset",
+    "direction",
+    "lot_size",
+    "entry_price",
+    "exit_price",
+    "stop_loss",
+    "take_profit",
+    "profit_loss",
+    "status",
+    "opened_at",
+    "closed_at",
+    "duration_minutes",
+  ];
+
+  return comparableFields.some((field) => {
+    const currentValue = existing?.[field] ?? null;
+    const incomingValue = incoming?.[field] ?? null;
+    return currentValue !== incomingValue;
+  });
 }
 
 function collectMetaApiClientBaseCandidates(accountMeta: any) {
@@ -393,7 +578,7 @@ async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Prom
 }
 
 // Fetch account data from MetaApi
-async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountData> {
+async function fetchMetaApiData(metaAccountId: string, historyWindow?: HistorySyncWindow): Promise<ProviderAccountData> {
   // 1. Get account information (balance, equity, etc.)
   console.log("[Sync:AccountInfo] Fetching account-information...");
   const accountInfo = await metaapiClientRequest(metaAccountId, "/account-information");
@@ -405,10 +590,12 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
   const positionsArr = Array.isArray(positions) ? positions : [];
   console.log(`[Sync:Positions] Received ${positionsArr.length} open positions`);
 
-  // 3. Get history deals (last 90 days for better metrics)
-  const startTime = new Date(Date.now() - 90 * 86400000).toISOString();
-  const endTime = new Date().toISOString();
-  console.log(`[Sync:History] Fetching history-deals from ${startTime} to ${endTime}...`);
+  // 3. Get history deals using incremental window + safety buffer
+  const resolvedHistoryWindow = historyWindow ?? buildHistorySyncWindow(null);
+  const { startTime, endTime } = resolvedHistoryWindow;
+  console.log(
+    `[Sync:History] Fetching history-deals with range start=${startTime} end=${endTime} mode=${resolvedHistoryWindow.mode} bufferMinutes=${resolvedHistoryWindow.bufferMinutes}`,
+  );
   const historyResponse = await metaapiClientRequest(
     metaAccountId,
     `/history-deals/time/${startTime}/${endTime}`
@@ -491,8 +678,9 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
 
   const closedTrades: ProviderAccountData["closedTrades"] = [];
   for (const [posId, deals] of Object.entries(dealsByPosition)) {
-    const entryDeals = deals.filter((d: any) => normalizeEntryType(d) === "DEAL_ENTRY_IN");
-    const exitDeals = deals.filter((d: any) => normalizeEntryType(d) === "DEAL_ENTRY_OUT");
+    const sortedDeals = [...deals].sort((a: any, b: any) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    const entryDeals = sortedDeals.filter((d: any) => normalizeEntryType(d) === "DEAL_ENTRY_IN");
+    const exitDeals = sortedDeals.filter((d: any) => normalizeEntryType(d) === "DEAL_ENTRY_OUT");
 
     if (entryDeals.length > 0 && exitDeals.length > 0) {
       // Standard case: both entry and exit deals present
@@ -523,7 +711,7 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
       const exit = exitDeals[exitDeals.length - 1];
       const closeTime = new Date(exit.time);
       // Use brokerTime or estimate opening from the first deal in this position
-      const firstDeal = deals[0];
+      const firstDeal = sortedDeals[0];
       const openTime = firstDeal !== exit ? new Date(firstDeal.time) : new Date(closeTime.getTime() - 60000);
       const durationMins = Math.round((closeTime.getTime() - openTime.getTime()) / 60000);
       const pnl = exitDeals.reduce((sum: number, d: any) => sum + (d.profit || 0) + (d.swap || 0) + (d.commission || 0), 0);
@@ -545,56 +733,36 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
       });
     } else {
       // Entry-only means position is still open, or something unusual
-      console.log(`[Sync:History] Position ${posId}: ${entryDeals.length} entries, ${exitDeals.length} exits, entryTypes=${deals.map((d: any) => normalizeEntryType(d)).join(",")} - skipped`);
+      console.log(`[Sync:History] Position ${posId}: ${entryDeals.length} entries, ${exitDeals.length} exits, entryTypes=${sortedDeals.map((d: any) => normalizeEntryType(d)).join(",")} - skipped`);
     }
   }
   console.log(`[Sync:History] Processed ${closedTrades.length} closed trades from deals`);
 
-  // Calculate metrics from closed trades
-  const wins = closedTrades.filter(t => t.profit_loss > 0);
-  const losses = closedTrades.filter(t => t.profit_loss < 0);
-  const totalPnl = closedTrades.reduce((s, t) => s + t.profit_loss, 0);
-  const grossProfit = wins.reduce((s, t) => s + t.profit_loss, 0);
-  const grossLoss = Math.abs(losses.reduce((s, t) => s + t.profit_loss, 0));
-  const winRate = closedTrades.length > 0 ? (wins.length / closedTrades.length) * 100 : 0;
-  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 99.99 : 0);
+  const provisionalMetrics = calculateClosedTradeMetrics(
+    closedTrades.map((trade) => ({
+      asset: trade.asset,
+      closed_at: trade.closed_at,
+      duration_minutes: trade.duration_minutes,
+      profit_loss: trade.profit_loss,
+    })),
+    floatingPnl,
+    balance,
+    equity,
+  );
 
-  // Calculate daily PnL (trades closed today)
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const dailyTrades = closedTrades.filter(t => new Date(t.closed_at) >= todayStart);
-  const dailyPnl = dailyTrades.reduce((s, t) => s + t.profit_loss, 0) + floatingPnl;
-
-  // Calculate weekly PnL (trades closed this week, Monday-based)
-  const weekStart = new Date();
-  const dayOfWeek = weekStart.getDay();
-  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  weekStart.setDate(weekStart.getDate() - diffToMonday);
-  weekStart.setHours(0, 0, 0, 0);
-  const weeklyTrades = closedTrades.filter(t => new Date(t.closed_at) >= weekStart);
-  const weeklyPnl = weeklyTrades.reduce((s, t) => s + t.profit_loss, 0) + floatingPnl;
-
-  // Calculate drawdown: if positions are open, use (balance - equity) / balance
-  // Otherwise use max historical drawdown from closed trades
-  let drawdown = 0;
-  if (balance > 0 && equity < balance) {
-    drawdown = Math.round(((balance - equity) / balance) * 10000) / 100;
-  }
-
-  console.log(`[Sync:Metrics] Calculated: winRate=${winRate.toFixed(1)}% profitFactor=${profitFactor.toFixed(2)} totalPnl=${totalPnl.toFixed(2)} dailyPnl=${dailyPnl.toFixed(2)} weeklyPnl=${weeklyPnl.toFixed(2)} drawdown=${drawdown.toFixed(2)}% floatingPnl=${floatingPnl.toFixed(2)} wins=${wins.length} losses=${losses.length} openPositions=${openPositions.length}`);
+  console.log(`[Sync:Metrics] Provider snapshot: winRate=${provisionalMetrics.winRate.toFixed(1)}% profitFactor=${provisionalMetrics.profitFactor.toFixed(2)} totalPnl=${provisionalMetrics.totalPnl.toFixed(2)} avgPnl=${provisionalMetrics.avgPnl.toFixed(2)} dailyPnl=${provisionalMetrics.dailyPnl.toFixed(2)} weeklyPnl=${provisionalMetrics.weeklyPnl.toFixed(2)} drawdown=${provisionalMetrics.drawdown.toFixed(2)}% floatingPnl=${floatingPnl.toFixed(2)} wins=${provisionalMetrics.wins} losses=${provisionalMetrics.losses} openPositions=${openPositions.length}`);
 
   return {
     overview: {
-      balance: Math.round(balance * 100) / 100,
-      equity: Math.round(equity * 100) / 100,
-      profit_loss: Math.round(floatingPnl * 100) / 100,
-      drawdown,
-      daily_pnl: Math.round(dailyPnl * 100) / 100,
-      weekly_pnl: Math.round(weeklyPnl * 100) / 100,
+      balance: roundTo2(balance),
+      equity: roundTo2(equity),
+      profit_loss: roundTo2(floatingPnl),
+      drawdown: provisionalMetrics.drawdown,
+      daily_pnl: provisionalMetrics.dailyPnl,
+      weekly_pnl: provisionalMetrics.weeklyPnl,
       open_positions_count: openPositions.length,
-      // Extra metrics to save
-      win_rate: Math.round(winRate * 100) / 100,
-      profit_factor: Math.round(profitFactor * 100) / 100,
+      win_rate: provisionalMetrics.winRate,
+      profit_factor: provisionalMetrics.profitFactor,
     },
     openPositions,
     closedTrades,
@@ -674,7 +842,7 @@ function generateMockData(account: any): ProviderAccountData {
 }
 
 // ========== PROVIDER ROUTER ==========
-async function fetchAccountData(account: any): Promise<ProviderAccountData> {
+async function fetchAccountData(account: any, historyWindow?: HistorySyncWindow): Promise<ProviderAccountData> {
   const providerType = account.provider_type || "mock";
 
   switch (providerType) {
@@ -682,7 +850,7 @@ async function fetchAccountData(account: any): Promise<ProviderAccountData> {
       if (!account.provider_account_id) {
         throw new Error("Account MetaApi non configurato (provider_account_id mancante)");
       }
-      return await fetchMetaApiData(account.provider_account_id);
+      return await fetchMetaApiData(account.provider_account_id, historyWindow);
     case "mock":
       return generateMockData(account);
     default:
@@ -883,27 +1051,12 @@ Deno.serve(async (req) => {
       }).eq("id", account_id);
 
       try {
-        const data = await fetchAccountData(account);
+        const historyWindow = buildHistorySyncWindow(account.last_successful_sync_at);
+        console.log(
+          `[Sync:History] Using time range start=${historyWindow.startTime} end=${historyWindow.endTime} mode=${historyWindow.mode} bufferMinutes=${historyWindow.bufferMinutes} lastSuccessfulSyncAt=${account.last_successful_sync_at ?? "none"}`,
+        );
 
-        console.log(`[Sync:DB] Saving overview to trading_accounts: balance=${data.overview.balance} equity=${data.overview.equity} pnl=${data.overview.profit_loss} drawdown=${data.overview.drawdown} dailyPnl=${data.overview.daily_pnl} weeklyPnl=${data.overview.weekly_pnl} openPositions=${data.overview.open_positions_count} winRate=${data.overview.win_rate} profitFactor=${data.overview.profit_factor}`);
-
-        // Update account overview + metrics in one call
-        await supabase.from("trading_accounts").update({
-          balance: data.overview.balance,
-          equity: data.overview.equity,
-          profit_loss: data.overview.profit_loss,
-          drawdown: data.overview.drawdown,
-          daily_pnl: data.overview.daily_pnl,
-          weekly_pnl: data.overview.weekly_pnl,
-          open_positions_count: data.overview.open_positions_count,
-          win_rate: data.overview.win_rate ?? 0,
-          profit_factor: data.overview.profit_factor ?? 0,
-          connection_status: "connected",
-          sync_status: "idle",
-          last_sync_at: new Date().toISOString(),
-          last_successful_sync_at: new Date().toISOString(),
-          last_sync_error: null,
-        }).eq("id", account_id);
+        const data = await fetchAccountData(account, historyWindow);
 
         // Upsert open positions: delete old, insert new
         const { count: deletedOpen } = await supabase.from("account_trade_history")
@@ -933,59 +1086,123 @@ Deno.serve(async (req) => {
           else console.log(`[Sync:DB] Inserted ${data.openPositions.length} open positions`);
         }
 
-        // Upsert closed trades (deduplicate by external_trade_id)
-        let tradesSynced = 0;
-        let tradesSkipped = 0;
-        for (const trade of data.closedTrades) {
-          const { data: existing } = await supabase
-            .from("account_trade_history")
-            .select("id")
-            .eq("account_id", account_id)
-            .eq("external_trade_id", trade.external_trade_id)
-            .maybeSingle();
+        // Upsert closed trades (deduplicate by stable external_trade_id)
+        const dedupedClosedTrades = Array.from(
+          new Map(data.closedTrades.map((trade) => [trade.external_trade_id, trade])).values(),
+        );
+        const closedTradeIds = dedupedClosedTrades.map((trade) => trade.external_trade_id);
+        const existingClosedTrades = new Map<string, any>();
 
+        if (closedTradeIds.length > 0) {
+          const { data: existingRows, error: existingError } = await supabase
+            .from("account_trade_history")
+            .select("id, asset, direction, lot_size, entry_price, exit_price, stop_loss, take_profit, profit_loss, status, opened_at, closed_at, duration_minutes, external_trade_id")
+            .eq("account_id", account_id)
+            .in("external_trade_id", closedTradeIds);
+
+          if (existingError) {
+            throw new Error(`Errore lettura trade esistenti per deduplica: ${existingError.message}`);
+          }
+
+          for (const row of existingRows ?? []) {
+            if (row.external_trade_id) {
+              existingClosedTrades.set(row.external_trade_id, row);
+            }
+          }
+        }
+
+        let tradesInserted = 0;
+        let tradesUpdated = 0;
+        let tradesUnchanged = 0;
+
+        for (const trade of dedupedClosedTrades) {
+          const payload = {
+            account_id,
+            asset: trade.asset,
+            closed_at: trade.closed_at,
+            direction: trade.direction,
+            duration_minutes: trade.duration_minutes,
+            entry_price: trade.entry_price,
+            exit_price: trade.exit_price,
+            external_trade_id: trade.external_trade_id,
+            lot_size: trade.lot_size,
+            opened_at: trade.opened_at,
+            profit_loss: trade.profit_loss,
+            status: "closed",
+            stop_loss: trade.stop_loss,
+            take_profit: trade.take_profit,
+            user_id: user.id,
+          };
+
+          const existing = existingClosedTrades.get(trade.external_trade_id);
           if (!existing) {
-            const { error: tradeErr } = await supabase.from("account_trade_history").insert({
-              account_id,
-              user_id: user.id,
-              asset: trade.asset,
-              direction: trade.direction,
-              lot_size: trade.lot_size,
-              entry_price: trade.entry_price,
-              exit_price: trade.exit_price,
-              stop_loss: trade.stop_loss,
-              take_profit: trade.take_profit,
-              profit_loss: trade.profit_loss,
-              status: "closed",
-              opened_at: trade.opened_at,
-              closed_at: trade.closed_at,
-              duration_minutes: trade.duration_minutes,
-              external_trade_id: trade.external_trade_id,
-            });
+            const { error: tradeErr } = await supabase.from("account_trade_history").insert(payload);
             if (tradeErr) {
               console.error(`[Sync:DB] Trade insert error for ${trade.external_trade_id}: ${tradeErr.message}`);
             } else {
-              tradesSynced++;
+              tradesInserted++;
             }
+            continue;
+          }
+
+          if (!shouldUpdateClosedTradeRecord(existing, payload)) {
+            tradesUnchanged++;
+            continue;
+          }
+
+          const { error: tradeUpdateErr } = await supabase
+            .from("account_trade_history")
+            .update(payload)
+            .eq("id", existing.id);
+
+          if (tradeUpdateErr) {
+            console.error(`[Sync:DB] Trade update error for ${trade.external_trade_id}: ${tradeUpdateErr.message}`);
           } else {
-            tradesSkipped++;
+            tradesUpdated++;
           }
         }
-        console.log(`[Sync:DB] Closed trades: ${tradesSynced} new, ${tradesSkipped} duplicates skipped, ${data.closedTrades.length} total from provider`);
+
+        console.log(`[Sync:DB] Closed trades: received=${data.closedTrades.length} deduped=${dedupedClosedTrades.length} inserted=${tradesInserted} updated=${tradesUpdated} unchanged=${tradesUnchanged}`);
+
+        const recalculated = await recalculateAccountOverviewFromDatabase(supabase, account_id, data.overview);
+        const successfulSyncAt = new Date().toISOString();
+
+        console.log(`[Sync:DB] Saving overview to trading_accounts: balance=${recalculated.overview.balance} equity=${recalculated.overview.equity} pnl=${recalculated.overview.profit_loss} drawdown=${recalculated.overview.drawdown} dailyPnl=${recalculated.overview.daily_pnl} weeklyPnl=${recalculated.overview.weekly_pnl} openPositions=${recalculated.overview.open_positions_count} winRate=${recalculated.overview.win_rate} profitFactor=${recalculated.overview.profit_factor}`);
+
+        await supabase.from("trading_accounts").update({
+          balance: recalculated.overview.balance,
+          equity: recalculated.overview.equity,
+          profit_loss: recalculated.overview.profit_loss,
+          drawdown: recalculated.overview.drawdown,
+          daily_pnl: recalculated.overview.daily_pnl,
+          weekly_pnl: recalculated.overview.weekly_pnl,
+          open_positions_count: recalculated.overview.open_positions_count,
+          win_rate: recalculated.overview.win_rate ?? 0,
+          profit_factor: recalculated.overview.profit_factor ?? 0,
+          connection_status: "connected",
+          sync_status: "idle",
+          last_sync_at: successfulSyncAt,
+          last_successful_sync_at: successfulSyncAt,
+          last_sync_error: null,
+        }).eq("id", account_id);
 
         if (syncLog) {
           await supabase.from("account_sync_logs").update({
             status: "completed",
             completed_at: new Date().toISOString(),
-            trades_synced: tradesSynced,
+            trades_synced: tradesInserted,
           }).eq("id", syncLog.id);
         }
 
         return new Response(JSON.stringify({
           success: true,
-          trades_synced: tradesSynced,
+          trades_synced: tradesInserted,
+          trades_updated: tradesUpdated,
+          history_buffer_minutes: historyWindow.bufferMinutes,
+          history_range_end: historyWindow.endTime,
+          history_range_start: historyWindow.startTime,
           open_positions: data.openPositions.length,
-          overview: data.overview,
+          overview: recalculated.overview,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
