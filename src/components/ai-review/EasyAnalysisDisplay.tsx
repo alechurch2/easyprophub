@@ -132,7 +132,6 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
     if (!tradingAccount) return "Nessun conto collegato";
     if (tradingAccount.credential_mode !== "master") return "Conto collegato con password investor";
     if (!tradingAccount.trading_execution_enabled) return "Trading non abilitato per questo conto";
-    if (tradingAccount.read_only_mode) return "Conto in modalità sola lettura";
     if (tradingAccount.connection_status !== "connected") return "Conto non connesso";
     return null;
   };
