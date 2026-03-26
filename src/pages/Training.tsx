@@ -47,6 +47,7 @@ export default function Training() {
 
   useEffect(() => {
     loadData();
+    trackEvent("course_opened", { page: "training", section: "training" });
   }, []);
 
   const loadData = async () => {

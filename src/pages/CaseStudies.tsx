@@ -26,6 +26,7 @@ export default function CaseStudies() {
 
   useEffect(() => {
     loadReviews();
+    trackEvent("library_opened", { page: "case-studies", section: "library" });
   }, []);
 
   const loadReviews = async () => {

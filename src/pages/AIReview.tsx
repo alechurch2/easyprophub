@@ -39,7 +39,7 @@ export default function AIReview() {
   const [compareIds, setCompareIds] = useState<Set<string>>(new Set());
   const [showComparison, setShowComparison] = useState(false);
 
-  useEffect(() => { loadReviews(); loadPremiumUsage(); }, []);
+  useEffect(() => { loadReviews(); loadPremiumUsage(); trackEvent("review_page_opened", { page: "ai-review", section: "ai-review" }); }, []);
 
   const loadReviews = async () => {
     const { data } = await supabase
