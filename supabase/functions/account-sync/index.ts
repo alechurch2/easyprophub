@@ -409,17 +409,42 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
   const startTime = new Date(Date.now() - 90 * 86400000).toISOString();
   const endTime = new Date().toISOString();
   console.log(`[Sync:History] Fetching history-deals from ${startTime} to ${endTime}...`);
-  const historyOrders = await metaapiClientRequest(
+  const historyResponse = await metaapiClientRequest(
     metaAccountId,
     `/history-deals/time/${startTime}/${endTime}`
   );
-  const dealsArr = Array.isArray(historyOrders) ? historyOrders : [];
+
+  // MetaApi may return plain array OR { deals: [...] } - handle both
+  let dealsArr: any[] = [];
+  if (Array.isArray(historyResponse)) {
+    dealsArr = historyResponse;
+  } else if (historyResponse && Array.isArray(historyResponse.deals)) {
+    dealsArr = historyResponse.deals;
+    console.log(`[Sync:History] Response was wrapped in { deals: [...] }, extracted ${dealsArr.length} deals`);
+  } else if (historyResponse && typeof historyResponse === "object") {
+    // Try to find any array property
+    const arrayKeys = Object.keys(historyResponse).filter(k => Array.isArray(historyResponse[k]));
+    if (arrayKeys.length > 0) {
+      dealsArr = historyResponse[arrayKeys[0]];
+      console.log(`[Sync:History] Response was wrapped in { ${arrayKeys[0]}: [...] }, extracted ${dealsArr.length} deals`);
+    } else {
+      console.warn(`[Sync:History] Unexpected response format: ${JSON.stringify(historyResponse).substring(0, 500)}`);
+    }
+  }
   console.log(`[Sync:History] Received ${dealsArr.length} raw deals`);
+
+  // Log first 5 raw deals for debugging field names
+  for (let i = 0; i < Math.min(dealsArr.length, 5); i++) {
+    const d = dealsArr[i];
+    console.log(`[Sync:History] Raw deal[${i}]: id=${d.id} type=${d.type} entryType=${d.entryType} entry=${d.entry} positionId=${d.positionId} symbol=${d.symbol} volume=${d.volume} price=${d.price} profit=${d.profit} swap=${d.swap} commission=${d.commission} time=${d.time}`);
+  }
 
   // Log deal types for debugging
   const dealTypeCounts: Record<string, number> = {};
   for (const d of dealsArr) {
-    const key = `${d.type || "unknown"}/${d.entryType || "unknown"}`;
+    // MetaApi may use "entryType" or "entry" depending on API version
+    const entryField = d.entryType || d.entry || "unknown";
+    const key = `${d.type || "unknown"}/${entryField}`;
     dealTypeCounts[key] = (dealTypeCounts[key] || 0) + 1;
   }
   console.log(`[Sync:History] Deal type breakdown: ${JSON.stringify(dealTypeCounts)}`);
@@ -445,10 +470,16 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
   });
 
   // Process history deals into closed trades
+  // Normalize entryType field - MetaApi uses "entryType" or "entry"
+  const normalizeEntryType = (deal: any): string => {
+    return deal.entryType || deal.entry || "unknown";
+  };
+
   const dealsByPosition: Record<string, any[]> = {};
   let filteredDeals = 0;
   for (const deal of dealsArr) {
-    if (deal.type === "DEAL_TYPE_BALANCE" || deal.type === "DEAL_TYPE_CREDIT") {
+    if (deal.type === "DEAL_TYPE_BALANCE" || deal.type === "DEAL_TYPE_CREDIT" ||
+        deal.type === "DEAL_TYPE_BONUS" || deal.type === "DEAL_TYPE_CORRECTION") {
       filteredDeals++;
       continue;
     }
@@ -456,14 +487,15 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
     if (!dealsByPosition[posId]) dealsByPosition[posId] = [];
     dealsByPosition[posId].push(deal);
   }
-  console.log(`[Sync:History] Filtered out ${filteredDeals} balance/credit deals. Remaining positions to process: ${Object.keys(dealsByPosition).length}`);
+  console.log(`[Sync:History] Filtered out ${filteredDeals} balance/credit/bonus deals. Remaining positions to process: ${Object.keys(dealsByPosition).length}`);
 
   const closedTrades: ProviderAccountData["closedTrades"] = [];
   for (const [posId, deals] of Object.entries(dealsByPosition)) {
-    const entryDeals = deals.filter((d: any) => d.entryType === "DEAL_ENTRY_IN");
-    const exitDeals = deals.filter((d: any) => d.entryType === "DEAL_ENTRY_OUT");
+    const entryDeals = deals.filter((d: any) => normalizeEntryType(d) === "DEAL_ENTRY_IN");
+    const exitDeals = deals.filter((d: any) => normalizeEntryType(d) === "DEAL_ENTRY_OUT");
 
     if (entryDeals.length > 0 && exitDeals.length > 0) {
+      // Standard case: both entry and exit deals present
       const entry = entryDeals[0];
       const exit = exitDeals[exitDeals.length - 1];
       const openTime = new Date(entry.time);
@@ -485,8 +517,35 @@ async function fetchMetaApiData(metaAccountId: string): Promise<ProviderAccountD
         closed_at: closeTime.toISOString(),
         duration_minutes: durationMins,
       });
+    } else if (exitDeals.length > 0 && entryDeals.length === 0) {
+      // Exit-only case: entry deal may be outside the time window
+      // Still save the trade using exit deal data
+      const exit = exitDeals[exitDeals.length - 1];
+      const closeTime = new Date(exit.time);
+      // Use brokerTime or estimate opening from the first deal in this position
+      const firstDeal = deals[0];
+      const openTime = firstDeal !== exit ? new Date(firstDeal.time) : new Date(closeTime.getTime() - 60000);
+      const durationMins = Math.round((closeTime.getTime() - openTime.getTime()) / 60000);
+      const pnl = exitDeals.reduce((sum: number, d: any) => sum + (d.profit || 0) + (d.swap || 0) + (d.commission || 0), 0);
+
+      console.log(`[Sync:History] Position ${posId}: exit-only trade (entry outside window). Using exit data. pnl=${pnl}`);
+      closedTrades.push({
+        external_trade_id: `metaapi-deal-${posId}`,
+        asset: exit.symbol,
+        direction: exit.type === "DEAL_TYPE_SELL" ? "buy" : "sell", // exit type is opposite
+        lot_size: exit.volume || 0,
+        entry_price: exit.price || 0, // best we have
+        exit_price: exit.price || 0,
+        stop_loss: null,
+        take_profit: null,
+        profit_loss: Math.round(pnl * 100) / 100,
+        opened_at: openTime.toISOString(),
+        closed_at: closeTime.toISOString(),
+        duration_minutes: Math.max(durationMins, 0),
+      });
     } else {
-      console.log(`[Sync:History] Position ${posId}: ${entryDeals.length} entries, ${exitDeals.length} exits - skipped (incomplete)`);
+      // Entry-only means position is still open, or something unusual
+      console.log(`[Sync:History] Position ${posId}: ${entryDeals.length} entries, ${exitDeals.length} exits, entryTypes=${deals.map((d: any) => normalizeEntryType(d)).join(",")} - skipped`);
     }
   }
   console.log(`[Sync:History] Processed ${closedTrades.length} closed trades from deals`);
