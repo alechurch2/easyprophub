@@ -967,14 +967,15 @@ Deno.serve(async (req) => {
         });
 
       } catch (err) {
-        console.error("[connect_metaapi] FAILED:", err.message);
+        const errorMessage = getErrorMessage(err);
+        console.error("[connect_metaapi] FAILED:", errorMessage);
         await supabase.from("trading_accounts").update({
           connection_status: "failed",
           sync_status: "error",
-          last_sync_error: err.message,
+          last_sync_error: errorMessage,
         }).eq("id", account_id);
 
-        return new Response(JSON.stringify({ success: false, error: err.message }), {
+        return new Response(JSON.stringify({ success: false, error: errorMessage }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -1014,13 +1015,14 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       } catch (err) {
+        const errorMessage = getErrorMessage(err);
         await supabase.from("trading_accounts").update({
           connection_status: "failed",
           sync_status: "error",
-          last_sync_error: err.message,
+          last_sync_error: errorMessage,
         }).eq("id", account_id);
 
-        return new Response(JSON.stringify({ success: false, error: err.message }), {
+        return new Response(JSON.stringify({ success: false, error: errorMessage }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -1219,21 +1221,22 @@ Deno.serve(async (req) => {
         });
 
       } catch (err) {
+        const errorMessage = getErrorMessage(err);
         await supabase.from("trading_accounts").update({
           sync_status: "error",
           connection_status: "failed",
-          last_sync_error: err.message,
+          last_sync_error: errorMessage,
         }).eq("id", account_id);
 
         if (syncLog) {
           await supabase.from("account_sync_logs").update({
             status: "failed",
             completed_at: new Date().toISOString(),
-            error_message: err.message,
+            error_message: errorMessage,
           }).eq("id", syncLog.id);
         }
 
-        return new Response(JSON.stringify({ error: err.message }), {
+        return new Response(JSON.stringify({ error: errorMessage }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1271,7 +1274,7 @@ Deno.serve(async (req) => {
             // Wait a moment for undeploy to process
             await new Promise((r) => setTimeout(r, 2000));
           } catch (undeployErr) {
-            console.warn("[delete_account] Undeploy warning (may already be undeployed):", undeployErr.message);
+            console.warn("[delete_account] Undeploy warning (may already be undeployed):", getErrorMessage(undeployErr));
           }
 
           await metaapiRequest(`/users/current/accounts/${account.provider_account_id}`, {
@@ -1279,8 +1282,8 @@ Deno.serve(async (req) => {
           });
           console.log("[delete_account] MetaApi account deleted successfully");
         } catch (metaErr) {
-          metaapiCleanupError = metaErr.message;
-          console.error("[delete_account] MetaApi cleanup error (proceeding with local delete):", metaErr.message);
+          metaapiCleanupError = getErrorMessage(metaErr);
+          console.error("[delete_account] MetaApi cleanup error (proceeding with local delete):", metaapiCleanupError);
         }
       }
 
@@ -1335,7 +1338,7 @@ Deno.serve(async (req) => {
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: getErrorMessage(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
