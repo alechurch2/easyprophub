@@ -1240,7 +1240,9 @@ function AdminAccounts() {
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [journalCount, setJournalCount] = useState<Record<string, number>>({});
   const [syncLogs, setSyncLogs] = useState<any[]>([]);
+  const [executionLogs, setExecutionLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showExecLogs, setShowExecLogs] = useState(false);
 
   const load = async () => {
     const { data } = await supabase.from("trading_accounts").select("*").order("created_at", { ascending: false });
@@ -1267,10 +1269,30 @@ function AdminAccounts() {
         if (logs) setSyncLogs(logs);
       }
     }
+    // Load execution logs
+    const { data: execLogs } = await supabase
+      .from("order_execution_logs" as any)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (execLogs) setExecutionLogs(execLogs as any[]);
+
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
+
+  const toggleTradingEnabled = async (accountId: string, currentValue: boolean) => {
+    await supabase.from("trading_accounts").update({ trading_execution_enabled: !currentValue } as any).eq("id", accountId);
+    toast.success(`Trading ${!currentValue ? "abilitato" : "disabilitato"}`);
+    load();
+  };
+
+  const setCredentialMode = async (accountId: string, mode: string) => {
+    await supabase.from("trading_accounts").update({ credential_mode: mode } as any).eq("id", accountId);
+    toast.success(`Credenziali aggiornate a: ${mode}`);
+    load();
+  };
 
   const statusColor = (s: string) => {
     switch (s) {
@@ -1287,11 +1309,12 @@ function AdminAccounts() {
   const userCounts: Record<string, number> = {};
   accounts.forEach((a) => { userCounts[a.user_id] = (userCounts[a.user_id] || 0) + 1; });
   const failedSyncs = syncLogs.filter(l => l.status === "failed").length;
+  const tradingEnabledCount = accounts.filter(a => (a as any).trading_execution_enabled).length;
 
   return (
     <div className="space-y-4">
       {/* Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         <div className="card-premium p-3">
           <p className="text-xs text-muted-foreground">Conti totali</p>
           <p className="text-xl font-bold text-foreground">{accounts.length}</p>
@@ -1305,68 +1328,141 @@ function AdminAccounts() {
           <p className="text-xl font-bold text-success">{accounts.filter(a => a.connection_status === "connected").length}</p>
         </div>
         <div className="card-premium p-3">
+          <p className="text-xs text-muted-foreground">Trading abilitato</p>
+          <p className={cn("text-xl font-bold", tradingEnabledCount > 0 ? "text-primary" : "text-foreground")}>{tradingEnabledCount}</p>
+        </div>
+        <div className="card-premium p-3">
           <p className="text-xs text-muted-foreground">Errori sync</p>
           <p className={cn("text-xl font-bold", failedSyncs > 0 ? "text-destructive" : "text-foreground")}>{failedSyncs}</p>
         </div>
         <div className="card-premium p-3">
-          <p className="text-xs text-muted-foreground">Journaling totali</p>
-          <p className="text-xl font-bold text-foreground">{Object.values(journalCount).reduce((a, b) => a + b, 0)}</p>
+          <p className="text-xs text-muted-foreground">Ordini eseguiti</p>
+          <p className="text-xl font-bold text-foreground">{executionLogs.length}</p>
         </div>
       </div>
 
-      {/* Recent sync logs */}
-      {syncLogs.length > 0 && (
-        <div className="card-premium p-4">
-          <h4 className="text-sm font-semibold text-foreground mb-2">Ultimi sync</h4>
-          <div className="space-y-1">
-            {syncLogs.slice(0, 5).map(log => (
-              <div key={log.id} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <Badge className={cn("text-[10px]",
-                    log.status === "completed" ? "bg-success/10 text-success" :
-                    log.status === "running" ? "bg-info/10 text-info" :
-                    "bg-destructive/10 text-destructive"
-                  )}>{log.status}</Badge>
-                  <span className="text-muted-foreground">{log.sync_type}</span>
+      {/* Toggle execution logs view */}
+      <div className="flex gap-2">
+        <Button size="sm" variant={!showExecLogs ? "default" : "outline"} onClick={() => setShowExecLogs(false)}>Conti</Button>
+        <Button size="sm" variant={showExecLogs ? "default" : "outline"} onClick={() => setShowExecLogs(true)}>
+          Log esecuzioni ({executionLogs.length})
+        </Button>
+      </div>
+
+      {/* Execution logs view */}
+      {showExecLogs && (
+        <div className="space-y-2">
+          {executionLogs.length === 0 ? (
+            <p className="text-muted-foreground text-center p-8">Nessun ordine eseguito</p>
+          ) : executionLogs.map((log: any) => (
+            <div key={log.id} className="card-premium p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={log.status === "success" ? "bg-success/10 text-success" : log.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}>
+                      {log.status}
+                    </Badge>
+                    <span className="text-sm font-medium text-foreground">{log.asset}</span>
+                    <Badge variant="outline" className="text-[10px]">{log.direction}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{log.order_type}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {profiles[log.user_id] || log.user_id?.slice(0, 8)} · Lotto: {log.lot_size} · Entry: {log.entry_price}
+                  </p>
+                  {log.error_message && <p className="text-[10px] text-destructive mt-0.5">{log.error_message}</p>}
                 </div>
-                <div className="text-muted-foreground">
-                  {new Date(log.started_at).toLocaleString("it-IT")}
-                  {log.trades_synced > 0 && <span className="text-success ml-1">+{log.trades_synced}</span>}
-                  {log.error_message && <span className="text-destructive ml-1">⚠</span>}
+                <div className="text-right text-xs text-muted-foreground">
+                  <p>{new Date(log.created_at).toLocaleString("it-IT")}</p>
+                  <p>SL: {log.stop_loss || "—"} · TP: {log.take_profit || "—"}</p>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {accounts.length === 0 ? (
-        <p className="text-muted-foreground text-center p-8">Nessun conto collegato</p>
-      ) : accounts.map(a => (
-        <div key={a.id} className="card-premium p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium text-foreground">{a.account_name}</p>
-                <Badge className={statusColor(a.connection_status)}>{a.connection_status}</Badge>
-                <Badge variant="outline" className="text-[10px]">{a.platform}</Badge>
-                <Badge variant="outline" className="text-[10px] text-muted-foreground">{a.provider_type || "mock"}</Badge>
-                {a.sync_status === "error" && <Badge className="bg-destructive/10 text-destructive text-[10px]">Sync error</Badge>}
+      {/* Accounts view */}
+      {!showExecLogs && (
+        <>
+          {/* Recent sync logs */}
+          {syncLogs.length > 0 && (
+            <div className="card-premium p-4">
+              <h4 className="text-sm font-semibold text-foreground mb-2">Ultimi sync</h4>
+              <div className="space-y-1">
+                {syncLogs.slice(0, 5).map(log => (
+                  <div key={log.id} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn("text-[10px]",
+                        log.status === "completed" ? "bg-success/10 text-success" :
+                        log.status === "running" ? "bg-info/10 text-info" :
+                        "bg-destructive/10 text-destructive"
+                      )}>{log.status}</Badge>
+                      <span className="text-muted-foreground">{log.sync_type}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      {new Date(log.started_at).toLocaleString("it-IT")}
+                      {log.trades_synced > 0 && <span className="text-success ml-1">+{log.trades_synced}</span>}
+                      {log.error_message && <span className="text-destructive ml-1">⚠</span>}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {profiles[a.user_id] || a.user_id.slice(0, 8)} · {a.broker || "—"} · {a.account_number || "—"}
-              </p>
-              {a.last_sync_error && <p className="text-[10px] text-destructive mt-0.5">⚠ {a.last_sync_error}</p>}
             </div>
-            <div className="text-right text-xs text-muted-foreground">
-              <p>Balance: ${Number(a.balance).toLocaleString()}</p>
-              {a.last_sync_at && <p>Ultimo sync: {new Date(a.last_sync_at).toLocaleString("it-IT")}</p>}
-              {a.last_successful_sync_at && <p className="text-success">OK: {new Date(a.last_successful_sync_at).toLocaleDateString("it-IT")}</p>}
-              {journalCount[a.id] && <p>{journalCount[a.id]} journal</p>}
+          )}
+
+          {accounts.length === 0 ? (
+            <p className="text-muted-foreground text-center p-8">Nessun conto collegato</p>
+          ) : accounts.map(a => (
+            <div key={a.id} className="card-premium p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{a.account_name}</p>
+                    <Badge className={statusColor(a.connection_status)}>{a.connection_status}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{a.platform}</Badge>
+                    <Badge variant="outline" className="text-[10px] text-muted-foreground">{a.provider_type || "mock"}</Badge>
+                    {a.sync_status === "error" && <Badge className="bg-destructive/10 text-destructive text-[10px]">Sync error</Badge>}
+                    {(a as any).credential_mode === "master" && (
+                      <Badge className="bg-primary/10 text-primary text-[10px]">Master</Badge>
+                    )}
+                    {(a as any).trading_execution_enabled && (
+                      <Badge className="bg-success/10 text-success text-[10px]">Trading ON</Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {profiles[a.user_id] || a.user_id.slice(0, 8)} · {a.broker || "—"} · {a.account_number || "—"}
+                  </p>
+                  {a.last_sync_error && <p className="text-[10px] text-destructive mt-0.5">⚠ {a.last_sync_error}</p>}
+                </div>
+                <div className="text-right text-xs text-muted-foreground">
+                  <p>Balance: ${Number(a.balance).toLocaleString()}</p>
+                  {a.last_sync_at && <p>Ultimo sync: {new Date(a.last_sync_at).toLocaleString("it-IT")}</p>}
+                  {a.last_successful_sync_at && <p className="text-success">OK: {new Date(a.last_successful_sync_at).toLocaleDateString("it-IT")}</p>}
+                  {journalCount[a.id] && <p>{journalCount[a.id]} journal</p>}
+                </div>
+              </div>
+              {/* Trading controls */}
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border">
+                <Select value={(a as any).credential_mode || "investor"} onValueChange={(v) => setCredentialMode(a.id, v)}>
+                  <SelectTrigger className="w-[130px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="investor">Investor</SelectItem>
+                    <SelectItem value="master">Master</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={cn("h-7 text-xs", (a as any).trading_execution_enabled ? "text-success border-success/30" : "text-muted-foreground")}
+                  onClick={() => toggleTradingEnabled(a.id, (a as any).trading_execution_enabled)}
+                >
+                  {(a as any).trading_execution_enabled ? "✅ Trading abilitato" : "Trading disabilitato"}
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      ))}
+          ))}
+        </>
+      )}
     </div>
   );
 }
