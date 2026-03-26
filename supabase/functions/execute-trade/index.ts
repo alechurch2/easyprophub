@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
 
     // Update execution log with result
     const finalStatus = result.ok ? "success" : "failed";
-    const errorMsg = result.ok ? null : (result.body?.message || result.rawBody?.substring(0, 500) || "Errore provider");
+    const errorMsg = result.ok ? null : (result.body?.stringCode ? `${result.body.stringCode}: ${result.body.message}` : result.body?.message || result.rawBody?.substring(0, 500) || "Errore provider");
 
     await supabase
       .from("order_execution_logs")
