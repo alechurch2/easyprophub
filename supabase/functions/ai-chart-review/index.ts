@@ -475,6 +475,9 @@ serve(async (req) => {
     if (isEasy && account_size) {
       insertData.account_size = account_size;
     }
+    if (isEasy && risk_percent && risk_percent > 0 && risk_percent <= 0.01) {
+      insertData.risk_percent = risk_percent;
+    }
 
     const { data: review, error: insertError } = await supabase
       .from("ai_chart_reviews")
