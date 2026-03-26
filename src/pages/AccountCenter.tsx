@@ -999,10 +999,74 @@ export default function AccountCenter() {
     setLoading(false);
   }, [user]);
 
-  // Initial load
-  useEffect(() => { loadData(); }, [loadData]);
+  // Initial load + populate snapshots
+  useEffect(() => {
+    loadData().then(() => {
+      // Populate initial snapshots after first load
+      setAccounts(prev => {
+        prev.forEach(a => {
+          prevAccountSnapshotsRef.current.set(a.id, {
+            positions: a.open_positions_count,
+            balance: a.balance,
+          });
+        });
+        return prev;
+      });
+    });
+  }, [loadData]);
 
-  // ---- Supabase Realtime subscriptions ----
+  // ---- Fast Refresh: trigger immediate sync when position closure detected ----
+  const triggerFastRefresh = useCallback(async (accountId: string, reason: string) => {
+    if (!user || isSyncingRef.current) {
+      console.log(`[FastRefresh] Skipped (syncing in progress), reason: ${reason}`);
+      return;
+    }
+    console.log(`[FastRefresh] ⚡ Triggered for account ${accountId}, reason: ${reason}`);
+    isSyncingRef.current = true;
+    setLiveMode('syncing');
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/account-sync`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: JSON.stringify({ action: "sync", account_id: accountId }),
+        }
+      );
+      const rawText = await res.text();
+      const result = rawText ? JSON.parse(rawText) : {};
+      if (result.success) {
+        console.log(`[FastRefresh] ✅ Completed: ${result.trades_synced} new trades synced`);
+      } else {
+        console.warn(`[FastRefresh] ⚠️ Error: ${result.error || 'Unknown'}`);
+      }
+    } catch (err) {
+      console.warn('[FastRefresh] Fetch error', err);
+    } finally {
+      isSyncingRef.current = false;
+      setLiveMode('live');
+      setLastRealtimeUpdate(new Date().toISOString());
+    }
+  }, [user]);
+
+  // Debounced fast refresh scheduler
+  const scheduleFastRefresh = useCallback((accountId: string, reason: string) => {
+    if (fastRefreshTimerRef.current) {
+      clearTimeout(fastRefreshTimerRef.current);
+    }
+    fastRefreshTimerRef.current = setTimeout(() => {
+      triggerFastRefresh(accountId, reason);
+      fastRefreshTimerRef.current = null;
+    }, FAST_REFRESH_DEBOUNCE);
+  }, [triggerFastRefresh]);
+
+  // ---- Supabase Realtime subscriptions with fast refresh detection ----
   useEffect(() => {
     if (!user) return;
 
@@ -1015,10 +1079,41 @@ export default function AccountCenter() {
           console.log('[Realtime] trading_accounts change:', payload.eventType);
           setLastRealtimeUpdate(new Date().toISOString());
           if (payload.eventType === 'UPDATE' && payload.new) {
-            setAccounts(prev => prev.map(a => a.id === (payload.new as any).id ? { ...a, ...payload.new } as TradingAccount : a));
+            const updated = payload.new as any;
+            const accountId = updated.id;
+
+            // Detect position closure: compare with previous snapshot
+            const prev = prevAccountSnapshotsRef.current.get(accountId);
+            if (prev) {
+              const newPositions = updated.open_positions_count ?? 0;
+              const newBalance = updated.balance ?? 0;
+              const positionsDecreased = newPositions < prev.positions;
+              const balanceChanged = Math.abs(newBalance - prev.balance) > 0.01 && newPositions < prev.positions;
+
+              if (positionsDecreased) {
+                const reason = `positions decreased ${prev.positions} → ${newPositions}` +
+                  (balanceChanged ? `, balance changed ${prev.balance} → ${newBalance}` : '');
+                console.log(`[FastRefresh] 🔍 Position closure detected: ${reason}`);
+                scheduleFastRefresh(accountId, reason);
+              }
+            }
+
+            // Update snapshot
+            prevAccountSnapshotsRef.current.set(accountId, {
+              positions: updated.open_positions_count ?? 0,
+              balance: updated.balance ?? 0,
+            });
+
+            setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, ...updated } as TradingAccount : a));
           } else if (payload.eventType === 'INSERT' && payload.new) {
+            const ins = payload.new as any;
+            prevAccountSnapshotsRef.current.set(ins.id, {
+              positions: ins.open_positions_count ?? 0,
+              balance: ins.balance ?? 0,
+            });
             setAccounts(prev => [payload.new as TradingAccount, ...prev]);
           } else if (payload.eventType === 'DELETE' && payload.old) {
+            prevAccountSnapshotsRef.current.delete((payload.old as any).id);
             setAccounts(prev => prev.filter(a => a.id !== (payload.old as any).id));
           }
         }
@@ -1053,14 +1148,14 @@ export default function AccountCenter() {
 
     return () => {
       supabase.removeChannel(channel);
+      if (fastRefreshTimerRef.current) clearTimeout(fastRefreshTimerRef.current);
     };
-  }, [user]);
+  }, [user, scheduleFastRefresh]);
 
-  // ---- Auto-sync every 30s ----
+  // ---- Auto-sync every 30s (general sync) ----
   const runAutoSync = useCallback(async () => {
     if (!user || isSyncingRef.current || accounts.length === 0) return;
 
-    // Only sync connected accounts with a provider
     const syncableAccounts = accounts.filter(
       a => a.provider_account_id && a.connection_status === 'connected'
     );
@@ -1068,13 +1163,19 @@ export default function AccountCenter() {
 
     isSyncingRef.current = true;
     setLiveMode('syncing');
+    console.log('[AutoSync] Starting general sync cycle...');
 
     try {
       const { data: session } = await supabase.auth.getSession();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
-      // Sync all connected accounts sequentially to avoid overloading
       for (const acc of syncableAccounts) {
+        // Save pre-sync snapshot for fast refresh detection
+        prevAccountSnapshotsRef.current.set(acc.id, {
+          positions: acc.open_positions_count,
+          balance: acc.balance,
+        });
+
         try {
           const res = await fetch(
             `https://${projectId}.supabase.co/functions/v1/account-sync`,
