@@ -1646,7 +1646,33 @@ export default function AccountCenter() {
         {/* Connect Form */}
         {showConnect && (
           <div className="mb-6">
-            <ConnectAccountForm onClose={() => setShowConnect(false)} onSaved={() => { setShowConnect(false); loadData(); }} />
+            <ConnectAccountForm onClose={() => setShowConnect(false)} onSaved={() => { setShowConnect(false); refreshLimit(); loadData(); }} />
+          </div>
+        )}
+
+        {/* Extra Account Request Form */}
+        {showExtraRequest && (
+          <div className="mb-6">
+            <RequestExtraAccountForm onClose={() => setShowExtraRequest(false)} onSaved={() => { setShowExtraRequest(false); }} />
+          </div>
+        )}
+
+        {/* New Broker Request Form */}
+        {showBrokerRequest && (
+          <div className="mb-6">
+            <RequestNewBrokerForm onClose={() => setShowBrokerRequest(false)} onSaved={() => { setShowBrokerRequest(false); }} />
+          </div>
+        )}
+
+        {/* Account limit info */}
+        {limitInfo && !limitInfo.can_connect && accounts.length > 0 && !showExtraRequest && (
+          <div className="card-premium p-3 mb-4 border-amber-500/20 bg-amber-500/5">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-muted-foreground">
+                <p><strong>Limite raggiunto.</strong> Hai già {limitInfo.current_count}/{limitInfo.max_allowed} conto/i collegato/i. Per collegare un conto aggiuntivo, invia una richiesta all'admin.</p>
+              </div>
+            </div>
           </div>
         )}
 
