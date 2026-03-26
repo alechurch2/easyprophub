@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Link2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
