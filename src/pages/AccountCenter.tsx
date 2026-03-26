@@ -994,11 +994,18 @@ export default function AccountCenter() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [liveMode, setLiveMode] = useState<"live" | "syncing" | "fallback" | "offline">("offline");
   const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const autoSyncRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSyncingRef = useRef(false);
-  // Fast refresh: track previous account snapshots to detect position closures
   const prevAccountSnapshotsRef = useRef<Map<string, { positions: number; balance: number }>>(new Map());
   const fastRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Smart sync: track page visibility & user activity
+  const isPageVisibleRef = useRef(true);
+  const isUserActiveRef = useRef(true);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track sync stats per account (for admin monitoring)
+  const syncCountsRef = useRef<Map<string, number>>(new Map());
 
   const loadData = useCallback(async () => {
     if (!user) return;
