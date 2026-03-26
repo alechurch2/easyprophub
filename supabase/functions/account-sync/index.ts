@@ -381,6 +381,128 @@ function shouldUpdateClosedTradeRecord(existing: any, incoming: any) {
   return getChangedFields(existing, incoming).length > 0;
 }
 
+// ========== RECONCILIATION: WIDER HISTORY SEARCH ==========
+async function reconcilePendingClosures(
+  metaAccountId: string,
+  pendingClosures: PendingClosure[],
+  supabase: any,
+  accountId: string,
+  userId: string,
+): Promise<{ resolved: PendingClosure[]; stillPending: PendingClosure[]; newClosedTrades: ProviderAccountData["closedTrades"] }> {
+  if (pendingClosures.length === 0) {
+    return { resolved: [], stillPending: [], newClosedTrades: [] };
+  }
+
+  console.log(`[Reconciliation] Processing ${pendingClosures.length} pending closures`);
+
+  // Fetch wider history window (48h back)
+  const now = new Date();
+  const wideStart = new Date(now.getTime() - RECONCILIATION_LOOKBACK_HOURS * MS_IN_HOUR);
+  console.log(`[Reconciliation] Wide history search: start=${wideStart.toISOString()} end=${now.toISOString()} (${RECONCILIATION_LOOKBACK_HOURS}h window)`);
+
+  let wideDeals: any[] = [];
+  try {
+    const wideResponse = await metaapiClientRequest(
+      metaAccountId,
+      `/history-deals/time/${wideStart.toISOString()}/${now.toISOString()}`
+    );
+    if (Array.isArray(wideResponse)) {
+      wideDeals = wideResponse;
+    } else if (wideResponse && Array.isArray(wideResponse.deals)) {
+      wideDeals = wideResponse.deals;
+    }
+    console.log(`[Reconciliation] Wide history returned ${wideDeals.length} raw deals`);
+  } catch (err) {
+    console.error(`[Reconciliation] Wide history fetch failed: ${getErrorMessage(err)}`);
+    // Return all as still pending
+    return {
+      resolved: [],
+      stillPending: pendingClosures.map(pc => ({ ...pc, retries: pc.retries + 1 })),
+      newClosedTrades: [],
+    };
+  }
+
+  // Build positionId -> deals map from wide history
+  const dealsByPosition: Record<string, any[]> = {};
+  for (const deal of wideDeals) {
+    if (deal.type === "DEAL_TYPE_BALANCE" || deal.type === "DEAL_TYPE_CREDIT" ||
+        deal.type === "DEAL_TYPE_BONUS" || deal.type === "DEAL_TYPE_CORRECTION") {
+      continue;
+    }
+    const posId = deal.positionId || deal.id;
+    if (!dealsByPosition[posId]) dealsByPosition[posId] = [];
+    dealsByPosition[posId].push(deal);
+  }
+
+  const resolved: PendingClosure[] = [];
+  const stillPending: PendingClosure[] = [];
+  const newClosedTrades: ProviderAccountData["closedTrades"] = [];
+
+  for (const pending of pendingClosures) {
+    const positionId = pending.position_id_hint || extractPositionIdFromExternalTradeId(pending.external_trade_id);
+    console.log(`[Reconciliation] Searching close deal for ${pending.external_trade_id} positionId=${positionId ?? "unknown"} asset=${pending.asset} retries=${pending.retries}`);
+
+    if (!positionId || !dealsByPosition[positionId]) {
+      // Not found - check retry limit
+      if (pending.retries >= RECONCILIATION_MAX_RETRIES) {
+        console.warn(`[Reconciliation] GIVING UP on ${pending.external_trade_id} after ${pending.retries} retries`);
+        resolved.push(pending); // remove from queue
+      } else {
+        console.log(`[Reconciliation] NOT FOUND yet: ${pending.external_trade_id} (retry ${pending.retries + 1}/${RECONCILIATION_MAX_RETRIES})`);
+        stillPending.push({ ...pending, retries: pending.retries + 1 });
+      }
+      continue;
+    }
+
+    // Found deals for this positionId - try to build closed trade
+    const posDeals = dealsByPosition[positionId];
+    const sortedDeals = [...posDeals].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+    const entryDeals = sortedDeals.filter((d) => normalizeEntryType(d) === "DEAL_ENTRY_IN");
+    const exitDeals = sortedDeals.filter((d) => normalizeEntryType(d) === "DEAL_ENTRY_OUT");
+
+    if (exitDeals.length > 0) {
+      // Found the close deal!
+      const entry = entryDeals.length > 0 ? entryDeals[0] : null;
+      const exit = exitDeals[exitDeals.length - 1];
+      const openTime = entry ? new Date(entry.time) : new Date(pending.opened_at);
+      const closeTime = new Date(exit.time);
+      const durationMins = Math.round((closeTime.getTime() - openTime.getTime()) / 60000);
+      const pnl = exitDeals.reduce((sum: number, d: any) => sum + (d.profit || 0) + (d.swap || 0) + (d.commission || 0), 0);
+
+      const closedTrade = {
+        external_trade_id: `metaapi-deal-${positionId}`,
+        asset: exit.symbol || pending.asset,
+        direction: entry ? (entry.type === "DEAL_TYPE_BUY" ? "buy" : "sell") : pending.direction,
+        lot_size: entry?.volume || exit.volume || pending.lot_size,
+        entry_price: entry?.price || pending.entry_price,
+        exit_price: exit.price || 0,
+        stop_loss: null,
+        take_profit: null,
+        profit_loss: roundTo2(pnl),
+        opened_at: openTime.toISOString(),
+        closed_at: closeTime.toISOString(),
+        duration_minutes: Math.max(durationMins, 0),
+      };
+
+      console.log(`[Reconciliation] ✅ FOUND close deal for ${pending.external_trade_id} -> profit=${closedTrade.profit_loss} closed_at=${closedTrade.closed_at}`);
+      newClosedTrades.push(closedTrade);
+      resolved.push(pending);
+    } else {
+      // Has entry deals but no exit yet
+      if (pending.retries >= RECONCILIATION_MAX_RETRIES) {
+        console.warn(`[Reconciliation] GIVING UP on ${pending.external_trade_id} after ${pending.retries} retries (entry found but no exit)`);
+        resolved.push(pending);
+      } else {
+        console.log(`[Reconciliation] Entry found but no exit yet for ${pending.external_trade_id} (retry ${pending.retries + 1}/${RECONCILIATION_MAX_RETRIES})`);
+        stillPending.push({ ...pending, retries: pending.retries + 1 });
+      }
+    }
+  }
+
+  console.log(`[Reconciliation] Summary: resolved=${resolved.length} stillPending=${stillPending.length} newClosedTrades=${newClosedTrades.length}`);
+  return { resolved, stillPending, newClosedTrades };
+}
+
 function collectMetaApiClientBaseCandidates(accountMeta: any) {
   const candidates: MetaApiClientBaseCandidate[] = [];
   const checkedFields: string[] = [];
