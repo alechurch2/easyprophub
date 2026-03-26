@@ -150,7 +150,8 @@ export function fullLotCalculationFromPrices(
   entryPrice: number,
   slPrice: number,
   tpPrice: number,
-  asset: string
+  asset: string,
+  riskPercent = RISK_PERCENT
 ): LotCalculationResult | null {
   const config = getAssetConfig(asset);
   if (!config || accountSize <= 0 || entryPrice <= 0) return null;
@@ -163,5 +164,13 @@ export function fullLotCalculationFromPrices(
 
   if (slPips <= 0) return null;
 
-  return fullLotCalculation(accountSize, slPips, tpPips, asset);
+  return fullLotCalculation(accountSize, slPips, tpPips, asset, riskPercent);
 }
+
+/** Available risk presets for Easy Mode (max 1%) */
+export const RISK_PRESETS = [
+  { label: "0.25%", value: 0.0025 },
+  { label: "0.50%", value: 0.005 },
+  { label: "0.75%", value: 0.0075 },
+  { label: "1.00%", value: 0.01 },
+];
