@@ -90,6 +90,10 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
     setSubmitting(false);
   };
 
+  if (submitting) {
+    return <ReviewLoadingState mode="pro" />;
+  }
+
   return (
     <div className="card-premium p-6 mb-8 animate-fade-in">
       <h2 className="font-heading font-semibold text-foreground mb-4">

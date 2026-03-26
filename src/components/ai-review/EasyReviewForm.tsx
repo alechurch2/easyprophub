@@ -134,6 +134,10 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
     setSubmitting(false);
   };
 
+  if (submitting) {
+    return <ReviewLoadingState mode="easy" />;
+  }
+
   return (
     <div className="card-premium p-6 mb-8 animate-fade-in">
       <h2 className="font-heading font-semibold text-foreground mb-1">Easy Mode — Analisi semplificata</h2>
