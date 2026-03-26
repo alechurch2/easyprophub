@@ -179,13 +179,15 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
     setTradeModalOpen(true);
   };
 
+  const effectiveRisk = riskPercent && riskPercent > 0 ? riskPercent : 0.002;
+
   // Lot calc helper
   const calcLot = (signal: PrimarySignal | PendingSetup) => {
     const entryPrice = parsePrice(signal.entry_range);
     const slPrice = parsePrice(signal.stop_loss);
     const tpPrice = parsePrice(signal.take_profit);
     if (!accountSize || !asset || entryPrice <= 0 || slPrice <= 0 || tpPrice <= 0) return null;
-    return fullLotCalculationFromPrices(accountSize, entryPrice, slPrice, tpPrice, asset);
+    return fullLotCalculationFromPrices(accountSize, entryPrice, slPrice, tpPrice, asset, effectiveRisk);
   };
 
   const primaryLotCalc = primarySignal ? calcLot(primarySignal) : null;

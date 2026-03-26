@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Link2 } from "lucide-react";
+import { Loader2, Link2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES } from "./types";
-import { ACCOUNT_PRESETS } from "./lotSizeCalculator";
+import { ACCOUNT_PRESETS, RISK_PRESETS } from "./lotSizeCalculator";
 
 interface Props {
   onClose: () => void;
@@ -27,6 +28,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
   const [userNote, setUserNote] = useState("");
   const [accountPreset, setAccountPreset] = useState("100000");
   const [customAccount, setCustomAccount] = useState("");
+  const [riskPercent, setRiskPercent] = useState("0.005"); // default 0.50%
   const [submitting, setSubmitting] = useState(false);
 
   // Connected account state
@@ -64,6 +66,9 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
     : isCustom
       ? parseInt(customAccount) || 0
       : parseInt(accountPreset);
+
+  const selectedRisk = parseFloat(riskPercent);
+  const riskMonetary = accountSize > 0 ? (accountSize * selectedRisk).toFixed(2) : null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +109,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
             review_mode: "easy",
             account_size: accountSize,
             review_tier: reviewTier,
+            risk_percent: selectedRisk,
           }),
         }
       );
@@ -185,6 +191,45 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
               <p className="text-xs text-muted-foreground">Equity corrente del conto collegato:</p>
               <p className="text-sm font-semibold text-foreground">
                 {connectedAccountName} — ${connectedEquity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ═══ RISK PERCENT SELECTOR ═══ */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <Label className="text-foreground">Rischio per operazione</Label>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            Seleziona quanto del conto vuoi rischiare su questa operazione (max 1%).
+          </p>
+          <ToggleGroup
+            type="single"
+            value={riskPercent}
+            onValueChange={(v) => v && setRiskPercent(v)}
+            className="justify-start"
+          >
+            {RISK_PRESETS.map((p) => (
+              <ToggleGroupItem
+                key={p.value}
+                value={String(p.value)}
+                className={cn(
+                  "text-xs px-5 py-2 font-semibold",
+                  riskPercent === String(p.value) && "ring-1 ring-primary"
+                )}
+              >
+                {p.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          {riskMonetary && accountSize > 0 && (
+            <div className="mt-2 rounded-lg border border-border bg-secondary/40 px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                Rischio: <span className="font-semibold text-foreground">{(selectedRisk * 100).toFixed(2).replace(/\.?0+$/, '')}%</span> di{" "}
+                <span className="font-semibold text-foreground">${accountSize.toLocaleString()}</span>{" "}
+                = <span className="font-semibold text-destructive">${parseFloat(riskMonetary).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </p>
             </div>
           )}
