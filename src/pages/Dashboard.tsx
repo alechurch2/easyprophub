@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
+import { trackEvent } from "@/lib/analytics";
 
 interface Announcement {
   id: string;
