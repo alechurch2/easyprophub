@@ -1036,6 +1036,16 @@ export default function AccountCenter() {
     });
   }, [loadData]);
 
+  // Auto-select account if only one exists
+  useEffect(() => {
+    const syncable = accounts.filter(a => a.provider_account_id && a.connection_status === 'connected');
+    if (syncable.length === 1) {
+      setSelectedAccountId(syncable[0].id);
+    } else if (syncable.length === 0) {
+      setSelectedAccountId(null);
+    }
+  }, [accounts]);
+
   // ---- Fast Refresh: trigger immediate sync when position closure detected ----
   const triggerFastRefresh = useCallback(async (accountId: string, reason: string) => {
     if (!user || isSyncingRef.current) {
