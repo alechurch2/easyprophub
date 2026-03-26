@@ -207,14 +207,14 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
 
       {/* Setup cards */}
       {hasSetups && data.setups.map((setup, i) => {
-        const lotCalc = (accountSize && asset && setup.sl_pips && setup.tp_pips)
-          ? fullLotCalculation(accountSize, setup.sl_pips, setup.tp_pips, asset)
-          : null;
-
         const entryPrice = parsePrice(setup.entry_range);
         const slPrice = parsePrice(setup.stop_loss);
         const tpPrice = parsePrice(setup.take_profit);
         const setupHasValidPrices = entryPrice > 0 && slPrice > 0 && tpPrice > 0;
+
+        const lotCalc = (accountSize && asset && setupHasValidPrices)
+          ? fullLotCalculationFromPrices(accountSize, entryPrice, slPrice, tpPrice, asset)
+          : null;
 
         return (
           <div key={i} className={cn("rounded-xl border p-5 space-y-3", directionColor(setup.tipo))}>
