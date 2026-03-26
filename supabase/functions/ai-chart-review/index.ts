@@ -236,6 +236,7 @@ const ANALYSIS_TOOL_EASY = {
       properties: {
         leggibilita_immagine: { type: "string", description: "Qualità dell'immagine. Es: 'Chiara', 'Parziale', 'Non leggibile'." },
         signal_quality: { type: "string", enum: ["alta", "media", "bassa"], description: "Qualità complessiva del segnale." },
+        setup_strength: { type: "integer", description: "Forza del setup da 1 a 5. 1=debole/prudenza alta, 2=moderato, 3=discreto, 4=buono, 5=forte/immediato." },
         setups: {
           type: "array",
           description: "Array di 0-2 setup operativi. Vuoto se nessun setup valido.",
