@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Zap, Timer, Send, Eye, Shield, ChevronDown, ChevronUp } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Zap, Timer, Send, Eye, Shield, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -105,7 +105,7 @@ function parsePrice(value: string): number {
 
 // ── Component ──
 
-export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: { analysis: any; accountSize?: number; asset?: string; reviewId?: string }) {
+export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, riskPercent }: { analysis: any; accountSize?: number; asset?: string; reviewId?: string; riskPercent?: number }) {
   const { user } = useAuth();
   const [tradingAccount, setTradingAccount] = useState<TradingAccount | null>(null);
   const [accountChecked, setAccountChecked] = useState(false);
@@ -179,13 +179,15 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
     setTradeModalOpen(true);
   };
 
+  const effectiveRisk = riskPercent && riskPercent > 0 ? riskPercent : 0.002;
+
   // Lot calc helper
   const calcLot = (signal: PrimarySignal | PendingSetup) => {
     const entryPrice = parsePrice(signal.entry_range);
     const slPrice = parsePrice(signal.stop_loss);
     const tpPrice = parsePrice(signal.take_profit);
     if (!accountSize || !asset || entryPrice <= 0 || slPrice <= 0 || tpPrice <= 0) return null;
-    return fullLotCalculationFromPrices(accountSize, entryPrice, slPrice, tpPrice, asset);
+    return fullLotCalculationFromPrices(accountSize, entryPrice, slPrice, tpPrice, asset, effectiveRisk);
   };
 
   const primaryLotCalc = primarySignal ? calcLot(primarySignal) : null;
@@ -211,6 +213,12 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
         <Badge variant="outline" className="text-xs px-2 py-0.5">
           {raw.leggibilita_immagine}
         </Badge>
+        {effectiveRisk && (
+          <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-primary/30 text-primary">
+            <ShieldCheck className="h-3 w-3 mr-1" />
+            Rischio: {(effectiveRisk * 100).toFixed(2).replace(/\.?0+$/, '')}%
+          </Badge>
+        )}
       </div>
 
       {/* Signal copyability banner */}

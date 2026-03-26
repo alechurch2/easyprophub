@@ -198,6 +198,7 @@ export type Database = {
           request_type: string
           review_mode: string
           review_tier: string
+          risk_percent: number | null
           screenshot_url: string | null
           status: Database["public"]["Enums"]["review_status"]
           timeframe: string
@@ -222,6 +223,7 @@ export type Database = {
           request_type: string
           review_mode?: string
           review_tier?: string
+          risk_percent?: number | null
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["review_status"]
           timeframe: string
@@ -246,6 +248,7 @@ export type Database = {
           request_type?: string
           review_mode?: string
           review_tier?: string
+          risk_percent?: number | null
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["review_status"]
           timeframe?: string

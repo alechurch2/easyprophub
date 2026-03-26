@@ -413,7 +413,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { asset, timeframe, request_type, screenshot_url, user_note, parent_review_id, review_mode, account_size, review_tier } = body;
+    const { asset, timeframe, request_type, screenshot_url, user_note, parent_review_id, review_mode, account_size, review_tier, risk_percent } = body;
 
     if (!asset || !timeframe || !request_type) {
       return new Response(
@@ -474,6 +474,9 @@ serve(async (req) => {
     };
     if (isEasy && account_size) {
       insertData.account_size = account_size;
+    }
+    if (isEasy && risk_percent && risk_percent > 0 && risk_percent <= 0.01) {
+      insertData.risk_percent = risk_percent;
     }
 
     const { data: review, error: insertError } = await supabase

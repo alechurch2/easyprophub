@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_chart_reviews ADD COLUMN IF NOT EXISTS risk_percent numeric DEFAULT 0.002;

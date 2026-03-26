@@ -121,20 +121,22 @@ export function fullLotCalculation(
   accountSize: number,
   slPips: number,
   tpPips: number,
-  asset: string
+  asset: string,
+  riskPercent = RISK_PERCENT
 ): LotCalculationResult | null {
   const config = getAssetConfig(asset);
   if (!config || slPips <= 0 || accountSize <= 0) return null;
 
-  const riskAmount = calculateRiskAmount(accountSize);
+  const riskAmount = calculateRiskAmount(accountSize, riskPercent);
   const targetAmount = calculateTargetAmount(accountSize);
-  const lotSize = calculateLotSize(accountSize, slPips, asset);
+  const lotSize = calculateLotSize(accountSize, slPips, asset, riskPercent);
   if (!lotSize) return null;
 
   const theoreticalProfit = calculateTheoreticalProfit(lotSize, tpPips, asset);
   const rrRatio = calculateRR(slPips, tpPips);
 
-  const formula = `Rischio ${(RISK_PERCENT * 100).toFixed(1)}% di ${accountSize.toLocaleString()}$ = ${riskAmount.toFixed(2)}$ | SL ${slPips} pip × ${config.pipValuePerLot}$/pip/lot → Lotto: ${lotSize}`;
+  const riskPctDisplay = (riskPercent * 100).toFixed(2).replace(/\.?0+$/, '');
+  const formula = `Rischio ${riskPctDisplay}% di ${accountSize.toLocaleString()}$ = ${riskAmount.toFixed(2)}$ | SL ${slPips} pip × ${config.pipValuePerLot}$/pip/lot → Lotto: ${lotSize}`;
 
   return { lotSize, riskAmount, targetAmount, theoreticalProfit, rrRatio, slPips, tpPips, formula };
 }
@@ -148,7 +150,8 @@ export function fullLotCalculationFromPrices(
   entryPrice: number,
   slPrice: number,
   tpPrice: number,
-  asset: string
+  asset: string,
+  riskPercent = RISK_PERCENT
 ): LotCalculationResult | null {
   const config = getAssetConfig(asset);
   if (!config || accountSize <= 0 || entryPrice <= 0) return null;
@@ -161,5 +164,13 @@ export function fullLotCalculationFromPrices(
 
   if (slPips <= 0) return null;
 
-  return fullLotCalculation(accountSize, slPips, tpPips, asset);
+  return fullLotCalculation(accountSize, slPips, tpPips, asset, riskPercent);
 }
+
+/** Available risk presets for Easy Mode (max 1%) */
+export const RISK_PRESETS = [
+  { label: "0.25%", value: 0.0025 },
+  { label: "0.50%", value: 0.005 },
+  { label: "0.75%", value: 0.0075 },
+  { label: "1.00%", value: 0.01 },
+];
