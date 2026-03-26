@@ -1417,6 +1417,9 @@ export default function AccountCenter() {
           </div>
         </div>
 
+        {/* Sync Delay Info Banner */}
+        <SyncDelayBanner />
+
         {/* Connect Form */}
         {showConnect && (
           <div className="mb-6">
