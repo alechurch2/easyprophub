@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES } from "./types";
 import { ACCOUNT_PRESETS, RISK_PRESETS } from "./lotSizeCalculator";
+import { ReviewLoadingState } from "./ReviewLoadingState";
 
 interface Props {
   onClose: () => void;
@@ -132,6 +133,10 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
     }
     setSubmitting(false);
   };
+
+  if (submitting) {
+    return <ReviewLoadingState mode="easy" />;
+  }
 
   return (
     <div className="card-premium p-6 mb-8 animate-fade-in">

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES, REQUEST_TYPES } from "./types";
+import { ReviewLoadingState } from "./ReviewLoadingState";
 
 interface Props {
   onClose: () => void;
@@ -88,6 +89,10 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
     }
     setSubmitting(false);
   };
+
+  if (submitting) {
+    return <ReviewLoadingState mode="pro" />;
+  }
 
   return (
     <div className="card-premium p-6 mb-8 animate-fade-in">
