@@ -213,6 +213,12 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
         <Badge variant="outline" className="text-xs px-2 py-0.5">
           {raw.leggibilita_immagine}
         </Badge>
+        {effectiveRisk && (
+          <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-primary/30 text-primary">
+            <ShieldCheck className="h-3 w-3 mr-1" />
+            Rischio: {(effectiveRisk * 100).toFixed(2).replace(/\.?0+$/, '')}%
+          </Badge>
+        )}
       </div>
 
       {/* Signal copyability banner */}
