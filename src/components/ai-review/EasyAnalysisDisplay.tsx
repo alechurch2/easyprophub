@@ -1,16 +1,28 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Minus, Eye, Search, Shield, Send, Zap, Timer } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Zap, Timer, Send, Eye, Shield, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { fullLotCalculationFromPrices, RISK_PERCENT, TARGET_PERCENT } from "./lotSizeCalculator";
+import { fullLotCalculationFromPrices } from "./lotSizeCalculator";
 import { TradeExecutionModal } from "./TradeExecutionModal";
 
-interface EasySetup {
+// ── Types ──
+
+interface PrimarySignal {
   tipo: string;
-  execution_type?: string;
+  entry_range: string;
+  stop_loss: string;
+  take_profit: string;
+  sl_pips?: number;
+  tp_pips?: number;
+  spiegazione: string;
+}
+
+interface PendingSetup {
+  tipo: string;
+  pending_strength?: number;
   entry_range: string;
   stop_loss: string;
   take_profit: string;
@@ -22,13 +34,17 @@ interface EasySetup {
 interface EasyAnalysis {
   leggibilita_immagine: string;
   signal_quality: string;
-  setup_strength?: number;
-  setups: EasySetup[];
+  setup_strength: number;
+  primary_signal: PrimarySignal;
+  pending_setups?: PendingSetup[];
+  // Legacy compat
+  setups?: any[];
+  expected_duration: string;
   warning?: string;
   conclusione: string;
-  expected_duration: string;
-  no_setup_reason?: string;
   contesto_mercato?: string;
+  // Legacy no-setup fields
+  no_setup_reason?: string;
   cosa_aspettare?: string;
   livello_prudenza?: string;
 }
@@ -46,6 +62,17 @@ interface TradingAccount {
 
 // ── Helpers ──
 
+function strengthLabel(n: number): { label: string; color: string; emoji: string } {
+  switch (n) {
+    case 1: return { label: "Molto debole", color: "bg-destructive/10 text-destructive border-destructive/20", emoji: "🔴" };
+    case 2: return { label: "Debole", color: "bg-destructive/10 text-destructive border-destructive/20", emoji: "🟠" };
+    case 3: return { label: "Discreto", color: "bg-warning/10 text-warning border-warning/20", emoji: "🟡" };
+    case 4: return { label: "Buono", color: "bg-success/10 text-success border-success/20", emoji: "🟢" };
+    case 5: return { label: "Forte", color: "bg-success/10 text-success border-success/20", emoji: "💚" };
+    default: return { label: "N/A", color: "bg-muted text-muted-foreground", emoji: "⚪" };
+  }
+}
+
 function qualityColor(q: string) {
   switch (q?.toLowerCase()) {
     case "alta": return "bg-success/10 text-success border-success/20";
@@ -55,34 +82,14 @@ function qualityColor(q: string) {
   }
 }
 
-function strengthLabel(n: number): { label: string; color: string; emoji: string } {
-  switch (n) {
-    case 1: return { label: "Debole", color: "bg-destructive/10 text-destructive border-destructive/20", emoji: "🔴" };
-    case 2: return { label: "Moderato", color: "bg-warning/10 text-warning border-warning/20", emoji: "🟠" };
-    case 3: return { label: "Discreto", color: "bg-warning/10 text-warning border-warning/20", emoji: "🟡" };
-    case 4: return { label: "Buono", color: "bg-success/10 text-success border-success/20", emoji: "🟢" };
-    case 5: return { label: "Forte", color: "bg-success/10 text-success border-success/20", emoji: "💚" };
-    default: return { label: "N/A", color: "bg-muted text-muted-foreground", emoji: "⚪" };
-  }
-}
-
-function prudenzaColor(p: string) {
-  switch (p?.toLowerCase()) {
-    case "alto": return "bg-destructive/10 text-destructive border-destructive/20";
-    case "medio": return "bg-warning/10 text-warning border-warning/20";
-    case "basso": return "bg-success/10 text-success border-success/20";
-    default: return "bg-muted text-muted-foreground";
-  }
-}
-
-function directionIcon(tipo: string) {
+function directionIcon(tipo: string, size = "h-5 w-5") {
   const t = tipo?.toLowerCase() || "";
-  if (t.includes("buy")) return <TrendingUp className="h-5 w-5 text-success" />;
-  if (t.includes("sell")) return <TrendingDown className="h-5 w-5 text-destructive" />;
-  return <Minus className="h-5 w-5 text-muted-foreground" />;
+  if (t.includes("buy")) return <TrendingUp className={cn(size, "text-success")} />;
+  if (t.includes("sell")) return <TrendingDown className={cn(size, "text-destructive")} />;
+  return null;
 }
 
-function directionColor(tipo: string) {
+function directionBorderColor(tipo: string) {
   const t = tipo?.toLowerCase() || "";
   if (t.includes("buy")) return "border-success/30 bg-success/5";
   if (t.includes("sell")) return "border-destructive/30 bg-destructive/5";
@@ -90,16 +97,10 @@ function directionColor(tipo: string) {
 }
 
 function parsePrice(value: string): number {
-  const nums = value.match(/[\d.]+/g);
+  const nums = value?.match(/[\d.]+/g);
   if (!nums || nums.length === 0) return 0;
   if (nums.length >= 2) return (parseFloat(nums[0]) + parseFloat(nums[1])) / 2;
   return parseFloat(nums[0]);
-}
-
-function determineOrderType(setup: EasySetup): string {
-  if (setup.execution_type) return setup.execution_type;
-  const t = setup.tipo?.toLowerCase() || "";
-  return t.includes("limit") ? "limit" : "market";
 }
 
 // ── Component ──
@@ -109,7 +110,8 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
   const [tradingAccount, setTradingAccount] = useState<TradingAccount | null>(null);
   const [accountChecked, setAccountChecked] = useState(false);
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
-  const [selectedSetup, setSelectedSetup] = useState<{ setup: EasySetup; lotCalc: any } | null>(null);
+  const [selectedTrade, setSelectedTrade] = useState<{ signal: PrimarySignal | PendingSetup; lotCalc: any; orderType: string } | null>(null);
+  const [showPending, setShowPending] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -129,10 +131,34 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
 
   if (!analysis) return null;
 
-  const data = analysis as EasyAnalysis;
-  const hasSetups = data.setups && data.setups.length > 0;
-  const strength = data.setup_strength || (hasSetups ? 3 : 1);
+  // Normalize data: support both new format (primary_signal) and legacy (setups array)
+  const raw = analysis as EasyAnalysis;
+  let primarySignal: PrimarySignal | null = raw.primary_signal || null;
+  let pendingSetups: PendingSetup[] = raw.pending_setups || [];
+  const strength = raw.setup_strength || 3;
   const strengthInfo = strengthLabel(strength);
+
+  // Legacy compat: if old format with setups[] but no primary_signal
+  if (!primarySignal && raw.setups && raw.setups.length > 0) {
+    const first = raw.setups[0];
+    primarySignal = {
+      tipo: first.tipo?.includes("Buy") ? "Buy" : "Sell",
+      entry_range: first.entry_range,
+      stop_loss: first.stop_loss,
+      take_profit: first.take_profit,
+      sl_pips: first.sl_pips,
+      tp_pips: first.tp_pips,
+      spiegazione: first.spiegazione,
+    };
+    if (raw.setups.length > 1) {
+      pendingSetups = raw.setups.slice(1).map((s: any) => ({
+        ...s,
+        pending_strength: strength,
+      }));
+    }
+  }
+
+  const isSignalCopyable = strength >= 3;
 
   const canExecuteTrade = tradingAccount &&
     tradingAccount.credential_mode === "master" &&
@@ -148,183 +174,268 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
     return null;
   };
 
-  const handleCopyToAccount = (setup: EasySetup, lotCalc: any) => {
-    setSelectedSetup({ setup, lotCalc });
+  const handleCopy = (signal: PrimarySignal | PendingSetup, lotCalc: any, orderType: string) => {
+    setSelectedTrade({ signal, lotCalc, orderType });
     setTradeModalOpen(true);
   };
+
+  // Lot calc helper
+  const calcLot = (signal: PrimarySignal | PendingSetup) => {
+    const entryPrice = parsePrice(signal.entry_range);
+    const slPrice = parsePrice(signal.stop_loss);
+    const tpPrice = parsePrice(signal.take_profit);
+    if (!accountSize || !asset || entryPrice <= 0 || slPrice <= 0 || tpPrice <= 0) return null;
+    return fullLotCalculationFromPrices(accountSize, entryPrice, slPrice, tpPrice, asset);
+  };
+
+  const primaryLotCalc = primarySignal ? calcLot(primarySignal) : null;
 
   return (
     <div className="space-y-4">
       {/* Header badges */}
       <div className="flex flex-wrap items-center gap-3">
-        <Badge className={cn("text-sm px-3 py-1", qualityColor(data.signal_quality))}>
+        <Badge className={cn("text-sm px-3 py-1", qualityColor(raw.signal_quality))}>
           <BarChart3 className="h-3.5 w-3.5 mr-1" />
-          Qualità: {data.signal_quality || "N/A"}
+          Qualità: {raw.signal_quality || "N/A"}
         </Badge>
         <Badge className={cn("text-sm px-3 py-1", strengthInfo.color)}>
           <Zap className="h-3.5 w-3.5 mr-1" />
           Forza: {strengthInfo.emoji} {strength}/5 — {strengthInfo.label}
         </Badge>
-        {data.expected_duration && (
+        {raw.expected_duration && (
           <Badge variant="secondary" className="text-sm px-3 py-1">
             <Clock className="h-3.5 w-3.5 mr-1" />
-            Durata: {data.expected_duration}
+            {raw.expected_duration}
           </Badge>
         )}
         <Badge variant="outline" className="text-xs px-2 py-0.5">
-          {data.leggibilita_immagine}
+          {raw.leggibilita_immagine}
         </Badge>
       </div>
 
-      {/* No setup case */}
-      {!hasSetups && (
-        <div className="space-y-3">
-          {data.contesto_mercato && (
-            <div className="card-premium p-4 border-primary/20">
-              <div className="flex items-center gap-2 mb-2">
-                <Eye className="h-4 w-4 text-primary" />
-                <span className="text-xs font-medium text-muted-foreground uppercase">Contesto attuale</span>
-              </div>
-              <p className="text-sm text-foreground">{data.contesto_mercato}</p>
-            </div>
-          )}
-          <div className="card-premium p-4 border-warning/20">
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldAlert className="h-4 w-4 text-warning" />
-              <span className="text-xs font-medium text-warning uppercase">Perché nessun setup</span>
-            </div>
-            <p className="text-sm text-foreground">
-              {data.no_setup_reason || "Il contesto attuale non permette di proporre un'idea operativa affidabile."}
-            </p>
+      {/* Signal copyability banner */}
+      {isSignalCopyable ? (
+        <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-4 py-2.5">
+          <Shield className="h-4 w-4 text-success flex-shrink-0" />
+          <p className="text-sm text-success font-medium">Segnale copiabile con prudenza</p>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2.5">
+          <ShieldAlert className="h-4 w-4 text-destructive flex-shrink-0" />
+          <p className="text-sm text-destructive font-medium">Segnale non consigliato da copiare — forza {strength}/5</p>
+        </div>
+      )}
+
+      {/* Contesto mercato */}
+      {raw.contesto_mercato && (
+        <div className="card-premium p-4 border-primary/20">
+          <div className="flex items-center gap-2 mb-2">
+            <Eye className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-muted-foreground uppercase">Contesto di mercato</span>
           </div>
-          {data.cosa_aspettare && (
-            <div className="card-premium p-4 border-primary/20">
+          <p className="text-sm text-foreground">{raw.contesto_mercato}</p>
+        </div>
+      )}
+
+      {/* ═══════ PRIMARY MARKET SIGNAL ═══════ */}
+      {primarySignal && (
+        <div className={cn("rounded-xl border-2 p-5 space-y-3", directionBorderColor(primarySignal.tipo))}>
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            {directionIcon(primarySignal.tipo, "h-6 w-6")}
+            <div className="flex-1">
+              <h3 className="font-heading font-bold text-foreground text-lg">
+                {primarySignal.tipo} Market
+              </h3>
+              <p className="text-xs text-muted-foreground">Segnale principale — ordine a mercato</p>
+            </div>
+            <Badge variant="outline" className="text-xs px-2.5 py-1 border-primary/40 text-primary">
+              <Zap className="h-3 w-3 mr-1" />
+              Market
+            </Badge>
+          </div>
+
+          {/* Price levels */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-background/50 rounded-lg p-3 text-center">
+              <p className="text-[10px] uppercase text-muted-foreground mb-1">Entry</p>
+              <p className="text-sm font-semibold text-foreground">{primarySignal.entry_range}</p>
+            </div>
+            <div className="bg-background/50 rounded-lg p-3 text-center">
+              <p className="text-[10px] uppercase text-muted-foreground mb-1">Stop Loss</p>
+              <p className="text-sm font-semibold text-destructive">{primarySignal.stop_loss}</p>
+            </div>
+            <div className="bg-background/50 rounded-lg p-3 text-center">
+              <p className="text-[10px] uppercase text-muted-foreground mb-1">Take Profit</p>
+              <p className="text-sm font-semibold text-success">{primarySignal.take_profit}</p>
+            </div>
+          </div>
+
+          {/* Lot size calculation */}
+          {primaryLotCalc && (
+            <div className="bg-background/50 rounded-lg p-4 border border-border/50">
               <div className="flex items-center gap-2 mb-2">
-                <Search className="h-4 w-4 text-primary" />
-                <span className="text-xs font-medium text-muted-foreground uppercase">Cosa aspettare</span>
+                <DollarSign className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium text-foreground uppercase">Calcolo lottaggio</span>
               </div>
-              <p className="text-sm text-foreground">{data.cosa_aspettare}</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Lotto</p>
+                  <p className="text-sm font-bold text-foreground">{primaryLotCalc.lotSize}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Rischio</p>
+                  <p className="text-sm font-bold text-destructive">${primaryLotCalc.riskAmount.toFixed(0)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">Profitto teorico</p>
+                  <p className="text-sm font-bold text-success">${primaryLotCalc.theoreticalProfit?.toFixed(0) ?? "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-muted-foreground">R:R</p>
+                  <p className="text-sm font-bold text-primary">1:{primaryLotCalc.rrRatio ?? "N/A"}</p>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-2">{primaryLotCalc.formula}</p>
             </div>
           )}
-          {data.livello_prudenza && (
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Livello di prudenza:</span>
-              <Badge className={cn("text-xs", prudenzaColor(data.livello_prudenza))}>
-                {data.livello_prudenza === "alto" ? "🔴 Alto" : data.livello_prudenza === "medio" ? "🟡 Medio" : "🟢 Basso"}
-              </Badge>
+
+          <p className="text-sm text-foreground">{primarySignal.spiegazione}</p>
+
+          {/* Copy to account — primary */}
+          {accountChecked && primaryLotCalc && (
+            <div className="pt-2 border-t border-border/50">
+              {canExecuteTrade && isSignalCopyable ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full border-primary/30 text-primary hover:bg-primary/10"
+                  onClick={() => handleCopy(primarySignal!, primaryLotCalc, "market")}
+                >
+                  <Send className="h-3.5 w-3.5 mr-2" />
+                  Copia sul conto (Market)
+                </Button>
+              ) : canExecuteTrade && !isSignalCopyable ? (
+                <div className="text-center">
+                  <p className="text-[10px] text-destructive">
+                    Segnale con forza {strength}/5 — copia non consigliata
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-[10px] text-muted-foreground">
+                    {getAccountIneligibleReason()}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Setup cards */}
-      {hasSetups && data.setups.map((setup, i) => {
-        const entryPrice = parsePrice(setup.entry_range);
-        const slPrice = parsePrice(setup.stop_loss);
-        const tpPrice = parsePrice(setup.take_profit);
-        const setupHasValidPrices = entryPrice > 0 && slPrice > 0 && tpPrice > 0;
-        const orderType = determineOrderType(setup);
-        const isMarket = orderType === "market";
+      {/* ═══════ PENDING SETUPS (SECONDARY) ═══════ */}
+      {pendingSetups.length > 0 && (
+        <div className="space-y-2">
+          <button
+            onClick={() => setShowPending(!showPending)}
+            className="flex items-center gap-2 w-full text-left px-1 py-1 hover:opacity-80 transition-opacity"
+          >
+            {showPending ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+            <span className="text-xs font-medium text-muted-foreground uppercase">
+              Setup aggiuntivi — Ordini pending ({pendingSetups.length})
+            </span>
+          </button>
 
-        const lotCalc = (accountSize && asset && setupHasValidPrices)
-          ? fullLotCalculationFromPrices(accountSize, entryPrice, slPrice, tpPrice, asset)
-          : null;
+          {showPending && pendingSetups.map((setup, i) => {
+            const lotCalc = calcLot(setup);
+            const pStrength = setup.pending_strength || 3;
+            const pStrengthInfo = strengthLabel(pStrength);
+            const isPendingCopyable = pStrength >= 3;
 
-        return (
-          <div key={i} className={cn("rounded-xl border p-5 space-y-3", directionColor(setup.tipo))}>
-            <div className="flex items-center gap-3">
-              {directionIcon(setup.tipo)}
-              <div className="flex-1">
-                <h3 className="font-heading font-semibold text-foreground text-lg">{setup.tipo}</h3>
-                <p className="text-xs text-muted-foreground">Idea operativa {i + 1}</p>
-              </div>
-              <Badge variant="outline" className={cn("text-xs px-2.5 py-1", isMarket ? "border-primary/40 text-primary" : "border-warning/40 text-warning")}>
-                {isMarket ? <Zap className="h-3 w-3 mr-1" /> : <Timer className="h-3 w-3 mr-1" />}
-                {isMarket ? "Market" : "Limit"}
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-background/50 rounded-lg p-3 text-center">
-                <p className="text-[10px] uppercase text-muted-foreground mb-1">Entry</p>
-                <p className="text-sm font-semibold text-foreground">{setup.entry_range}</p>
-              </div>
-              <div className="bg-background/50 rounded-lg p-3 text-center">
-                <p className="text-[10px] uppercase text-muted-foreground mb-1">Stop Loss</p>
-                <p className="text-sm font-semibold text-destructive">{setup.stop_loss}</p>
-              </div>
-              <div className="bg-background/50 rounded-lg p-3 text-center">
-                <p className="text-[10px] uppercase text-muted-foreground mb-1">Take Profit</p>
-                <p className="text-sm font-semibold text-success">{setup.take_profit}</p>
-              </div>
-            </div>
-
-            {/* Lot size calculation */}
-            {lotCalc && (
-              <div className="bg-background/50 rounded-lg p-4 border border-border/50">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-medium text-foreground uppercase">Calcolo lottaggio</span>
+            return (
+              <div key={i} className={cn("rounded-xl border p-4 space-y-3", directionBorderColor(setup.tipo), "opacity-90")}>
+                <div className="flex items-center gap-3">
+                  {directionIcon(setup.tipo)}
+                  <div className="flex-1">
+                    <h4 className="font-heading font-semibold text-foreground text-base">{setup.tipo}</h4>
+                    <p className="text-xs text-muted-foreground">Setup aggiuntivo — ordine pending</p>
+                  </div>
+                  <Badge variant="outline" className="text-xs px-2 py-0.5 border-warning/40 text-warning">
+                    <Timer className="h-3 w-3 mr-1" />
+                    Pending
+                  </Badge>
+                  <Badge className={cn("text-xs px-2 py-0.5", pStrengthInfo.color)}>
+                    {pStrengthInfo.emoji} {pStrength}/5
+                  </Badge>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Lotto</p>
-                    <p className="text-sm font-bold text-foreground">{lotCalc.lotSize}</p>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-background/50 rounded-lg p-2.5 text-center">
+                    <p className="text-[10px] uppercase text-muted-foreground mb-0.5">Entry</p>
+                    <p className="text-sm font-semibold text-foreground">{setup.entry_range}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Rischio</p>
-                    <p className="text-sm font-bold text-destructive">${lotCalc.riskAmount.toFixed(0)}</p>
+                  <div className="bg-background/50 rounded-lg p-2.5 text-center">
+                    <p className="text-[10px] uppercase text-muted-foreground mb-0.5">Stop Loss</p>
+                    <p className="text-sm font-semibold text-destructive">{setup.stop_loss}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">Profitto teorico</p>
-                    <p className="text-sm font-bold text-success">${lotCalc.theoreticalProfit?.toFixed(0) ?? "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground">R:R</p>
-                    <p className="text-sm font-bold text-primary">1:{lotCalc.rrRatio ?? "N/A"}</p>
+                  <div className="bg-background/50 rounded-lg p-2.5 text-center">
+                    <p className="text-[10px] uppercase text-muted-foreground mb-0.5">Take Profit</p>
+                    <p className="text-sm font-semibold text-success">{setup.take_profit}</p>
                   </div>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-2">{lotCalc.formula}</p>
-              </div>
-            )}
 
-            <p className="text-sm text-foreground">{setup.spiegazione}</p>
+                {lotCalc && (
+                  <div className="bg-background/50 rounded-lg p-3 border border-border/50">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Lotto</p>
+                        <p className="text-sm font-bold text-foreground">{lotCalc.lotSize}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Rischio</p>
+                        <p className="text-sm font-bold text-destructive">${lotCalc.riskAmount.toFixed(0)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">Profitto</p>
+                        <p className="text-sm font-bold text-success">${lotCalc.theoreticalProfit?.toFixed(0) ?? "N/A"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground">R:R</p>
+                        <p className="text-sm font-bold text-primary">1:{lotCalc.rrRatio ?? "N/A"}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-            {/* Copy to account button */}
-            {accountChecked && setupHasValidPrices && lotCalc && (
-              <div className="pt-2 border-t border-border/50">
-                {canExecuteTrade ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full border-primary/30 text-primary hover:bg-primary/10"
-                    onClick={() => handleCopyToAccount(setup, lotCalc)}
-                  >
-                    <Send className="h-3.5 w-3.5 mr-2" />
-                    Copia sul conto ({isMarket ? "Market" : "Limit"})
-                  </Button>
-                ) : (
-                  <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground">
-                      {getAccountIneligibleReason()}
-                    </p>
+                <p className="text-sm text-foreground">{setup.spiegazione}</p>
+
+                {accountChecked && lotCalc && canExecuteTrade && isPendingCopyable && (
+                  <div className="pt-2 border-t border-border/50">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full border-warning/30 text-warning hover:bg-warning/10 text-xs"
+                      onClick={() => handleCopy(setup, lotCalc, "limit")}
+                    >
+                      <Send className="h-3 w-3 mr-1.5" />
+                      Copia sul conto (Pending)
+                    </Button>
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
 
       {/* Warning */}
-      {data.warning && (
+      {raw.warning && (
         <div className="card-premium p-4 border-warning/20">
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="h-4 w-4 text-warning" />
             <span className="text-xs font-medium text-warning uppercase">Attenzione</span>
           </div>
-          <p className="text-sm text-foreground">{data.warning}</p>
+          <p className="text-sm text-foreground">{raw.warning}</p>
         </div>
       )}
 
@@ -334,23 +445,23 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId }: 
           <Target className="h-4 w-4 text-primary" />
           <span className="text-xs font-medium text-muted-foreground uppercase">Conclusione</span>
         </div>
-        <p className="text-sm text-foreground">{data.conclusione}</p>
+        <p className="text-sm text-foreground">{raw.conclusione}</p>
       </div>
 
       {/* Trade execution modal */}
-      {selectedSetup && tradingAccount && (
+      {selectedTrade && tradingAccount && (
         <TradeExecutionModal
           open={tradeModalOpen}
-          onClose={() => { setTradeModalOpen(false); setSelectedSetup(null); }}
+          onClose={() => { setTradeModalOpen(false); setSelectedTrade(null); }}
           trade={{
             asset: asset || "N/A",
-            direction: selectedSetup.setup.tipo,
-            orderType: determineOrderType(selectedSetup.setup),
-            entryPrice: parsePrice(selectedSetup.setup.entry_range),
-            stopLoss: parsePrice(selectedSetup.setup.stop_loss),
-            takeProfit: parsePrice(selectedSetup.setup.take_profit),
-            lotSize: selectedSetup.lotCalc.lotSize,
-            signalQuality: data.signal_quality,
+            direction: selectedTrade.signal.tipo,
+            orderType: selectedTrade.orderType,
+            entryPrice: parsePrice(selectedTrade.signal.entry_range),
+            stopLoss: parsePrice(selectedTrade.signal.stop_loss),
+            takeProfit: parsePrice(selectedTrade.signal.take_profit),
+            lotSize: selectedTrade.lotCalc.lotSize,
+            signalQuality: raw.signal_quality,
           }}
           account={{
             id: tradingAccount.id,
