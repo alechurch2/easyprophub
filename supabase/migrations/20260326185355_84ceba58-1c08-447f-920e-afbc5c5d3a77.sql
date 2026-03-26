@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_chart_reviews ALTER COLUMN account_size TYPE numeric USING account_size::numeric;
