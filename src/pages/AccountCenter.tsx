@@ -1664,17 +1664,7 @@ export default function AccountCenter() {
           </div>
         )}
 
-        {/* Account limit info */}
-        {limitInfo && !limitInfo.can_connect && accounts.length > 0 && !showExtraRequest && (
-          <div className="card-premium p-3 mb-4 border-amber-500/20 bg-amber-500/5">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-muted-foreground">
-                <p><strong>Limite raggiunto.</strong> Hai già {limitInfo.current_count}/{limitInfo.max_allowed} conto/i collegato/i. Per collegare un conto aggiuntivo, invia una richiesta all'admin.</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Account limit info — TEMPORARILY DISABLED */}
 
         {/* Tabs */}
         <Tabs defaultValue="overview">
