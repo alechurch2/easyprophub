@@ -243,7 +243,8 @@ const ANALYSIS_TOOL_EASY = {
           items: {
             type: "object",
             properties: {
-              tipo: { type: "string", enum: ["Buy", "Sell", "Buy Limit", "Sell Limit"], description: "Tipo di operazione." },
+              tipo: { type: "string", enum: ["Buy", "Sell", "Buy Limit", "Sell Limit"], description: "Tipo di operazione. Usa Buy/Sell per market, Buy Limit/Sell Limit per pending." },
+              execution_type: { type: "string", enum: ["market", "limit"], description: "Tipo di esecuzione: market (immediata) o limit (pendente)." },
               entry_range: { type: "string", description: "Livello o range di entrata." },
               stop_loss: { type: "string", description: "Livello dello stop loss." },
               take_profit: { type: "string", description: "Livello del take profit." },
