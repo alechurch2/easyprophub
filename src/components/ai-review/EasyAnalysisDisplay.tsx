@@ -431,6 +431,45 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
                     </Button>
                   </div>
                 )}
+
+                {/* Admin publish per pending */}
+                {isAdmin && pStrength >= 3 && (
+                  <div className="pt-2 border-t border-border/50">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full border-primary/30 text-primary hover:bg-primary/10 text-xs"
+                      onClick={async () => {
+                        const entryPrice = parsePrice(setup.entry_range);
+                        const slPrice = parsePrice(setup.stop_loss);
+                        const tpPrice = parsePrice(setup.take_profit);
+                        console.log("[AdminPublish] Pending order", { reviewId, orderType: setup.tipo, asset, entryPrice, slPrice, tpPrice, strength: pStrength });
+                        const { error } = await supabase.from("shared_signals").insert({
+                          review_id: reviewId || null,
+                          created_by: user!.id,
+                          asset: asset || "N/A",
+                          direction: setup.tipo.includes("Buy") ? "Buy" : "Sell",
+                          order_type: setup.tipo.toLowerCase().includes("limit") ? "limit" : setup.tipo.toLowerCase().includes("stop") ? "stop" : "pending",
+                          entry_price: entryPrice,
+                          stop_loss: slPrice,
+                          take_profit: tpPrice,
+                          lot_size_suggestion: lotCalc?.lotSize || null,
+                          signal_strength: pStrength,
+                          signal_quality: raw.signal_quality,
+                          explanation: setup.spiegazione || raw.conclusione,
+                        } as any);
+                        if (error) {
+                          toast.error("Errore nella pubblicazione del segnale");
+                        } else {
+                          toast.success("Segnale pending pubblicato!");
+                        }
+                      }}
+                    >
+                      <Radio className="h-3 w-3 mr-1.5" />
+                      Pubblica come segnale globale (Pending)
+                    </Button>
+                  </div>
+                )}
               </div>
             );
           })}
