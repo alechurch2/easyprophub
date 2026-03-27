@@ -2072,6 +2072,7 @@ export default function Admin() {
           <TabsContent value="accounts"><AdminAccounts /></TabsContent>
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
           <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
+          <TabsContent value="signals"><AdminSignals /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>
