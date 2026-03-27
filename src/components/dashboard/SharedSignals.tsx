@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator } from "lucide-react";
 import { TradeExecutionModal } from "@/components/ai-review/TradeExecutionModal";
 import { fullLotCalculationFromPrices } from "@/components/ai-review/lotSizeCalculator";
 
@@ -76,8 +76,8 @@ export function SharedSignals() {
     tradingAccount.trading_execution_enabled &&
     tradingAccount.connection_status === "connected";
 
-  const handleCopy = (signal: SharedSignal) => {
-    setSelectedSignal(signal);
+  const handleCopy = (signal: SharedSignal, lotSize: number) => {
+    setSelectedSignal({ ...signal, lot_size_suggestion: lotSize });
     setTradeModalOpen(true);
   };
 
@@ -88,6 +88,9 @@ export function SharedSignals() {
   };
 
   const isBuy = (d: string) => d.toLowerCase().includes("buy");
+
+  // Default risk for shared signals user-side calculation
+  const USER_DEFAULT_RISK = 0.002;
 
   return (
     <div className="mb-8">
@@ -102,9 +105,24 @@ export function SharedSignals() {
         {signals.map((sig) => {
           const sInfo = strengthLabel(sig.signal_strength);
           const buy = isBuy(sig.direction);
-          const lotCalc = tradingAccount?.equity
-            ? fullLotCalculationFromPrices(tradingAccount.equity, sig.entry_price, sig.stop_loss, sig.take_profit, sig.asset, 0.002)
+
+          // Always recalculate lot based on user's account
+          const userEquity = tradingAccount?.equity || null;
+          const lotCalc = userEquity
+            ? fullLotCalculationFromPrices(userEquity, sig.entry_price, sig.stop_loss, sig.take_profit, sig.asset, USER_DEFAULT_RISK)
             : null;
+
+          console.log("[SharedSignals] Lot calc for user", {
+            signalId: sig.id,
+            asset: sig.asset,
+            userEquity,
+            riskUsed: USER_DEFAULT_RISK,
+            entry: sig.entry_price,
+            sl: sig.stop_loss,
+            tp: sig.take_profit,
+            calculatedLot: lotCalc?.lotSize ?? "N/A",
+            adminLotSuggestion: sig.lot_size_suggestion,
+          });
 
           return (
             <div
@@ -157,9 +175,13 @@ export function SharedSignals() {
                 <p className="text-xs text-muted-foreground mb-3">{sig.explanation}</p>
               )}
 
-              {/* Lot calc from user account */}
+              {/* Lot calc from user account — always per-user */}
               {lotCalc && (
                 <div className="bg-background/50 rounded-lg p-3 border border-border/50 mb-3">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Calculator className="h-3 w-3 text-primary" />
+                    <p className="text-[10px] text-primary font-medium">Calcolato sul tuo conto • Rischio {(USER_DEFAULT_RISK * 100).toFixed(1)}%</p>
+                  </div>
                   <div className="grid grid-cols-4 gap-2 text-center">
                     <div>
                       <p className="text-[10px] text-muted-foreground">Lotto</p>
@@ -181,13 +203,22 @@ export function SharedSignals() {
                 </div>
               )}
 
+              {/* No account — show signal without lot */}
+              {!lotCalc && tradingAccount && (
+                <div className="bg-background/50 rounded-lg p-2.5 border border-border/50 mb-3">
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Asset non supportato per il calcolo automatico del lotto
+                  </p>
+                </div>
+              )}
+
               {/* Copy to account */}
-              {canExecute && sig.signal_strength >= 3 ? (
+              {canExecute && sig.signal_strength >= 3 && lotCalc ? (
                 <Button
                   size="sm"
                   variant="outline"
                   className="w-full border-primary/30 text-primary hover:bg-primary/10"
-                  onClick={() => handleCopy(sig)}
+                  onClick={() => handleCopy(sig, lotCalc.lotSize)}
                 >
                   <Send className="h-3.5 w-3.5 mr-2" />
                   Copia sul conto
