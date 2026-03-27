@@ -2059,6 +2059,7 @@ export default function Admin() {
             <TabsTrigger value="accounts" className="flex-1 min-w-[80px]"><Wallet className="h-3 w-3 mr-1" />Conti</TabsTrigger>
             <TabsTrigger value="announcements" className="flex-1 min-w-[80px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
             <TabsTrigger value="analytics" className="flex-1 min-w-[80px]"><Activity className="h-3 w-3 mr-1" />Analytics</TabsTrigger>
+            <TabsTrigger value="signals" className="flex-1 min-w-[80px]"><Radio className="h-3 w-3 mr-1" />Segnali</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><AdminUsers /></TabsContent>
