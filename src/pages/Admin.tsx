@@ -62,21 +62,21 @@ function AdminUsers() {
     // Send approval email when admin approves a user
     if (status === "approved") {
       const profile = profiles.find(p => p.user_id === userId);
-      // Get user email from auth (we need to find it from the profile or user_id)
-      // Since we can't access auth.users, we'll use the profile name
-      // The email will be fetched server-side by looking up the user
-      supabase.rpc("get_user_email_for_notification" as any, { _user_id: userId }).then(({ data: userEmail }: any) => {
-        if (userEmail) {
-          supabase.functions.invoke("send-transactional-email", {
-            body: {
-              templateName: "account-approved",
-              recipientEmail: userEmail,
-              idempotencyKey: `approval-${userId}`,
-              templateData: { name: profile?.full_name || undefined },
-            },
-          }).catch(() => {});
-        }
-      }).catch(() => {});
+      (async () => {
+        try {
+          const { data: userEmail } = await supabase.rpc("get_user_email_for_notification" as any, { _user_id: userId });
+          if (userEmail) {
+            await supabase.functions.invoke("send-transactional-email", {
+              body: {
+                templateName: "account-approved",
+                recipientEmail: userEmail,
+                idempotencyKey: `approval-${userId}`,
+                templateData: { name: profile?.full_name || undefined },
+              },
+            });
+          }
+        } catch {}
+      })();
     }
 
     load();
