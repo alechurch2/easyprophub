@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { trackEvent } from "@/lib/analytics";
+import { SharedSignals } from "@/components/dashboard/SharedSignals";
 
 interface Announcement {
   id: string;
@@ -196,6 +197,9 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* Shared Signals */}
+        <SharedSignals />
 
         {/* Review Stats */}
         {(stats.totalPro > 0 || stats.totalEasy > 0) && (

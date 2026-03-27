@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Zap, Timer, Send, Eye, Shield, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Zap, Timer, Send, Eye, Shield, ChevronDown, ChevronUp, ShieldCheck, Radio } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { fullLotCalculationFromPrices } from "./lotSizeCalculator";
 import { TradeExecutionModal } from "./TradeExecutionModal";
+import { toast } from "sonner";
 
 // ── Types ──
 
@@ -106,7 +107,7 @@ function parsePrice(value: string): number {
 // ── Component ──
 
 export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, riskPercent }: { analysis: any; accountSize?: number; asset?: string; reviewId?: string; riskPercent?: number }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [tradingAccount, setTradingAccount] = useState<TradingAccount | null>(null);
   const [accountChecked, setAccountChecked] = useState(false);
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
@@ -455,6 +456,50 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
         </div>
         <p className="text-sm text-foreground">{raw.conclusione}</p>
       </div>
+
+      {/* Admin: publish as global signal */}
+      {isAdmin && primarySignal && strength >= 3 && (
+        <div className="card-premium p-4 border-primary/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Radio className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-primary uppercase">Azione Admin</span>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full border-primary/30 text-primary hover:bg-primary/10"
+            onClick={async () => {
+              const entryPrice = parsePrice(primarySignal!.entry_range);
+              const slPrice = parsePrice(primarySignal!.stop_loss);
+              const tpPrice = parsePrice(primarySignal!.take_profit);
+              const { error } = await supabase.from("shared_signals").insert({
+                review_id: reviewId || null,
+                created_by: user!.id,
+                asset: asset || "N/A",
+                direction: primarySignal!.tipo,
+                order_type: "market",
+                entry_price: entryPrice,
+                stop_loss: slPrice,
+                take_profit: tpPrice,
+                lot_size_suggestion: primaryLotCalc?.lotSize || null,
+                signal_strength: strength,
+                signal_quality: raw.signal_quality,
+                explanation: primarySignal!.spiegazione || raw.conclusione,
+              } as any);
+              if (error) {
+                toast.error("Errore nella pubblicazione del segnale");
+              } else {
+                toast.success("Segnale pubblicato in dashboard!");
+              }
+            }}
+          >
+            <Radio className="h-3.5 w-3.5 mr-2" />
+            Pubblica come segnale globale
+          </Button>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Il segnale sarà visibile a tutti gli utenti approvati nella dashboard.
+          </p>
+        </div>
+      )}
 
       {/* Trade execution modal */}
       {selectedTrade && tradingAccount && (

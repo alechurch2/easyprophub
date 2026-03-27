@@ -6,9 +6,10 @@ import {
   Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone, Bot,
   Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft,
   ThumbsUp, ThumbsDown, Star, MessageSquare, Link2, GraduationCap, Search, ArrowUpDown, Wallet,
-  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity
+  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity, Radio
 } from "lucide-react";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
+import AdminSignals from "@/components/admin/AdminSignals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,6 +58,27 @@ function AdminUsers() {
   const updateStatus = async (userId: string, status: string) => {
     await supabase.from("profiles").update({ status: status as any }).eq("user_id", userId);
     toast.success("Stato aggiornato");
+
+    // Send approval email when admin approves a user
+    if (status === "approved") {
+      const profile = profiles.find(p => p.user_id === userId);
+      (async () => {
+        try {
+          const { data: userEmail } = await supabase.rpc("get_user_email_for_notification" as any, { _user_id: userId });
+          if (userEmail) {
+            await supabase.functions.invoke("send-transactional-email", {
+              body: {
+                templateName: "account-approved",
+                recipientEmail: userEmail,
+                idempotencyKey: `approval-${userId}`,
+                templateData: { name: profile?.full_name || undefined },
+              },
+            });
+          }
+        } catch {}
+      })();
+    }
+
     load();
   };
 
@@ -2058,6 +2080,7 @@ export default function Admin() {
             <TabsTrigger value="accounts" className="flex-1 min-w-[80px]"><Wallet className="h-3 w-3 mr-1" />Conti</TabsTrigger>
             <TabsTrigger value="announcements" className="flex-1 min-w-[80px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
             <TabsTrigger value="analytics" className="flex-1 min-w-[80px]"><Activity className="h-3 w-3 mr-1" />Analytics</TabsTrigger>
+            <TabsTrigger value="signals" className="flex-1 min-w-[80px]"><Radio className="h-3 w-3 mr-1" />Segnali</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><AdminUsers /></TabsContent>
@@ -2070,6 +2093,7 @@ export default function Admin() {
           <TabsContent value="accounts"><AdminAccounts /></TabsContent>
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
           <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
+          <TabsContent value="signals"><AdminSignals /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>
