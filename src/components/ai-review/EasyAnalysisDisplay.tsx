@@ -510,6 +510,7 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
               const entryPrice = parsePrice(primarySignal!.entry_range);
               const slPrice = parsePrice(primarySignal!.stop_loss);
               const tpPrice = parsePrice(primarySignal!.take_profit);
+              console.log("[AdminPublish] Market order", { reviewId, asset, entryPrice, slPrice, tpPrice, adminLot: primaryLotCalc?.lotSize, strength, risk: effectiveRisk });
               const { error } = await supabase.from("shared_signals").insert({
                 review_id: reviewId || null,
                 created_by: user!.id,
