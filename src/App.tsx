@@ -18,6 +18,7 @@ import Admin from "./pages/Admin";
 import CaseStudies from "./pages/CaseStudies";
 import AccountCenter from "./pages/AccountCenter";
 import NotFound from "./pages/NotFound";
+import Unsubscribe from "./pages/Unsubscribe";
 
 const queryClient = new QueryClient();
 
