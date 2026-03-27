@@ -38,6 +38,15 @@ export default function Register() {
     if (error) {
       toast.error(error.message);
     } else {
+      // Send registration confirmation email
+      supabase.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "registration-received",
+          recipientEmail: email.trim(),
+          idempotencyKey: `reg-confirm-${email.trim()}-${Date.now()}`,
+          templateData: { name: fullName.trim() },
+        },
+      }).catch(() => {}); // non-blocking
       setSuccess(true);
     }
     setLoading(false);
