@@ -457,6 +457,50 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
         <p className="text-sm text-foreground">{raw.conclusione}</p>
       </div>
 
+      {/* Admin: publish as global signal */}
+      {isAdmin && primarySignal && strength >= 3 && (
+        <div className="card-premium p-4 border-primary/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Radio className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium text-primary uppercase">Azione Admin</span>
+          </div>
+          <Button
+            variant="outline"
+            className="w-full border-primary/30 text-primary hover:bg-primary/10"
+            onClick={async () => {
+              const entryPrice = parsePrice(primarySignal!.entry_range);
+              const slPrice = parsePrice(primarySignal!.stop_loss);
+              const tpPrice = parsePrice(primarySignal!.take_profit);
+              const { error } = await supabase.from("shared_signals").insert({
+                review_id: reviewId || null,
+                created_by: user!.id,
+                asset: asset || "N/A",
+                direction: primarySignal!.tipo,
+                order_type: "market",
+                entry_price: entryPrice,
+                stop_loss: slPrice,
+                take_profit: tpPrice,
+                lot_size_suggestion: primaryLotCalc?.lotSize || null,
+                signal_strength: strength,
+                signal_quality: raw.signal_quality,
+                explanation: primarySignal!.spiegazione || raw.conclusione,
+              } as any);
+              if (error) {
+                toast.error("Errore nella pubblicazione del segnale");
+              } else {
+                toast.success("Segnale pubblicato in dashboard!");
+              }
+            }}
+          >
+            <Radio className="h-3.5 w-3.5 mr-2" />
+            Pubblica come segnale globale
+          </Button>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Il segnale sarà visibile a tutti gli utenti approvati nella dashboard.
+          </p>
+        </div>
+      )}
+
       {/* Trade execution modal */}
       {selectedTrade && tradingAccount && (
         <TradeExecutionModal
