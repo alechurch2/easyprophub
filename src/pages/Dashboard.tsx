@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { trackEvent } from "@/lib/analytics";
+import { SharedSignals } from "@/components/dashboard/SharedSignals";
 
 interface Announcement {
   id: string;
