@@ -9,6 +9,7 @@ import {
   Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity
 } from "lucide-react";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
+import AdminSignals from "@/components/admin/AdminSignals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
