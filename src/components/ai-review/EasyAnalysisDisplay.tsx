@@ -107,7 +107,7 @@ function parsePrice(value: string): number {
 // ── Component ──
 
 export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, riskPercent }: { analysis: any; accountSize?: number; asset?: string; reviewId?: string; riskPercent?: number }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [tradingAccount, setTradingAccount] = useState<TradingAccount | null>(null);
   const [accountChecked, setAccountChecked] = useState(false);
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
