@@ -920,6 +920,86 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_signals: {
+        Row: {
+          asset: string
+          created_at: string | null
+          created_by: string
+          direction: string
+          entry_price: number
+          expires_at: string | null
+          explanation: string | null
+          id: string
+          is_archived: boolean | null
+          is_published: boolean | null
+          lot_size_suggestion: number | null
+          order_type: string
+          published_at: string | null
+          review_id: string | null
+          review_mode: string | null
+          review_tier: string | null
+          signal_quality: string | null
+          signal_strength: number | null
+          stop_loss: number
+          take_profit: number
+          updated_at: string | null
+        }
+        Insert: {
+          asset: string
+          created_at?: string | null
+          created_by: string
+          direction: string
+          entry_price: number
+          expires_at?: string | null
+          explanation?: string | null
+          id?: string
+          is_archived?: boolean | null
+          is_published?: boolean | null
+          lot_size_suggestion?: number | null
+          order_type?: string
+          published_at?: string | null
+          review_id?: string | null
+          review_mode?: string | null
+          review_tier?: string | null
+          signal_quality?: string | null
+          signal_strength?: number | null
+          stop_loss: number
+          take_profit: number
+          updated_at?: string | null
+        }
+        Update: {
+          asset?: string
+          created_at?: string | null
+          created_by?: string
+          direction?: string
+          entry_price?: number
+          expires_at?: string | null
+          explanation?: string | null
+          id?: string
+          is_archived?: boolean | null
+          is_published?: boolean | null
+          lot_size_suggestion?: number | null
+          order_type?: string
+          published_at?: string | null
+          review_id?: string | null
+          review_mode?: string | null
+          review_tier?: string | null
+          signal_quality?: string | null
+          signal_strength?: number | null
+          stop_loss?: number
+          take_profit?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_signals_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "ai_chart_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_messages: {
         Row: {
           attachment_url: string | null
