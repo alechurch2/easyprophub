@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Zap, Timer, Send, Eye, Shield, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Zap, Timer, Send, Eye, Shield, ChevronDown, ChevronUp, ShieldCheck, Radio } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { fullLotCalculationFromPrices } from "./lotSizeCalculator";
 import { TradeExecutionModal } from "./TradeExecutionModal";
+import { toast } from "sonner";
 
 // ── Types ──
 
