@@ -828,19 +828,69 @@ async function deployMetaApiAccount(metaAccountId: string) {
 }
 
 // Wait for the account to reach DEPLOYED state and connected
-async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Promise<boolean> {
+interface ConnectionResult {
+  connected: boolean;
+  state: string;
+  connectionStatus: string;
+  providerError?: string;
+  replicaStates?: any[];
+  elapsedMs: number;
+  lastPollDetail: string;
+}
+
+async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Promise<ConnectionResult> {
   const start = Date.now();
+  let lastInfo: any = null;
+  let pollCount = 0;
+
   while (Date.now() - start < maxWaitMs) {
+    pollCount++;
     const info = await metaapiRequest(`/users/current/accounts/${metaAccountId}`);
-    if (info.state === "DEPLOYED" && info.connectionStatus === "CONNECTED") {
-      return true;
+    lastInfo = info;
+
+    const state = info.state || "UNKNOWN";
+    const connStatus = info.connectionStatus || "UNKNOWN";
+    const providerError = info.providerError || null;
+    const replicaStates = info.accountReplicas || info.replicaStates || null;
+
+    console.log(`[waitForConnection] Poll #${pollCount} state=${state} connectionStatus=${connStatus} providerError=${providerError || "none"} replicaStates=${replicaStates ? JSON.stringify(replicaStates) : "none"} elapsed=${Date.now() - start}ms`);
+
+    if (state === "DEPLOYED" && connStatus === "CONNECTED") {
+      return {
+        connected: true,
+        state,
+        connectionStatus: connStatus,
+        elapsedMs: Date.now() - start,
+        lastPollDetail: `Connected after ${pollCount} polls`,
+      };
     }
-    if (info.state === "DEPLOY_FAILED") {
-      throw new Error(`Deploy fallito: ${info.connectionStatus || "stato sconosciuto"}`);
+
+    if (state === "DEPLOY_FAILED") {
+      const detail = providerError || connStatus || "stato sconosciuto";
+      console.error(`[waitForConnection] DEPLOY_FAILED: ${detail}`);
+      throw new Error(`Deploy fallito: ${detail}`);
     }
+
     await new Promise((r) => setTimeout(r, 3000));
   }
-  throw new Error("Timeout: il conto non si è connesso entro 90 secondi. Riprova tra qualche minuto.");
+
+  // Timeout reached — return intermediate state instead of throwing
+  const finalState = lastInfo?.state || "UNKNOWN";
+  const finalConnStatus = lastInfo?.connectionStatus || "UNKNOWN";
+  const finalProviderError = lastInfo?.providerError || null;
+  const finalReplicas = lastInfo?.accountReplicas || lastInfo?.replicaStates || null;
+
+  console.warn(`[waitForConnection] TIMEOUT after ${Date.now() - start}ms (${pollCount} polls). state=${finalState} connectionStatus=${finalConnStatus} providerError=${finalProviderError || "none"} replicaStates=${finalReplicas ? JSON.stringify(finalReplicas) : "none"}`);
+
+  return {
+    connected: false,
+    state: finalState,
+    connectionStatus: finalConnStatus,
+    providerError: finalProviderError || undefined,
+    replicaStates: finalReplicas || undefined,
+    elapsedMs: Date.now() - start,
+    lastPollDetail: `Timeout after ${pollCount} polls. Last state: ${finalState}/${finalConnStatus}`,
+  };
 }
 
 // Fetch account data from MetaApi
