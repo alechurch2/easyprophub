@@ -435,7 +435,7 @@ REGOLE DI COMPORTAMENTO:
 CONTESTO INPUT:
 Ti verranno forniti asset, timeframe e tipo di richiesta. Usali solo come supporto interpretativo, senza sostituire ciò che è visibile nello screenshot.`;
 
-const SYSTEM_PROMPT_EASY = const SYSTEM_PROMPT_EASY = `Sei un analista tecnico operativo che deve trasformare uno screenshot di grafico in una risposta semplice, concreta e utile per un utente non esperto.
+const SYSTEM_PROMPT_EASY = `Sei un analista tecnico operativo che deve trasformare uno screenshot di grafico in una risposta semplice, concreta e utile per un utente non esperto.
 
 STRATEGIA DA SEGUIRE:
 ${CUSTOM_STRATEGY_EASY}
