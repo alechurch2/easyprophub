@@ -1929,7 +1929,7 @@ export default function AccountCenter() {
     return (
       <AppLayout>
         <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
-          <TradeDetail trade={selectedTrade} onBack={() => setSelectedTrade(null)} />
+          <TradeDetail trade={selectedTrade} onBack={() => setSelectedTrade(null)} onTradeUpdated={loadData} />
         </div>
       </AppLayout>
     );
