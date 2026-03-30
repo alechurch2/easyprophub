@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Sessione non valida" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { account_id, review_id, asset, direction, order_type, lot_size, entry_price, stop_loss, take_profit } = await req.json();
+    const { account_id, review_id, signal_id, asset, direction, order_type, lot_size, entry_price, stop_loss, take_profit } = await req.json();
 
     // Validate required fields
     if (!account_id || !asset || !direction || !lot_size || !entry_price) {
