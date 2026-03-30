@@ -70,6 +70,17 @@ interface Trade {
   closed_at: string | null;
   duration_minutes: number | null;
   external_trade_id: string | null;
+  source_type: string | null;
+  source_review_id: string | null;
+  source_signal_id: string | null;
+}
+
+interface TradeAiReview {
+  id: string;
+  trade_id: string;
+  analysis: any;
+  status: string;
+  created_at: string;
 }
 
 interface JournalEntry {
