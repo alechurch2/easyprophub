@@ -828,19 +828,69 @@ async function deployMetaApiAccount(metaAccountId: string) {
 }
 
 // Wait for the account to reach DEPLOYED state and connected
-async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Promise<boolean> {
+interface ConnectionResult {
+  connected: boolean;
+  state: string;
+  connectionStatus: string;
+  providerError?: string;
+  replicaStates?: any[];
+  elapsedMs: number;
+  lastPollDetail: string;
+}
+
+async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Promise<ConnectionResult> {
   const start = Date.now();
+  let lastInfo: any = null;
+  let pollCount = 0;
+
   while (Date.now() - start < maxWaitMs) {
+    pollCount++;
     const info = await metaapiRequest(`/users/current/accounts/${metaAccountId}`);
-    if (info.state === "DEPLOYED" && info.connectionStatus === "CONNECTED") {
-      return true;
+    lastInfo = info;
+
+    const state = info.state || "UNKNOWN";
+    const connStatus = info.connectionStatus || "UNKNOWN";
+    const providerError = info.providerError || null;
+    const replicaStates = info.accountReplicas || info.replicaStates || null;
+
+    console.log(`[waitForConnection] Poll #${pollCount} state=${state} connectionStatus=${connStatus} providerError=${providerError || "none"} replicaStates=${replicaStates ? JSON.stringify(replicaStates) : "none"} elapsed=${Date.now() - start}ms`);
+
+    if (state === "DEPLOYED" && connStatus === "CONNECTED") {
+      return {
+        connected: true,
+        state,
+        connectionStatus: connStatus,
+        elapsedMs: Date.now() - start,
+        lastPollDetail: `Connected after ${pollCount} polls`,
+      };
     }
-    if (info.state === "DEPLOY_FAILED") {
-      throw new Error(`Deploy fallito: ${info.connectionStatus || "stato sconosciuto"}`);
+
+    if (state === "DEPLOY_FAILED") {
+      const detail = providerError || connStatus || "stato sconosciuto";
+      console.error(`[waitForConnection] DEPLOY_FAILED: ${detail}`);
+      throw new Error(`Deploy fallito: ${detail}`);
     }
+
     await new Promise((r) => setTimeout(r, 3000));
   }
-  throw new Error("Timeout: il conto non si è connesso entro 90 secondi. Riprova tra qualche minuto.");
+
+  // Timeout reached — return intermediate state instead of throwing
+  const finalState = lastInfo?.state || "UNKNOWN";
+  const finalConnStatus = lastInfo?.connectionStatus || "UNKNOWN";
+  const finalProviderError = lastInfo?.providerError || null;
+  const finalReplicas = lastInfo?.accountReplicas || lastInfo?.replicaStates || null;
+
+  console.warn(`[waitForConnection] TIMEOUT after ${Date.now() - start}ms (${pollCount} polls). state=${finalState} connectionStatus=${finalConnStatus} providerError=${finalProviderError || "none"} replicaStates=${finalReplicas ? JSON.stringify(finalReplicas) : "none"}`);
+
+  return {
+    connected: false,
+    state: finalState,
+    connectionStatus: finalConnStatus,
+    providerError: finalProviderError || undefined,
+    replicaStates: finalReplicas || undefined,
+    elapsedMs: Date.now() - start,
+    lastPollDetail: `Timeout after ${pollCount} polls. Last state: ${finalState}/${finalConnStatus}`,
+  };
 }
 
 // Fetch account data from MetaApi
@@ -1245,20 +1295,75 @@ Deno.serve(async (req) => {
 
         // 4. Wait for connection
         console.log("[connect_metaapi] Step 4: Waiting for connection...");
-        await waitForConnection(metaAccountId);
-        console.log("[connect_metaapi] Step 4 done. Connected!");
+        const connResult = await waitForConnection(metaAccountId);
 
-        // 5. Mark connected
+        // Log the provisioning profile used for debugging
+        const { profileId: usedProfileId, source: usedProfileSource } = resolveProvisioningProfileId(account.broker || "");
+        console.log(`[connect_metaapi] Connection result: connected=${connResult.connected} state=${connResult.state} connectionStatus=${connResult.connectionStatus} providerError=${connResult.providerError || "none"} elapsed=${connResult.elapsedMs}ms profileId=${usedProfileId} profileSource=${usedProfileSource}`);
+
+        if (connResult.connected) {
+          console.log("[connect_metaapi] Step 4 done. Connected!");
+
+          // 5. Mark connected
+          await supabase.from("trading_accounts").update({
+            connection_status: "connected",
+            sync_status: "idle",
+            last_sync_error: null,
+          }).eq("id", account_id);
+
+          return new Response(JSON.stringify({
+            success: true,
+            status: "connected",
+            provider_account_id: metaAccountId,
+            metaapi_state: connResult.state,
+            metaapi_connection_status: connResult.connectionStatus,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Connection not yet established — save as intermediate state, NOT failure
+        console.warn(`[connect_metaapi] Connection not established within timeout. Saving intermediate state.`);
+
+        // Build a user-friendly status message
+        let userMessage: string;
+        let intermediateStatus: string;
+        if (connResult.state === "DEPLOYING") {
+          userMessage = "Il conto è ancora in fase di deploy. Riprova tra qualche minuto con il pulsante 'Verifica stato'.";
+          intermediateStatus = "deploying";
+        } else if (connResult.connectionStatus === "DISCONNECTED_FROM_BROKER") {
+          userMessage = "Il conto è deployato ma disconnesso dal broker. Verifica le credenziali e il server, oppure riprova tra qualche minuto.";
+          intermediateStatus = "disconnected_from_broker";
+        } else if (connResult.connectionStatus === "DISCONNECTED") {
+          userMessage = "Il conto è deployato ma non ancora connesso. Riprova tra qualche minuto con il pulsante 'Verifica stato'.";
+          intermediateStatus = "awaiting_connection";
+        } else {
+          userMessage = `Stato: ${connResult.state}/${connResult.connectionStatus}. Il conto potrebbe richiedere più tempo per connettersi. Riprova tra qualche minuto.`;
+          intermediateStatus = "awaiting_connection";
+        }
+
+        if (connResult.providerError) {
+          userMessage += ` (Dettaglio provider: ${connResult.providerError})`;
+        }
+
         await supabase.from("trading_accounts").update({
-          connection_status: "connected",
+          connection_status: intermediateStatus,
           sync_status: "idle",
-          last_sync_error: null,
+          last_sync_error: userMessage,
         }).eq("id", account_id);
 
         return new Response(JSON.stringify({
-          success: true,
-          status: "connected",
+          success: false,
+          status: intermediateStatus,
+          error: userMessage,
           provider_account_id: metaAccountId,
+          metaapi_state: connResult.state,
+          metaapi_connection_status: connResult.connectionStatus,
+          metaapi_provider_error: connResult.providerError || null,
+          metaapi_replica_states: connResult.replicaStates || null,
+          provisioning_profile_id: usedProfileId,
+          provisioning_profile_source: usedProfileSource,
+          can_retry: true,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1272,6 +1377,99 @@ Deno.serve(async (req) => {
           last_sync_error: errorMessage,
         }).eq("id", account_id);
 
+        return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // === RECHECK CONNECTION STATUS ===
+    if (action === "recheck_connection") {
+      const { data: account } = await supabase
+        .from("trading_accounts")
+        .select("*")
+        .eq("id", account_id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (!account) {
+        return new Response(JSON.stringify({ error: "Conto non trovato" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (!account.provider_account_id) {
+        return new Response(JSON.stringify({ error: "Nessun provider account collegato" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      try {
+        console.log(`[recheck_connection] Checking MetaApi status for account=${account_id} provider=${account.provider_account_id}`);
+        const info = await metaapiRequest(`/users/current/accounts/${account.provider_account_id}`);
+        const state = info.state || "UNKNOWN";
+        const connStatus = info.connectionStatus || "UNKNOWN";
+        const providerError = info.providerError || null;
+        const replicaStates = info.accountReplicas || info.replicaStates || null;
+
+        console.log(`[recheck_connection] state=${state} connectionStatus=${connStatus} providerError=${providerError || "none"} replicaStates=${replicaStates ? JSON.stringify(replicaStates) : "none"}`);
+
+        if (state === "DEPLOYED" && connStatus === "CONNECTED") {
+          await supabase.from("trading_accounts").update({
+            connection_status: "connected",
+            sync_status: "idle",
+            last_sync_error: null,
+          }).eq("id", account_id);
+
+          return new Response(JSON.stringify({
+            success: true,
+            status: "connected",
+            metaapi_state: state,
+            metaapi_connection_status: connStatus,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Still not connected — update status
+        let newStatus: string;
+        let userMessage: string;
+        if (state === "DEPLOY_FAILED") {
+          newStatus = "failed";
+          userMessage = `Deploy fallito. ${providerError || ""}`.trim();
+        } else if (state === "DEPLOYING") {
+          newStatus = "deploying";
+          userMessage = "Il conto è ancora in fase di deploy.";
+        } else if (connStatus === "DISCONNECTED_FROM_BROKER") {
+          newStatus = "disconnected_from_broker";
+          userMessage = `Disconnesso dal broker. ${providerError || "Verifica credenziali e server."}`.trim();
+        } else {
+          newStatus = "awaiting_connection";
+          userMessage = `Stato: ${state}/${connStatus}. Riprova tra qualche minuto.`;
+        }
+
+        await supabase.from("trading_accounts").update({
+          connection_status: newStatus,
+          last_sync_error: userMessage,
+        }).eq("id", account_id);
+
+        return new Response(JSON.stringify({
+          success: false,
+          status: newStatus,
+          error: userMessage,
+          metaapi_state: state,
+          metaapi_connection_status: connStatus,
+          metaapi_provider_error: providerError,
+          metaapi_replica_states: replicaStates,
+          can_retry: newStatus !== "failed",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        const errorMessage = getErrorMessage(err);
+        console.error("[recheck_connection] FAILED:", errorMessage);
         return new Response(JSON.stringify({ success: false, error: errorMessage }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

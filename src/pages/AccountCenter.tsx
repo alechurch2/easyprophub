@@ -520,6 +520,7 @@ function StatusBadge({ status, lastError }: { status: string; lastError?: string
     connected: { class: "bg-success/10 text-success", label: "Connesso", icon: <CheckCircle2 className="h-2.5 w-2.5" /> },
     syncing: { class: "bg-info/10 text-info", label: "Connessione...", icon: <RefreshCw className="h-2.5 w-2.5 animate-spin" /> },
     deploying: { class: "bg-info/10 text-info", label: "Deploy in corso...", icon: <Loader2 className="h-2.5 w-2.5 animate-spin" /> },
+    awaiting_connection: { class: "bg-warning/10 text-warning", label: "In attesa connessione", icon: <Clock className="h-2.5 w-2.5" /> },
     pending: { class: "bg-warning/10 text-warning", label: "In attesa", icon: <Clock className="h-2.5 w-2.5" /> },
     failed: { class: "bg-destructive/10 text-destructive", label: "Errore", icon: <XCircle className="h-2.5 w-2.5" /> },
     disconnected: { class: "bg-secondary text-muted-foreground", label: "Disconnesso", icon: <WifiOff className="h-2.5 w-2.5" /> },
@@ -527,7 +528,8 @@ function StatusBadge({ status, lastError }: { status: string; lastError?: string
     deploy_failed: { class: "bg-destructive/10 text-destructive", label: "Deploy fallito", icon: <XCircle className="h-2.5 w-2.5" /> },
   };
   const c = config[status] || config.disconnected;
-  const errorHint = lastError && (status === "failed" || status === "pending") ? ` — ${lastError.substring(0, 60)}` : "";
+  const isIntermediate = ["deploying", "awaiting_connection", "disconnected_from_broker"].includes(status);
+  const errorHint = lastError && (status === "failed" || isIntermediate) ? ` — ${lastError.substring(0, 80)}` : "";
   return (
     <Badge className={cn(c.class, "flex items-center gap-1")} title={lastError || undefined}>
       {c.icon}{c.label}{errorHint && <span className="text-[9px] opacity-70 max-w-[150px] truncate">{errorHint}</span>}
@@ -562,7 +564,7 @@ function MetricCard({ label, value, warn, small }: { label: string; value: React
 }
 
 // ---- Account Overview Cards ----
-function AccountOverview({ accounts, onSync, syncing, onDelete, deleting }: { accounts: TradingAccount[]; onSync: (id: string) => void; syncing: string | null; onDelete: (id: string) => void; deleting: string | null }) {
+function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRecheck, rechecking }: { accounts: TradingAccount[]; onSync: (id: string) => void; syncing: string | null; onDelete: (id: string) => void; deleting: string | null; onRecheck: (id: string) => void; rechecking: string | null }) {
   if (accounts.length === 0) {
     return (
       <div className="text-center py-16">
@@ -596,13 +598,25 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting }: { ac
               </Badge>
               <SyncStatusBadge status={acc.sync_status} />
               <StatusBadge status={acc.connection_status} lastError={acc.last_sync_error} />
+              {["deploying", "awaiting_connection", "disconnected_from_broker"].includes(acc.connection_status) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-warning/50 text-warning hover:bg-warning/10"
+                  onClick={() => onRecheck(acc.id)}
+                  disabled={rechecking === acc.id}
+                >
+                  <Wifi className={cn("h-3 w-3 mr-1", rechecking === acc.id && "animate-pulse")} />
+                  Verifica stato
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
                 onClick={() => onSync(acc.id)}
-                disabled={syncing === acc.id || acc.sync_status === "running" || !acc.provider_account_id}
-                title={!acc.provider_account_id ? "Connessione MetaApi non completata" : "Aggiorna dati"}
+                disabled={syncing === acc.id || acc.sync_status === "running" || !acc.provider_account_id || acc.connection_status !== "connected"}
+                title={!acc.provider_account_id ? "Connessione MetaApi non completata" : acc.connection_status !== "connected" ? "Conto non ancora connesso" : "Aggiorna dati"}
               >
                 <RefreshCw className={cn("h-3 w-3 mr-1", syncing === acc.id && "animate-spin")} />
                 Aggiorna
@@ -1535,6 +1549,7 @@ export default function AccountCenter() {
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [rechecking, setRechecking] = useState<string | null>(null);
   const [liveMode, setLiveMode] = useState<"live" | "syncing" | "fallback" | "offline">("offline");
   const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -1915,6 +1930,44 @@ export default function AccountCenter() {
     loadData();
   };
 
+  const handleRecheck = async (accountId: string) => {
+    setRechecking(accountId);
+    toast.info("Verifica stato connessione...");
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/account-sync`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: JSON.stringify({ action: "recheck_connection", account_id: accountId }),
+        }
+      );
+      let result: any;
+      try {
+        const rawText = await res.text();
+        result = rawText ? JSON.parse(rawText) : { success: false, error: "Empty response" };
+      } catch {
+        result = { success: false, error: `Risposta non valida (status ${res.status})` };
+      }
+      if (result.success && result.status === "connected") {
+        toast.success("Conto ora connesso!");
+      } else if (result.can_retry) {
+        toast.warning(result.error || "Conto non ancora connesso. Riprova tra qualche minuto.");
+      } else {
+        toast.error(result.error || "Connessione fallita.");
+      }
+    } catch (err: any) {
+      toast.error(`Errore: ${err.message || "Sconosciuto"}`);
+    }
+    setRechecking(null);
+    loadData();
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -2007,7 +2060,7 @@ export default function AccountCenter() {
             <TabsTrigger value="sync-logs" className="text-xs px-2"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} onDelete={handleDelete} deleting={deleting} /></TabsContent>
+          <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} onDelete={handleDelete} deleting={deleting} onRecheck={handleRecheck} rechecking={rechecking} /></TabsContent>
           <TabsContent value="positions"><OpenPositions trades={trades} /></TabsContent>
           <TabsContent value="history"><TradeHistory trades={trades} onSelectTrade={setSelectedTrade} /></TabsContent>
           <TabsContent value="journal"><JournalingOverview journalEntries={journalEntries} trades={trades} /></TabsContent>
