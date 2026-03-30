@@ -598,13 +598,25 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
               </Badge>
               <SyncStatusBadge status={acc.sync_status} />
               <StatusBadge status={acc.connection_status} lastError={acc.last_sync_error} />
+              {["deploying", "awaiting_connection", "disconnected_from_broker"].includes(acc.connection_status) && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-warning/50 text-warning hover:bg-warning/10"
+                  onClick={() => onRecheck(acc.id)}
+                  disabled={rechecking === acc.id}
+                >
+                  <Wifi className={cn("h-3 w-3 mr-1", rechecking === acc.id && "animate-pulse")} />
+                  Verifica stato
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
                 className="h-7 text-xs"
                 onClick={() => onSync(acc.id)}
-                disabled={syncing === acc.id || acc.sync_status === "running" || !acc.provider_account_id}
-                title={!acc.provider_account_id ? "Connessione MetaApi non completata" : "Aggiorna dati"}
+                disabled={syncing === acc.id || acc.sync_status === "running" || !acc.provider_account_id || acc.connection_status !== "connected"}
+                title={!acc.provider_account_id ? "Connessione MetaApi non completata" : acc.connection_status !== "connected" ? "Conto non ancora connesso" : "Aggiorna dati"}
               >
                 <RefreshCw className={cn("h-3 w-3 mr-1", syncing === acc.id && "animate-spin")} />
                 Aggiorna
