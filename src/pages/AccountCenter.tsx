@@ -21,8 +21,12 @@ import {
   Wallet, Plus, TrendingUp, TrendingDown, Activity, BarChart3, BookOpen,
   Loader2, Eye, ArrowUpRight, ArrowDownRight, Clock, Filter, ChevronLeft,
   Save, Trash2, X, Image, RefreshCw, AlertTriangle, Shield, Wifi, WifiOff,
-  CheckCircle2, XCircle, Zap
+  CheckCircle2, XCircle, Zap, Link2, Unlink, Brain, Star, FileText
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ---- Types ----
 interface TradingAccount {
