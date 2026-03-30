@@ -1537,6 +1537,7 @@ export default function AccountCenter() {
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [rechecking, setRechecking] = useState<string | null>(null);
   const [liveMode, setLiveMode] = useState<"live" | "syncing" | "fallback" | "offline">("offline");
   const [lastRealtimeUpdate, setLastRealtimeUpdate] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
