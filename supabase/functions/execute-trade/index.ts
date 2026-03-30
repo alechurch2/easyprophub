@@ -260,6 +260,29 @@ Deno.serve(async (req) => {
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Auto-link trade to source if review_id or signal_id provided
+    if (result.ok && (review_id || signal_id)) {
+      const sourceType = signal_id ? "signal" : "review";
+      // Find the most recent trade for this account+asset to link
+      const { data: recentTrades } = await supabase
+        .from("account_trade_history")
+        .select("id")
+        .eq("account_id", account_id)
+        .eq("user_id", user.id)
+        .eq("asset", asset.replace("/", ""))
+        .order("created_at", { ascending: false })
+        .limit(1);
+      
+      if (recentTrades && recentTrades.length > 0) {
+        await supabase.from("account_trade_history").update({
+          source_type: sourceType,
+          source_review_id: review_id || null,
+          source_signal_id: signal_id || null,
+        }).eq("id", recentTrades[0].id);
+        console.log(`[ExecuteTrade] Auto-linked trade ${recentTrades[0].id} to ${sourceType}`);
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       execution_id: logEntry.id,
