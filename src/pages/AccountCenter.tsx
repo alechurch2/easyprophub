@@ -824,6 +824,8 @@ function TradeHistory({ trades, onSelectTrade }: { trades: Trade[]; onSelectTrad
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">{t.asset}</span>
                     <Badge variant="outline" className="text-[10px]">{t.direction.toUpperCase()}</Badge>
+                    {t.source_type === "review" && <Badge className="text-[9px] bg-primary/10 text-primary border-primary/20"><FileText className="h-2 w-2 mr-0.5" />Review</Badge>}
+                    {t.source_type === "signal" && <Badge className="text-[9px] bg-warning/10 text-warning border-warning/20"><Zap className="h-2 w-2 mr-0.5" />Segnale</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {t.lot_size} lot · {t.entry_price} → {t.exit_price || "—"}
