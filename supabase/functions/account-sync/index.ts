@@ -1295,20 +1295,75 @@ Deno.serve(async (req) => {
 
         // 4. Wait for connection
         console.log("[connect_metaapi] Step 4: Waiting for connection...");
-        await waitForConnection(metaAccountId);
-        console.log("[connect_metaapi] Step 4 done. Connected!");
+        const connResult = await waitForConnection(metaAccountId);
 
-        // 5. Mark connected
+        // Log the provisioning profile used for debugging
+        const { profileId: usedProfileId, source: usedProfileSource } = resolveProvisioningProfileId(account.broker || "");
+        console.log(`[connect_metaapi] Connection result: connected=${connResult.connected} state=${connResult.state} connectionStatus=${connResult.connectionStatus} providerError=${connResult.providerError || "none"} elapsed=${connResult.elapsedMs}ms profileId=${usedProfileId} profileSource=${usedProfileSource}`);
+
+        if (connResult.connected) {
+          console.log("[connect_metaapi] Step 4 done. Connected!");
+
+          // 5. Mark connected
+          await supabase.from("trading_accounts").update({
+            connection_status: "connected",
+            sync_status: "idle",
+            last_sync_error: null,
+          }).eq("id", account_id);
+
+          return new Response(JSON.stringify({
+            success: true,
+            status: "connected",
+            provider_account_id: metaAccountId,
+            metaapi_state: connResult.state,
+            metaapi_connection_status: connResult.connectionStatus,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Connection not yet established — save as intermediate state, NOT failure
+        console.warn(`[connect_metaapi] Connection not established within timeout. Saving intermediate state.`);
+
+        // Build a user-friendly status message
+        let userMessage: string;
+        let intermediateStatus: string;
+        if (connResult.state === "DEPLOYING") {
+          userMessage = "Il conto è ancora in fase di deploy. Riprova tra qualche minuto con il pulsante 'Verifica stato'.";
+          intermediateStatus = "deploying";
+        } else if (connResult.connectionStatus === "DISCONNECTED_FROM_BROKER") {
+          userMessage = "Il conto è deployato ma disconnesso dal broker. Verifica le credenziali e il server, oppure riprova tra qualche minuto.";
+          intermediateStatus = "disconnected_from_broker";
+        } else if (connResult.connectionStatus === "DISCONNECTED") {
+          userMessage = "Il conto è deployato ma non ancora connesso. Riprova tra qualche minuto con il pulsante 'Verifica stato'.";
+          intermediateStatus = "awaiting_connection";
+        } else {
+          userMessage = `Stato: ${connResult.state}/${connResult.connectionStatus}. Il conto potrebbe richiedere più tempo per connettersi. Riprova tra qualche minuto.`;
+          intermediateStatus = "awaiting_connection";
+        }
+
+        if (connResult.providerError) {
+          userMessage += ` (Dettaglio provider: ${connResult.providerError})`;
+        }
+
         await supabase.from("trading_accounts").update({
-          connection_status: "connected",
+          connection_status: intermediateStatus,
           sync_status: "idle",
-          last_sync_error: null,
+          last_sync_error: userMessage,
         }).eq("id", account_id);
 
         return new Response(JSON.stringify({
-          success: true,
-          status: "connected",
+          success: false,
+          status: intermediateStatus,
+          error: userMessage,
           provider_account_id: metaAccountId,
+          metaapi_state: connResult.state,
+          metaapi_connection_status: connResult.connectionStatus,
+          metaapi_provider_error: connResult.providerError || null,
+          metaapi_replica_states: connResult.replicaStates || null,
+          provisioning_profile_id: usedProfileId,
+          provisioning_profile_source: usedProfileSource,
+          can_retry: true,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
