@@ -21,8 +21,12 @@ import {
   Wallet, Plus, TrendingUp, TrendingDown, Activity, BarChart3, BookOpen,
   Loader2, Eye, ArrowUpRight, ArrowDownRight, Clock, Filter, ChevronLeft,
   Save, Trash2, X, Image, RefreshCw, AlertTriangle, Shield, Wifi, WifiOff,
-  CheckCircle2, XCircle, Zap
+  CheckCircle2, XCircle, Zap, Link2, Unlink, Brain, Star, FileText
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ---- Types ----
 interface TradingAccount {
@@ -70,6 +74,17 @@ interface Trade {
   closed_at: string | null;
   duration_minutes: number | null;
   external_trade_id: string | null;
+  source_type: string | null;
+  source_review_id: string | null;
+  source_signal_id: string | null;
+}
+
+interface TradeAiReview {
+  id: string;
+  trade_id: string;
+  analysis: any;
+  status: string;
+  created_at: string;
 }
 
 interface JournalEntry {
@@ -809,6 +824,8 @@ function TradeHistory({ trades, onSelectTrade }: { trades: Trade[]; onSelectTrad
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-foreground">{t.asset}</span>
                     <Badge variant="outline" className="text-[10px]">{t.direction.toUpperCase()}</Badge>
+                    {t.source_type === "review" && <Badge className="text-[9px] bg-primary/10 text-primary border-primary/20"><FileText className="h-2 w-2 mr-0.5" />Review</Badge>}
+                    {t.source_type === "signal" && <Badge className="text-[9px] bg-warning/10 text-warning border-warning/20"><Zap className="h-2 w-2 mr-0.5" />Segnale</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {t.lot_size} lot · {t.entry_price} → {t.exit_price || "—"}
@@ -836,8 +853,185 @@ function formatDuration(mins: number): string {
   return `${Math.floor(mins / 1440)}g ${Math.floor((mins % 1440) / 60)}h`;
 }
 
+// ---- Link Source Modal ----
+function LinkSourceModal({ open, onClose, trade, onLinked }: { open: boolean; onClose: () => void; trade: Trade; onLinked: () => void }) {
+  const { user } = useAuth();
+  const [tab, setTab] = useState<"reviews" | "signals">("reviews");
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [signals, setSignals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [linking, setLinking] = useState(false);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    setLoading(true);
+    Promise.all([
+      supabase.from("ai_chart_reviews").select("id, asset, timeframe, review_mode, review_tier, created_at, status")
+        .eq("user_id", user.id).eq("status", "completed").order("created_at", { ascending: false }).limit(50),
+      supabase.from("shared_signals").select("id, asset, direction, order_type, entry_price, stop_loss, take_profit, signal_strength, published_at")
+        .eq("is_published", true).eq("is_archived", false).order("published_at", { ascending: false }).limit(50),
+    ]).then(([revRes, sigRes]) => {
+      if (revRes.data) setReviews(revRes.data);
+      if (sigRes.data) setSignals(sigRes.data);
+      setLoading(false);
+    });
+  }, [open, user]);
+
+  const linkToReview = async (reviewId: string) => {
+    setLinking(true);
+    const { error } = await supabase.from("account_trade_history").update({
+      source_type: "review",
+      source_review_id: reviewId,
+      source_signal_id: null,
+    } as any).eq("id", trade.id);
+    if (error) toast.error("Errore nel collegamento");
+    else { toast.success("Trade collegato alla review!"); onLinked(); onClose(); }
+    setLinking(false);
+  };
+
+  const linkToSignal = async (signalId: string) => {
+    setLinking(true);
+    const { error } = await supabase.from("account_trade_history").update({
+      source_type: "signal",
+      source_review_id: null,
+      source_signal_id: signalId,
+    } as any).eq("id", trade.id);
+    if (error) toast.error("Errore nel collegamento");
+    else { toast.success("Trade collegato al segnale!"); onLinked(); onClose(); }
+    setLinking(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Link2 className="h-4 w-4 text-primary" />Collega a fonte</DialogTitle>
+          <DialogDescription>Seleziona la review o il segnale che ha generato questo trade</DialogDescription>
+        </DialogHeader>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+          <TabsList className="w-full grid grid-cols-2">
+            <TabsTrigger value="reviews" className="text-xs">AI Chart Review</TabsTrigger>
+            <TabsTrigger value="signals" className="text-xs">Segnali condivisi</TabsTrigger>
+          </TabsList>
+          <ScrollArea className="h-[300px] mt-3">
+            {loading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+            ) : tab === "reviews" ? (
+              reviews.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nessuna review disponibile</p>
+              ) : (
+                <div className="space-y-2">
+                  {reviews.map((r) => (
+                    <button key={r.id} onClick={() => linkToReview(r.id)} disabled={linking}
+                      className="w-full card-premium p-3 text-left hover:border-primary/30 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-semibold text-foreground">{r.asset}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{r.timeframe}</span>
+                          <Badge variant="outline" className="ml-2 text-[9px]">{r.review_mode === "easy" ? "Easy" : "Pro"}</Badge>
+                          <Badge variant="outline" className="ml-1 text-[9px]">{r.review_tier === "premium" ? "Premium" : "Standard"}</Badge>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString("it-IT")}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              signals.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Nessun segnale disponibile</p>
+              ) : (
+                <div className="space-y-2">
+                  {signals.map((s) => (
+                    <button key={s.id} onClick={() => linkToSignal(s.id)} disabled={linking}
+                      className="w-full card-premium p-3 text-left hover:border-primary/30 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-semibold text-foreground">{s.asset}</span>
+                          <Badge variant="outline" className={cn("ml-2 text-[9px]", s.direction?.toLowerCase().includes("buy") ? "text-success border-success/30" : "text-destructive border-destructive/30")}>
+                            {s.direction} {s.order_type}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground ml-2">Entry: {s.entry_price}</span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">{s.published_at ? new Date(s.published_at).toLocaleDateString("it-IT") : ""}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )
+            )}
+          </ScrollArea>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---- Trade AI Review Display ----
+function TradeAiReviewDisplay({ review }: { review: TradeAiReview }) {
+  if (review.status === "pending") {
+    return (
+      <div className="card-premium p-5 flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Analisi AI in corso...</p>
+      </div>
+    );
+  }
+  if (review.status === "failed" || !review.analysis) {
+    return (
+      <div className="card-premium p-5 border-destructive/20">
+        <p className="text-sm text-destructive">Analisi AI fallita. Riprova più tardi.</p>
+      </div>
+    );
+  }
+
+  const a = review.analysis;
+  const verdictColor = a.verdict === "POSITIVO" ? "text-success border-success/20 bg-success/5" :
+    a.verdict === "NEGATIVO" ? "text-destructive border-destructive/20 bg-destructive/5" :
+    "text-warning border-warning/20 bg-warning/5";
+
+  return (
+    <div className="card-premium p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Brain className="h-4 w-4 text-primary" />
+          <h4 className="font-heading font-semibold text-foreground">Review AI del trade</h4>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge className={cn("text-xs", verdictColor)}>{a.verdict || "N/A"}</Badge>
+          {a.voto_complessivo && (
+            <Badge variant="outline" className="text-xs"><Star className="h-3 w-3 mr-1" />{a.voto_complessivo}/10</Badge>
+          )}
+        </div>
+      </div>
+      <div className="space-y-3">
+        {[
+          { key: "coerenza_setup", label: "🎯 Coerenza con il setup" },
+          { key: "qualita_ingresso", label: "📍 Qualità dell'ingresso" },
+          { key: "qualita_gestione", label: "⚙️ Gestione del trade" },
+          { key: "timing", label: "⏱️ Timing" },
+          { key: "risultato_vs_idea", label: "📊 Risultato vs idea" },
+          { key: "cosa_ha_funzionato", label: "✅ Cosa ha funzionato" },
+          { key: "errori_principali", label: "⚠️ Errori principali" },
+          { key: "lezione_finale", label: "📚 Lezione finale" },
+        ].map(({ key, label }) => {
+          const val = a[key];
+          if (!val) return null;
+          return (
+            <div key={key}>
+              <p className="text-xs font-medium text-muted-foreground">{label}</p>
+              <p className="text-sm text-foreground mt-0.5">{val}</p>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted-foreground">Analizzato il {new Date(review.created_at).toLocaleString("it-IT")}</p>
+    </div>
+  );
+}
+
 // ---- Trade Detail ----
-function TradeDetail({ trade, onBack }: { trade: Trade; onBack: () => void }) {
+function TradeDetail({ trade, onBack, onTradeUpdated }: { trade: Trade; onBack: () => void; onTradeUpdated?: () => void }) {
   const { user } = useAuth();
   const [journal, setJournal] = useState<JournalEntry | null>(null);
   const [loading, setLoading] = useState(true);
@@ -845,13 +1039,18 @@ function TradeDetail({ trade, onBack }: { trade: Trade; onBack: () => void }) {
   const [form, setForm] = useState({
     initial_idea: "", motivation: "", emotion: "", mistakes: "", did_well: "", lesson_learned: "", free_note: ""
   });
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [tradeReview, setTradeReview] = useState<TradeAiReview | null>(null);
+  const [requestingReview, setRequestingReview] = useState(false);
+  const [currentTrade, setCurrentTrade] = useState(trade);
 
   useEffect(() => {
     loadJournal();
-  }, [trade.id]);
+    loadTradeReview();
+  }, [currentTrade.id]);
 
   const loadJournal = async () => {
-    const { data } = await supabase.from("trade_journal_entries").select("*").eq("trade_id", trade.id).maybeSingle();
+    const { data } = await supabase.from("trade_journal_entries").select("*").eq("trade_id", currentTrade.id).maybeSingle();
     if (data) {
       setJournal(data as any);
       setForm({
@@ -867,11 +1066,17 @@ function TradeDetail({ trade, onBack }: { trade: Trade; onBack: () => void }) {
     setLoading(false);
   };
 
+  const loadTradeReview = async () => {
+    const { data } = await supabase.from("trade_ai_reviews").select("*")
+      .eq("trade_id", currentTrade.id).order("created_at", { ascending: false }).limit(1);
+    if (data && data.length > 0) setTradeReview(data[0] as any);
+  };
+
   const saveJournal = async () => {
     if (!user) return;
     const payload = {
-      trade_id: trade.id,
-      account_id: trade.account_id,
+      trade_id: currentTrade.id,
+      account_id: currentTrade.account_id,
       user_id: user.id,
       ...form,
     };
@@ -886,6 +1091,79 @@ function TradeDetail({ trade, onBack }: { trade: Trade; onBack: () => void }) {
     loadJournal();
   };
 
+  const handleLinked = async () => {
+    // Reload trade data
+    const { data } = await supabase.from("account_trade_history").select("*").eq("id", currentTrade.id).single();
+    if (data) setCurrentTrade(data as any);
+    onTradeUpdated?.();
+  };
+
+  const unlinkSource = async () => {
+    const { error } = await supabase.from("account_trade_history").update({
+      source_type: "manual",
+      source_review_id: null,
+      source_signal_id: null,
+    } as any).eq("id", currentTrade.id);
+    if (error) toast.error("Errore");
+    else {
+      toast.success("Collegamento rimosso");
+      handleLinked();
+    }
+  };
+
+  const requestAiReview = async () => {
+    if (!user) return;
+    setRequestingReview(true);
+    
+    // Create review record
+    const { data: reviewRecord, error } = await supabase.from("trade_ai_reviews").insert({
+      trade_id: currentTrade.id,
+      user_id: user.id,
+      source_review_id: currentTrade.source_review_id || null,
+      source_signal_id: currentTrade.source_signal_id || null,
+      status: "pending",
+    } as any).select("id").single();
+
+    if (error || !reviewRecord) {
+      toast.error("Errore nella creazione della review");
+      setRequestingReview(false);
+      return;
+    }
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/ai-trade-review`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: JSON.stringify({ trade_id: currentTrade.id, review_record_id: (reviewRecord as any).id }),
+        }
+      );
+      const result = await res.json();
+      if (result.success) {
+        toast.success("Review AI completata!");
+      } else {
+        toast.error(result.error || "Errore nella review AI");
+      }
+    } catch {
+      toast.error("Errore di connessione");
+    }
+    
+    setRequestingReview(false);
+    loadTradeReview();
+  };
+
+  const sourceLabel = currentTrade.source_type === "review" ? "AI Chart Review" :
+    currentTrade.source_type === "signal" ? "Segnale condiviso" : "Trade manuale";
+  const sourceIcon = currentTrade.source_type === "review" ? <FileText className="h-3.5 w-3.5 text-primary" /> :
+    currentTrade.source_type === "signal" ? <Zap className="h-3.5 w-3.5 text-warning" /> :
+    <Unlink className="h-3.5 w-3.5 text-muted-foreground" />;
+
   return (
     <div className="animate-fade-in space-y-6">
       <button onClick={onBack} className="text-sm text-primary hover:underline flex items-center gap-1">
@@ -895,41 +1173,89 @@ function TradeDetail({ trade, onBack }: { trade: Trade; onBack: () => void }) {
       <div className="card-premium p-5">
         <div className="flex items-center gap-3 mb-4">
           <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center",
-            trade.direction === "buy" ? "bg-success/10" : "bg-destructive/10"
+            currentTrade.direction === "buy" ? "bg-success/10" : "bg-destructive/10"
           )}>
-            {trade.direction === "buy" ?
+            {currentTrade.direction === "buy" ?
               <ArrowUpRight className="h-5 w-5 text-success" /> :
               <ArrowDownRight className="h-5 w-5 text-destructive" />}
           </div>
           <div>
             <h3 className="font-heading font-semibold text-foreground text-lg">
-              {trade.asset} <Badge variant="outline" className="ml-1">{trade.direction.toUpperCase()}</Badge>
+              {currentTrade.asset} <Badge variant="outline" className="ml-1">{currentTrade.direction.toUpperCase()}</Badge>
             </h3>
             <p className="text-xs text-muted-foreground">
-              {trade.status === "open" ? "Posizione aperta" : "Posizione chiusa"}
-              {trade.external_trade_id && <span className="ml-2">· ID: {trade.external_trade_id}</span>}
+              {currentTrade.status === "open" ? "Posizione aperta" : "Posizione chiusa"}
+              {currentTrade.external_trade_id && <span className="ml-2">· ID: {currentTrade.external_trade_id}</span>}
             </p>
           </div>
           <div className="ml-auto text-right">
-            <PnLValue value={trade.profit_loss} prefix="$" />
+            <PnLValue value={currentTrade.profit_loss} prefix="$" />
             <Badge className={cn("ml-2",
-              trade.status === "open" ? "bg-info/10 text-info" : trade.profit_loss >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+              currentTrade.status === "open" ? "bg-info/10 text-info" : currentTrade.profit_loss >= 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
             )}>
-              {trade.status === "open" ? "Aperta" : trade.profit_loss >= 0 ? "Profit" : "Loss"}
+              {currentTrade.status === "open" ? "Aperta" : currentTrade.profit_loss >= 0 ? "Profit" : "Loss"}
             </Badge>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <MetricCard label="Lotto" value={String(trade.lot_size)} small />
-          <MetricCard label="Entry" value={String(trade.entry_price)} small />
-          <MetricCard label="Exit" value={trade.exit_price ? String(trade.exit_price) : "—"} small />
-          <MetricCard label="SL" value={trade.stop_loss ? String(trade.stop_loss) : "—"} small />
-          <MetricCard label="TP" value={trade.take_profit ? String(trade.take_profit) : "—"} small />
-          <MetricCard label="Apertura" value={new Date(trade.opened_at).toLocaleString("it-IT")} small />
-          <MetricCard label="Chiusura" value={trade.closed_at ? new Date(trade.closed_at).toLocaleString("it-IT") : "—"} small />
-          <MetricCard label="Durata" value={trade.duration_minutes ? formatDuration(trade.duration_minutes) : "—"} small />
+          <MetricCard label="Lotto" value={String(currentTrade.lot_size)} small />
+          <MetricCard label="Entry" value={String(currentTrade.entry_price)} small />
+          <MetricCard label="Exit" value={currentTrade.exit_price ? String(currentTrade.exit_price) : "—"} small />
+          <MetricCard label="SL" value={currentTrade.stop_loss ? String(currentTrade.stop_loss) : "—"} small />
+          <MetricCard label="TP" value={currentTrade.take_profit ? String(currentTrade.take_profit) : "—"} small />
+          <MetricCard label="Apertura" value={new Date(currentTrade.opened_at).toLocaleString("it-IT")} small />
+          <MetricCard label="Chiusura" value={currentTrade.closed_at ? new Date(currentTrade.closed_at).toLocaleString("it-IT") : "—"} small />
+          <MetricCard label="Durata" value={currentTrade.duration_minutes ? formatDuration(currentTrade.duration_minutes) : "—"} small />
         </div>
+      </div>
+
+      {/* Source Linking */}
+      <div className="card-premium p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-primary" />
+            <h4 className="font-heading font-semibold text-foreground">Fonte del trade</h4>
+          </div>
+          <div className="flex items-center gap-2">
+            {sourceIcon}
+            <span className="text-xs text-muted-foreground">{sourceLabel}</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setLinkModalOpen(true)}>
+            <Link2 className="h-3 w-3 mr-1" />
+            {currentTrade.source_type && currentTrade.source_type !== "manual" ? "Cambia collegamento" : "Collega ad analisi"}
+          </Button>
+          {currentTrade.source_type && currentTrade.source_type !== "manual" && (
+            <Button size="sm" variant="outline" onClick={unlinkSource} className="text-destructive border-destructive/30 hover:bg-destructive/10">
+              <Unlink className="h-3 w-3 mr-1" />Scollega
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* AI Trade Review */}
+      <div className="space-y-3">
+        {tradeReview ? (
+          <TradeAiReviewDisplay review={tradeReview} />
+        ) : currentTrade.status === "closed" ? (
+          <div className="card-premium p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Brain className="h-4 w-4 text-primary" />
+              <h4 className="font-heading font-semibold text-foreground">Review AI del trade</h4>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              {currentTrade.source_type && currentTrade.source_type !== "manual"
+                ? "Analizza questo trade confrontandolo con l'analisi originale."
+                : "Analizza questo trade con l'AI per ottenere feedback sulla qualità dell'esecuzione."}
+            </p>
+            <Button size="sm" onClick={requestAiReview} disabled={requestingReview}>
+              {requestingReview ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Brain className="h-3.5 w-3.5 mr-1.5" />}
+              Richiedi review AI del trade
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {/* Journaling */}
@@ -1004,6 +1330,9 @@ function TradeDetail({ trade, onBack }: { trade: Trade; onBack: () => void }) {
           <p className="text-sm text-muted-foreground text-center py-4">Nessun journaling ancora. Clicca "Aggiungi" per iniziare.</p>
         )}
       </div>
+
+      {/* Link Modal */}
+      <LinkSourceModal open={linkModalOpen} onClose={() => setLinkModalOpen(false)} trade={currentTrade} onLinked={handleLinked} />
     </div>
   );
 }
@@ -1600,7 +1929,7 @@ export default function AccountCenter() {
     return (
       <AppLayout>
         <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
-          <TradeDetail trade={selectedTrade} onBack={() => setSelectedTrade(null)} />
+          <TradeDetail trade={selectedTrade} onBack={() => setSelectedTrade(null)} onTradeUpdated={loadData} />
         </div>
       </AppLayout>
     );
