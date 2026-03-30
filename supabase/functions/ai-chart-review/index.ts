@@ -18,48 +18,150 @@ const CHART_REVIEW_MODEL_PREMIUM = "google/gemini-2.5-pro";
 // 🔧 STRATEGIA PRO — Analisi tecnica SINTETICA
 // ============================================================
 const CUSTOM_STRATEGY_PRO = `
+Analizza lo screenshot del grafico seguendo una metodologia principalmente Smart Money / ICT. Wyckoff va usato solo come contesto secondario e solo sui timeframe superiori a 30 minuti, quando è davvero supportato da ciò che si vede.
 
-Analizza lo screenshot del grafico seguendo la metodologia Smart Money / ICT / Wyckoff.
+OBIETTIVO:
+Fornire una chart review tecnica, selettiva, sintetica e ad alta densità informativa. La risposta deve sembrare quella di un trader esperto, severo e concreto, non di un assistente neutro o didattico generico.
 
-OBIETTIVO: Chart review tecnica, strutturata, CONCISA. Ogni sezione deve essere breve e ad alta densità informativa. Niente giri di parole, niente ripetizioni tra sezioni.
+PRIORITÀ DI LETTURA (ordine di importanza):
+1. Liquidità
+2. Sweep / manipolazione
+3. Struttura del timeframe visibile
+4. Sessione / timing, se leggibile
+5. Displacement / reazione impulsiva
+6. Volume, se leggibile
+7. Contesto Wyckoff solo su TF > 30m
+8. Change of Character / shift strutturale
+
+PRINCIPI FONDAMENTALI:
+- Non vedere setup ovunque
+- Non chiamare BOS se non c’è una rottura strutturale reale e difendibile
+- Non chiamare CHoCH / shift se il cambio struttura non è chiaro
+- Non confondere consolidamento con accumulazione/distribuzione
+- Non usare termini ICT/SMC per riempire i campi
+- Non forzare zone, sweep, displacement o contesto se non sono visibili
+- Se il materiale è insufficiente, dillo chiaramente
+- Se non c’è edge, dillo chiaramente
+
+DEFINIZIONE DI CONTESTO VALIDO:
+Un contesto buono richiede preferibilmente più elementi coerenti tra loro, ad esempio:
+- liquidità chiaramente identificabile
+- sweep/manipolazione leggibile
+- reazione o displacement credibile
+- struttura coerente con lo scenario prevalente
+- timing/sessione coerente, se visibile
+Un singolo elemento isolato non basta.
+
+DISTINZIONE PER TIMEFRAME:
+- TF bassi (M1-M15): maggiore peso a sweep, timing, displacement, shift rapido, reazione immediata
+- TF medi/alti (M30-H4+): maggiore peso a struttura generale, liquidità HTF, range, contesto Wyckoff, estremi significativi
+- Se il timeframe non è leggibile, non inventarlo
 
 REGOLE DI STILE:
-- Ogni campo: massimo 2-3 frasi dense. No paragrafi lunghi.
-- Non ripetere lo stesso concetto in contesto, bias e conclusione.
-- Vai dritto al punto. Privilegia informazioni azionabili.
-- Se un elemento non è valutabile, scrivi "Non valutabile" e basta.
+- Solo informazioni importanti
+- Ogni campo: 1-2 frasi dense, massimo 3 solo se indispensabile
+- Nessun paragrafo lungo
+- Nessuna ripetizione inutile tra campi
+- Ogni campo deve aggiungere valore unico
+- Se non valutabile: scrivi "Non valutabile"
+- Se non esiste una zona difendibile o un edge, dichiaralo senza esitazione
 
 ORDINE DI ANALISI:
 
-1. LEGGIBILITÀ IMMAGINE — Qualità dello screenshot in una frase.
+1. LEGGIBILITÀ IMMAGINE
+Valuta se lo screenshot consente una review seria. Se è insufficiente, dirlo in modo netto.
 
-2. CONTESTO — Trend dominante e fase attuale (espansione, consolidamento, transizione). Solo ciò che si vede.
+2. CONTESTO
+Definisci fase e stato del mercato visibile: trend, compressione, consolidamento, transizione, espansione. Solo ciò che si vede chiaramente.
 
-3. BIAS — Direzione prevalente con motivazione in una frase.
+3. BIAS
+Indica lo scenario prevalente:
+- rialzista
+- ribassista
+- neutrale / non tradabile
+Motivalo in modo secco.
 
-4. STRUTTURA — Massimi/minimi chiave, eventuali BOS o CHoCH. Sintesi strutturale.
+4. STRUTTURA
+Indica massimi/minimi chiave, continuità o perdita di struttura, eventuale BOS/CHoCH solo se chiaramente presente.
 
-5. LIQUIDITÀ — Dove si trova (EQH, EQL, swing points), se è stata presa o meno.
+5. LIQUIDITÀ
+Indica dove si trova la liquidità rilevante:
+- interna / esterna se leggibile
+- EQH / EQL
+- swing high / low
+- estremi di range
+Specifica se è stata presa oppure no.
 
-6. ZONA INTERESSANTE — Area di interesse operativo se presente, altrimenti "Nessuna zona chiara".
+6. SWEEP / MANIPOLAZIONE
+Indica se c’è stato uno sweep/manipolazione reale. Se non si vede, scrivilo chiaramente.
 
-7. CONFERMA RICHIESTA — Cosa serve per validare il setup, in 1-2 punti.
+7. SESSIONE / TIMING
+Se leggibile, indica se orario/sessione aiutano o penalizzano il contesto. Se non leggibile: "Non valutabile".
 
-8. INVALIDAZIONE — Livello o condizione che invalida lo scenario principale.
+8. DISPLACEMENT / REAZIONE
+Indica se dopo sweep o zona chiave c’è stata una reazione impulsiva credibile. Se il movimento è debole o sporco, dillo.
 
-9. SCENARIO BULLISH — Sintesi dello scenario rialzista in 1-2 frasi.
+9. VOLUME
+Solo se leggibile. Indica se conferma o no il movimento. Se non leggibile: "Non valutabile".
 
-10. SCENARIO BEARISH — Sintesi dello scenario ribassista in 1-2 frasi.
+10. CONTESTO WYCKOFF
+Compilalo solo se TF > 30m e il contesto lo consente davvero. Indica se il mercato appare più vicino a:
+- accumulazione
+- distribuzione
+- semplice range
+- non valutabile
+Non forzarlo mai.
 
-QUALITÀ SETUP: 1-10. Alta (8-10): contesto chiaro, confluenze multiple. Media (5-7): alcuni elementi ma quadro incompleto. Bassa (1-4): lettura incerta.
+11. ZONA INTERESSANTE
+Indica l’unica area davvero interessante, se esiste. Se non c’è una zona chiara e difendibile: "Nessuna zona chiara".
 
-CONCLUSIONE: Sintesi finale in 1-2 frasi che integra gli elementi principali SENZA ripetere ciò già detto nelle altre sezioni.
+12. COSA MANCA
+Indica cosa manca per avere un contesto più forte o tradabile:
+- sweep
+- displacement
+- reclaim
+- conferma strutturale
+- timing
+- livelli HTF
+Se il contesto è già ben definito, scrivi: "Contesto già ben definito".
 
-REGOLE FONDAMENTALI:
-- Non inventare ciò che non si vede
-- Non promettere risultati
+13. INVALIDAZIONE
+Indica il livello o la condizione che invalida lo scenario prevalente.
+
+14. SCENARIO PREVALENTE
+Descrivi in 1-2 frasi lo scenario più sensato e difendibile in base a ciò che si vede.
+
+15. SCENARIO ALTERNATIVO
+Descrivi in 1 frase cosa dovrebbe cambiare perché lo scenario opposto diventi più probabile.
+
+QUALITÀ SETUP:
+Valuta da 1 a 10 con criterio medio, non commerciale.
+- 8-10: contesto chiaro, liquidità leggibile, sweep/manipolazione credibile, struttura coerente, reazione valida
+- 5-7: lettura sensata ma incompleta o non ancora matura
+- 1-4: contesto debole, ambiguo, sporco o poco leggibile
+
+CONCLUSIONE:
+Chiudi con una sintesi breve e decisionale:
+- scenario prevalente
+- contesto tradabile / da confermare / poco interessante
+Niente ripetizioni.
+
+RICHIESTA SCREEN MIGLIORE:
+Usala solo se davvero utile.
+Se lo screenshot è leggibile ma incompleto per una review di qualità, indica in 1 frase cosa l’utente dovrebbe tracciare o mostrare meglio, ad esempio:
+- massimo/minimo rilevante
+- supporti/resistenze principali
+- area di liquidità
+- range di riferimento
+- sweep
+- livelli HTF
+- sessione/orario
+
+DIVIETI:
 - Non dare segnali operativi diretti
-- Se il grafico è ambiguo, dirlo
+- Non promettere risultati
+- Non compensare con sicurezza artificiale quando manca contesto
+- Non riempire i campi se lo screenshot non supporta l’analisi
 `;
 
 // ============================================================
@@ -137,20 +239,28 @@ Mantieni sempre prudenza, nessuna promessa di risultato.
 // ============================================================
 // System prompts
 // ============================================================
-const SYSTEM_PROMPT_PRO = `Sei un analista tecnico esperto. Analizza screenshot di grafici di trading seguendo ESCLUSIVAMENTE la strategia definita.
+const SYSTEM_PROMPT_PRO = `Sei un analista tecnico esperto specializzato in Smart Money / ICT. Devi analizzare screenshot di grafici in modo severo, tecnico, sintetico e selettivo.
 
-STRATEGIA:
+STRATEGIA DA SEGUIRE:
 ${CUSTOM_STRATEGY_PRO}
 
-REGOLE:
-1. Analizza SOLO ciò che vedi nell'immagine.
-2. Se l'immagine non è leggibile, dichiaralo in "leggibilita_immagine".
-3. NON promettere risultati. NON suggerire esecuzione.
-4. Rispondi SOLO tramite la funzione "chart_analysis".
-5. Ogni campo: CONCISO, professionale, no ridondanza.
-6. IMPORTANTE: non ripetere le stesse informazioni in campi diversi. Ogni campo deve aggiungere valore unico.
+REGOLE DI COMPORTAMENTO:
+1. Analizza solo ciò che è davvero visibile nell’immagine.
+2. Non inventare sweep, BOS, CHoCH, displacement, Wyckoff o zone se non sono chiaramente supportati dallo screenshot.
+3. Se l’immagine è insufficiente, dichiaralo chiaramente in "leggibilita_immagine" e limita il resto dell’analisi.
+4. Se il contesto è ambiguo o non c’è edge, dillo in modo netto. Non essere neutro per riempire i campi.
+5. Non usare linguaggio da marketing, non promettere risultati, non suggerire esecuzione.
+6. Non dare segnali operativi diretti.
+7. Rispondi solo tramite la funzione "chart_analysis".
+8. Ogni campo deve essere conciso, professionale, ad alta densità informativa.
+9. Non ripetere lo stesso concetto in campi diversi: ogni campo deve aggiungere valore unico.
+10. Se un elemento non è valutabile, scrivi "Non valutabile".
+11. Se il materiale è leggibile ma incompleto, puoi usare il campo finale per indicare cosa tracciare meglio, ma solo se davvero utile.
+12. Dai priorità a: liquidità, sweep/manipolazione, struttura, sessione/timing, displacement.
+13. Wyckoff è secondario e va usato solo sui timeframe superiori a 30 minuti quando è davvero supportato dal grafico.
 
-CONTESTO: ti verranno forniti asset, timeframe e tipo di richiesta.`;
+CONTESTO INPUT:
+Ti verranno forniti asset, timeframe e tipo di richiesta. Usali solo come supporto interpretativo, senza sostituire ciò che è visibile nello screenshot.`;
 
 const SYSTEM_PROMPT_PRO_PREMIUM = `Sei un analista tecnico SENIOR. Fornisci un'analisi PREMIUM approfondita ma SINTETICA di screenshot di grafici.
 
@@ -224,9 +334,26 @@ const ANALYSIS_TOOL_PRO = {
         scenario_bearish: { type: "string", description: "Scenario ribassista in 1-2 frasi." },
         qualita_setup: { type: "integer", description: "Qualità del setup da 1 a 10." },
         warning: { type: "string", description: "Avvertenze brevi." },
-        conclusione: { type: "string", description: "Sintesi finale UNICA in 1-2 frasi, senza ripetere le altre sezioni." },
+        conclusione: {
+          type: "string",
+          description: "Sintesi finale UNICA in 1-2 frasi, senza ripetere le altre sezioni.",
+        },
       },
-      required: ["leggibilita_immagine", "contesto", "bias", "struttura", "liquidita", "zona_interessante", "conferma_richiesta", "invalidazione", "scenario_bullish", "scenario_bearish", "qualita_setup", "warning", "conclusione"],
+      required: [
+        "leggibilita_immagine",
+        "contesto",
+        "bias",
+        "struttura",
+        "liquidita",
+        "zona_interessante",
+        "conferma_richiesta",
+        "invalidazione",
+        "scenario_bullish",
+        "scenario_bearish",
+        "qualita_setup",
+        "warning",
+        "conclusione",
+      ],
       additionalProperties: false,
     },
   },
@@ -254,9 +381,20 @@ const ANALYSIS_TOOL_EASY = {
     parameters: {
       type: "object",
       properties: {
-        leggibilita_immagine: { type: "string", description: "Qualità dell'immagine. Es: 'Chiara', 'Parziale', 'Non leggibile'." },
-        signal_quality: { type: "string", enum: ["alta", "media", "bassa"], description: "Qualità complessiva del segnale." },
-        setup_strength: { type: "integer", description: "Forza del segnale principale da 1 a 5. 1=molto debole, 2=debole, 3=discreto/minimo consigliabile, 4=buono, 5=forte." },
+        leggibilita_immagine: {
+          type: "string",
+          description: "Qualità dell'immagine. Es: 'Chiara', 'Parziale', 'Non leggibile'.",
+        },
+        signal_quality: {
+          type: "string",
+          enum: ["alta", "media", "bassa"],
+          description: "Qualità complessiva del segnale.",
+        },
+        setup_strength: {
+          type: "integer",
+          description:
+            "Forza del segnale principale da 1 a 5. 1=molto debole, 2=debole, 3=discreto/minimo consigliabile, 4=buono, 5=forte.",
+        },
         primary_signal: {
           type: "object",
           description: "Segnale principale OBBLIGATORIO — sempre a mercato (Buy o Sell).",
@@ -277,7 +415,11 @@ const ANALYSIS_TOOL_EASY = {
           items: {
             type: "object",
             properties: {
-              tipo: { type: "string", enum: ["Buy Limit", "Sell Limit", "Buy Stop", "Sell Stop"], description: "Tipo di ordine pending." },
+              tipo: {
+                type: "string",
+                enum: ["Buy Limit", "Sell Limit", "Buy Stop", "Sell Stop"],
+                description: "Tipo di ordine pending.",
+              },
               pending_strength: { type: "integer", description: "Forza di questo setup pending da 1 a 5." },
               entry_range: { type: "string", description: "Livello di entrata del pending." },
               stop_loss: { type: "string", description: "Livello dello stop loss." },
@@ -286,7 +428,16 @@ const ANALYSIS_TOOL_EASY = {
               tp_pips: { type: "number", description: "Distanza TP in pips." },
               spiegazione: { type: "string", description: "Perché questo ordine pending? (2-3 frasi)" },
             },
-            required: ["tipo", "pending_strength", "entry_range", "stop_loss", "take_profit", "sl_pips", "tp_pips", "spiegazione"],
+            required: [
+              "tipo",
+              "pending_strength",
+              "entry_range",
+              "stop_loss",
+              "take_profit",
+              "sl_pips",
+              "tp_pips",
+              "spiegazione",
+            ],
           },
         },
         expected_duration: { type: "string", description: "Durata attesa del trade (es: '2-4 ore', '1-3 giorni')." },
@@ -294,7 +445,14 @@ const ANALYSIS_TOOL_EASY = {
         conclusione: { type: "string", description: "Conclusione sintetica." },
         contesto_mercato: { type: "string", description: "Cosa sta facendo il prezzo adesso (1-2 frasi semplici)." },
       },
-      required: ["leggibilita_immagine", "signal_quality", "setup_strength", "primary_signal", "expected_duration", "conclusione"],
+      required: [
+        "leggibilita_immagine",
+        "signal_quality",
+        "setup_strength",
+        "primary_signal",
+        "expected_duration",
+        "conclusione",
+      ],
       additionalProperties: false,
     },
   },
@@ -318,7 +476,12 @@ function estimateAICost(model: string, tokensIn: number, tokensOut: number): num
   return costs.perCall;
 }
 
-async function checkUsageLimits(supabase: any, userId: string, functionType: string, isAdmin: boolean): Promise<string | null> {
+async function checkUsageLimits(
+  supabase: any,
+  userId: string,
+  functionType: string,
+  isAdmin: boolean,
+): Promise<string | null> {
   if (isAdmin) return null;
 
   const { data: limits } = await supabase
@@ -339,11 +502,19 @@ async function checkUsageLimits(supabase: any, userId: string, functionType: str
 
     let matchType = "";
     let since = "";
-    if (limit.limit_type === "chat_daily" && functionType === "chat") { matchType = "chat"; since = todayStart; }
-    else if (limit.limit_type === "chart_review_standard_daily" && functionType === "chart_review_standard") { matchType = functionType; since = todayStart; }
-    else if (limit.limit_type === "chart_review_standard_monthly" && functionType === "chart_review_standard") { matchType = functionType; since = monthStart; }
-    else if (limit.limit_type === "chart_review_premium_monthly" && functionType === "chart_review_premium") { matchType = functionType; since = monthStart; }
-    else continue;
+    if (limit.limit_type === "chat_daily" && functionType === "chat") {
+      matchType = "chat";
+      since = todayStart;
+    } else if (limit.limit_type === "chart_review_standard_daily" && functionType === "chart_review_standard") {
+      matchType = functionType;
+      since = todayStart;
+    } else if (limit.limit_type === "chart_review_standard_monthly" && functionType === "chart_review_standard") {
+      matchType = functionType;
+      since = monthStart;
+    } else if (limit.limit_type === "chart_review_premium_monthly" && functionType === "chart_review_premium") {
+      matchType = functionType;
+      since = monthStart;
+    } else continue;
 
     const { count } = await supabase
       .from("ai_usage_log")
@@ -378,7 +549,8 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Non autenticato" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -390,14 +562,23 @@ serve(async (req) => {
 
     if (claimsError || !userId) {
       console.error("[AUTH] getClaims failed:", claimsError?.message, "token length:", token?.length);
-      return new Response(JSON.stringify({ error: "Token non valido", detail: claimsError?.message || "claims missing" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Token non valido", detail: claimsError?.message || "claims missing" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const { error: authError } = await supabase.auth.getUser(token);
     if (authError) {
-      console.warn("[AUTH] getUser warning, continuing with verified JWT claims:", authError.message, "user_id:", userId);
+      console.warn(
+        "[AUTH] getUser warning, continuing with verified JWT claims:",
+        authError.message,
+        "user_id:",
+        userId,
+      );
     }
 
     const user = { id: userId };
@@ -408,18 +589,29 @@ serve(async (req) => {
     if (!licenseCheck && !isAdminCheck) {
       return new Response(
         JSON.stringify({ error: "La tua licenza è scaduta o sospesa. Contatta il supporto.", license_expired: true }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     const body = await req.json();
-    const { asset, timeframe, request_type, screenshot_url, user_note, parent_review_id, review_mode, account_size, review_tier, risk_percent } = body;
+    const {
+      asset,
+      timeframe,
+      request_type,
+      screenshot_url,
+      user_note,
+      parent_review_id,
+      review_mode,
+      account_size,
+      review_tier,
+      risk_percent,
+    } = body;
 
     if (!asset || !timeframe || !request_type) {
-      return new Response(
-        JSON.stringify({ error: "Parametri mancanti: asset, timeframe, request_type" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Parametri mancanti: asset, timeframe, request_type" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const isEasy = review_mode === "easy";
@@ -428,8 +620,8 @@ serve(async (req) => {
     // Check premium quota if premium
     if (isPremium) {
       const now = new Date();
-      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      
+      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
       const { data: usage } = await supabase
         .from("premium_review_usage")
         .select("*")
@@ -439,8 +631,11 @@ serve(async (req) => {
 
       if (usage && usage.reviews_used >= usage.quota_limit) {
         return new Response(
-          JSON.stringify({ error: "Hai esaurito le review premium disponibili per questo mese.", quota_exceeded: true }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({
+            error: "Hai esaurito le review premium disponibili per questo mese.",
+            quota_exceeded: true,
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
     }
@@ -449,10 +644,10 @@ serve(async (req) => {
     const functionType = isPremium ? "chart_review_premium" : "chart_review_standard";
     const limitCheckResult = await checkUsageLimits(supabase, user.id, functionType, isAdminCheck);
     if (limitCheckResult) {
-      return new Response(
-        JSON.stringify({ error: limitCheckResult, limit_exceeded: true }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: limitCheckResult, limit_exceeded: true }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Select model based on tier
@@ -488,7 +683,8 @@ serve(async (req) => {
     if (insertError) {
       console.error("Insert error:", insertError);
       return new Response(JSON.stringify({ error: "Errore nel salvataggio della richiesta" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -566,28 +762,27 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
     const analysisTool = isEasy ? ANALYSIS_TOOL_EASY : ANALYSIS_TOOL_PRO;
     const toolName = isEasy ? "easy_chart_analysis" : "chart_analysis";
 
-    console.log(`[AI Chart Review] Mode: ${isEasy ? "easy" : "pro"}, Tier: ${isPremium ? "premium" : "standard"}, Model: ${model}`);
+    console.log(
+      `[AI Chart Review] Mode: ${isEasy ? "easy" : "pro"}, Tier: ${isPremium ? "premium" : "standard"}, Model: ${model}`,
+    );
 
     // Call AI
-    const aiResponse = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userContent },
-          ],
-          tools: [analysisTool],
-          tool_choice: { type: "function", function: { name: toolName } },
-        }),
-      }
-    );
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        tools: [analysisTool],
+        tool_choice: { type: "function", function: { name: toolName } },
+      }),
+    });
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
@@ -595,15 +790,21 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       await supabase.from("ai_chart_reviews").update({ status: "failed" }).eq("id", review.id);
 
       if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Limite richieste AI raggiunto. Riprova tra qualche minuto." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Limite richieste AI raggiunto. Riprova tra qualche minuto." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
       if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "Crediti AI esauriti. Contatta l'amministratore." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Crediti AI esauriti. Contatta l'amministratore." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      return new Response(JSON.stringify({ error: "Errore nella generazione dell'analisi AI" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "Errore nella generazione dell'analisi AI" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const aiData = await aiResponse.json();
@@ -620,8 +821,10 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
 
     if (!analysis) {
       await supabase.from("ai_chart_reviews").update({ status: "failed" }).eq("id", review.id);
-      return new Response(JSON.stringify({ error: "L'AI non ha restituito un output strutturato valido" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: "L'AI non ha restituito un output strutturato valido" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Validate and normalize
@@ -687,9 +890,19 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       delete analysis.setups;
     } else {
       const requiredFields = [
-        "leggibilita_immagine", "contesto", "bias", "struttura", "liquidita",
-        "zona_interessante", "conferma_richiesta", "invalidazione",
-        "scenario_bullish", "scenario_bearish", "qualita_setup", "warning", "conclusione",
+        "leggibilita_immagine",
+        "contesto",
+        "bias",
+        "struttura",
+        "liquidita",
+        "zona_interessante",
+        "conferma_richiesta",
+        "invalidazione",
+        "scenario_bullish",
+        "scenario_bearish",
+        "qualita_setup",
+        "warning",
+        "conclusione",
       ];
       const missingFields = requiredFields.filter((f) => !(f in analysis!));
       for (const f of missingFields) {
@@ -714,8 +927,8 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
     // Increment premium usage if premium
     if (isPremium) {
       const now = new Date();
-      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      
+      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
       const { data: existing } = await supabase
         .from("premium_review_usage")
         .select("*")
@@ -751,13 +964,13 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
 
     return new Response(
       JSON.stringify({ id: review.id, analysis, status: "completed", review_tier: isPremium ? "premium" : "standard" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
     console.error("Error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Errore sconosciuto" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Errore sconosciuto" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
