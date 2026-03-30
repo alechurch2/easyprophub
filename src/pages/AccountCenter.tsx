@@ -564,7 +564,7 @@ function MetricCard({ label, value, warn, small }: { label: string; value: React
 }
 
 // ---- Account Overview Cards ----
-function AccountOverview({ accounts, onSync, syncing, onDelete, deleting }: { accounts: TradingAccount[]; onSync: (id: string) => void; syncing: string | null; onDelete: (id: string) => void; deleting: string | null }) {
+function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRecheck, rechecking }: { accounts: TradingAccount[]; onSync: (id: string) => void; syncing: string | null; onDelete: (id: string) => void; deleting: string | null; onRecheck: (id: string) => void; rechecking: string | null }) {
   if (accounts.length === 0) {
     return (
       <div className="text-center py-16">
