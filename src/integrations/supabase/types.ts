@@ -125,6 +125,9 @@ export type Database = {
           metadata: Json | null
           opened_at: string
           profit_loss: number | null
+          source_review_id: string | null
+          source_signal_id: string | null
+          source_type: string | null
           status: string
           stop_loss: number | null
           take_profit: number | null
@@ -145,6 +148,9 @@ export type Database = {
           metadata?: Json | null
           opened_at?: string
           profit_loss?: number | null
+          source_review_id?: string | null
+          source_signal_id?: string | null
+          source_type?: string | null
           status?: string
           stop_loss?: number | null
           take_profit?: number | null
@@ -165,6 +171,9 @@ export type Database = {
           metadata?: Json | null
           opened_at?: string
           profit_loss?: number | null
+          source_review_id?: string | null
+          source_signal_id?: string | null
+          source_type?: string | null
           status?: string
           stop_loss?: number | null
           take_profit?: number | null
@@ -176,6 +185,20 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_trade_history_source_review_id_fkey"
+            columns: ["source_review_id"]
+            isOneToOne: false
+            referencedRelation: "ai_chart_reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_trade_history_source_signal_id_fkey"
+            columns: ["source_signal_id"]
+            isOneToOne: false
+            referencedRelation: "shared_signals"
             referencedColumns: ["id"]
           },
         ]
@@ -1124,6 +1147,67 @@ export type Database = {
           reason?: string
         }
         Relationships: []
+      }
+      trade_ai_reviews: {
+        Row: {
+          ai_model_used: string | null
+          analysis: Json | null
+          created_at: string
+          id: string
+          source_review_id: string | null
+          source_signal_id: string | null
+          status: string
+          trade_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_model_used?: string | null
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          source_review_id?: string | null
+          source_signal_id?: string | null
+          status?: string
+          trade_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_model_used?: string | null
+          analysis?: Json | null
+          created_at?: string
+          id?: string
+          source_review_id?: string | null
+          source_signal_id?: string | null
+          status?: string
+          trade_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trade_ai_reviews_source_review_id_fkey"
+            columns: ["source_review_id"]
+            isOneToOne: false
+            referencedRelation: "ai_chart_reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trade_ai_reviews_source_signal_id_fkey"
+            columns: ["source_signal_id"]
+            isOneToOne: false
+            referencedRelation: "shared_signals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trade_ai_reviews_trade_id_fkey"
+            columns: ["trade_id"]
+            isOneToOne: false
+            referencedRelation: "account_trade_history"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trade_journal_entries: {
         Row: {
