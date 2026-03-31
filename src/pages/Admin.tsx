@@ -388,6 +388,12 @@ function AdminUsers() {
                         {usage.reviews_used}/{usage.quota_limit}
                       </Badge>
                     )}
+                    {ls && (
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        <Layers className="h-2.5 w-2.5 mr-0.5 text-primary" />
+                        {ls.license_level || "free"}
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {p.user_id.slice(0, 12)}...
