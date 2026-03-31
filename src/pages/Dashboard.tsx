@@ -42,10 +42,12 @@ export default function Dashboard() {
         if (data) setAnnouncements(data);
       });
 
-    // Fetch user's review stats
+    // Fetch user's review stats (explicit user_id filter for defense-in-depth)
+    if (user) {
     supabase
       .from("ai_chart_reviews")
       .select("review_mode, asset, analysis, status")
+      .eq("user_id", user.id)
       .eq("status", "completed")
       .then(({ data }) => {
         if (!data) return;
