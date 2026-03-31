@@ -1979,6 +1979,14 @@ export default function AccountCenter() {
     loadData();
   };
 
+  if (!licenseSettings.account_center_enabled) {
+    return (
+      <AppLayout>
+        <LicenseGate allowed={false} requiredLevel="live" message="L'Account Center è disponibile dal piano Live." />
+      </AppLayout>
+    );
+  }
+
   if (loading) {
     return (
       <AppLayout>
