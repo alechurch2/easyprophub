@@ -771,6 +771,10 @@ serve(async (req) => {
       );
     }
 
+    // Fetch license settings for enforcement
+    const { data: userLicense } = await supabase.rpc("get_user_license_settings", { _user_id: user.id });
+    const licenseSettings = userLicense || { chart_review_monthly_limit: 5, premium_review_monthly_limit: 0 };
+
     const body = await req.json();
     const {
       asset,
@@ -795,10 +799,37 @@ serve(async (req) => {
     const isEasy = review_mode === "easy";
     const isPremium = review_tier === "premium";
 
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    // Check standard review limit from license settings
+    if (!isPremium && !isAdminCheck) {
+      const { data: stdUsage } = await supabase
+        .from("standard_review_usage")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("month_year", monthYear)
+        .single();
+
+      if (stdUsage && stdUsage.reviews_used >= licenseSettings.chart_review_monthly_limit) {
+        return new Response(
+          JSON.stringify({
+            error: `Hai esaurito le ${licenseSettings.chart_review_monthly_limit} review standard disponibili per questo mese.`,
+            quota_exceeded: true,
+          }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     // Check premium quota if premium
-    if (isPremium) {
-      const now = new Date();
-      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    if (isPremium && !isAdminCheck) {
+      if (licenseSettings.premium_review_monthly_limit <= 0) {
+        return new Response(
+          JSON.stringify({ error: "Le review premium non sono disponibili per il tuo piano.", quota_exceeded: true }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
 
       const { data: usage } = await supabase
         .from("premium_review_usage")
@@ -807,7 +838,7 @@ serve(async (req) => {
         .eq("month_year", monthYear)
         .single();
 
-      if (usage && usage.reviews_used >= usage.quota_limit) {
+      if (usage && usage.reviews_used >= licenseSettings.premium_review_monthly_limit) {
         return new Response(
           JSON.stringify({
             error: "Hai esaurito le review premium disponibili per questo mese.",
