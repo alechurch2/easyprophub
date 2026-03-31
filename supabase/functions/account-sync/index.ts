@@ -776,6 +776,245 @@ function resolveProvisioningProfileId(brokerName: string): { profileId: string |
   return { profileId: null, source: "none" };
 }
 
+type MetaApiStatusSnapshot = {
+  broker: string | null;
+  server: string | null;
+  platform: string | null;
+  accountType: string | null;
+  provisioningProfileId: string | null;
+  provisioningProfileSource: string | null;
+  providerAccountId: string | null;
+  state: string;
+  connectionStatus: string;
+  providerError: string | null;
+  replicaStates: any[] | null;
+  region: string | null;
+  reliability: string | null;
+  connections: any[];
+};
+
+type BrokerConnectionComparison = {
+  exactServerMatch: boolean | null;
+  exactPlatformMatch: boolean | null;
+  exactProvisioningProfileMatch: boolean | null;
+  workingReference: {
+    server: string | null;
+    platform: string | null;
+    accountType: string | null;
+    provisioningProfileId: string | null;
+    provisioningProfileSource: string | null;
+    state: string;
+    connectionStatus: string;
+    providerError: string | null;
+  } | null;
+};
+
+function normalizeNullableString(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const normalized = String(value).trim();
+  return normalized ? normalized : null;
+}
+
+function extractProviderError(info: any): string | null {
+  return normalizeNullableString(
+    info?.providerError ?? info?.error ?? info?.message ?? info?.brokerConnectionStatusMessage,
+  );
+}
+
+function buildMetaApiStatusSnapshot(
+  info: any,
+  base: Partial<MetaApiStatusSnapshot> = {},
+): MetaApiStatusSnapshot {
+  return {
+    broker: normalizeNullableString(base.broker ?? null),
+    server: normalizeNullableString(base.server ?? info?.server ?? null),
+    platform: normalizeNullableString(base.platform ?? info?.platform ?? null),
+    accountType: normalizeNullableString(base.accountType ?? info?.type ?? null),
+    provisioningProfileId: normalizeNullableString(base.provisioningProfileId ?? info?.provisioningProfileId ?? null),
+    provisioningProfileSource: normalizeNullableString(base.provisioningProfileSource ?? null),
+    providerAccountId: normalizeNullableString(base.providerAccountId ?? info?.id ?? null),
+    state: normalizeNullableString(info?.state) || "UNKNOWN",
+    connectionStatus: normalizeNullableString(info?.connectionStatus) || "UNKNOWN",
+    providerError: extractProviderError(info),
+    replicaStates: Array.isArray(info?.accountReplicas)
+      ? info.accountReplicas
+      : Array.isArray(info?.replicaStates)
+        ? info.replicaStates
+        : null,
+    region: normalizeNullableString(info?.region ?? null),
+    reliability: normalizeNullableString(info?.reliability ?? null),
+    connections: Array.isArray(info?.connections) ? info.connections : [],
+  };
+}
+
+function resolveStoredConnectionState(snapshot: MetaApiStatusSnapshot): { canRetry: boolean; status: string } {
+  if (snapshot.state === "DEPLOY_FAILED") {
+    return { status: "deploy_failed", canRetry: false };
+  }
+
+  if (snapshot.state === "DEPLOYING") {
+    return { status: "deploying", canRetry: true };
+  }
+
+  if (snapshot.connectionStatus === "DISCONNECTED_FROM_BROKER") {
+    return { status: "disconnected_from_broker", canRetry: true };
+  }
+
+  if (snapshot.state === "DEPLOYED" && snapshot.connectionStatus === "DISCONNECTED") {
+    return { status: "disconnected", canRetry: true };
+  }
+
+  return { status: "awaiting_connection", canRetry: true };
+}
+
+async function buildBrokerConnectionComparison(
+  supabase: any,
+  account: any,
+  currentSnapshot: MetaApiStatusSnapshot,
+): Promise<BrokerConnectionComparison> {
+  const emptyComparison: BrokerConnectionComparison = {
+    exactPlatformMatch: null,
+    exactProvisioningProfileMatch: null,
+    exactServerMatch: null,
+    workingReference: null,
+  };
+
+  const brokerName = normalizeNullableString(account?.broker);
+  if (!brokerName) {
+    console.log("[MetaApi:Comparison] skipped: broker not available");
+    return emptyComparison;
+  }
+
+  const { data: comparableAccounts, error } = await supabase
+    .from("trading_accounts")
+    .select("id, broker, server, platform, provider_account_id, connection_status")
+    .ilike("broker", brokerName)
+    .eq("provider_type", "metaapi")
+    .eq("connection_status", "connected")
+    .not("provider_account_id", "is", null)
+    .neq("id", account.id)
+    .order("updated_at", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.warn(`[MetaApi:Comparison] query failed for broker="${brokerName}": ${error.message}`);
+    return emptyComparison;
+  }
+
+  const comparable = comparableAccounts?.[0];
+  if (!comparable?.provider_account_id) {
+    console.log(`[MetaApi:Comparison] no connected reference account found for broker="${brokerName}"`);
+    return emptyComparison;
+  }
+
+  let comparableInfo: any = null;
+  try {
+    comparableInfo = await metaapiRequest(`/users/current/accounts/${comparable.provider_account_id}`);
+  } catch (error) {
+    console.warn(`[MetaApi:Comparison] unable to fetch reference account ${comparable.provider_account_id}: ${getErrorMessage(error)}`);
+  }
+
+  const { profileId: referenceProfileId, source: referenceProfileSource } = resolveProvisioningProfileId(comparable.broker || brokerName);
+  const comparableSnapshot = buildMetaApiStatusSnapshot(comparableInfo, {
+    broker: comparable.broker,
+    server: comparable.server,
+    platform: comparable.platform,
+    provisioningProfileId: referenceProfileId,
+    provisioningProfileSource: referenceProfileSource,
+    providerAccountId: comparable.provider_account_id,
+  });
+
+  const comparison: BrokerConnectionComparison = {
+    exactPlatformMatch:
+      normalizeNullableString(currentSnapshot.platform)?.toLowerCase() === normalizeNullableString(comparableSnapshot.platform)?.toLowerCase(),
+    exactProvisioningProfileMatch:
+      currentSnapshot.provisioningProfileId !== null && comparableSnapshot.provisioningProfileId !== null
+        ? currentSnapshot.provisioningProfileId === comparableSnapshot.provisioningProfileId
+        : null,
+    exactServerMatch: currentSnapshot.server === comparableSnapshot.server,
+    workingReference: {
+      server: comparableSnapshot.server,
+      platform: comparableSnapshot.platform,
+      accountType: comparableSnapshot.accountType,
+      provisioningProfileId: comparableSnapshot.provisioningProfileId,
+      provisioningProfileSource: comparableSnapshot.provisioningProfileSource,
+      state: comparableSnapshot.state,
+      connectionStatus: comparableSnapshot.connectionStatus,
+      providerError: comparableSnapshot.providerError,
+    },
+  };
+
+  console.log(`[MetaApi:Comparison] ${JSON.stringify({
+    currentAccount: currentSnapshot,
+    exactPlatformMatch: comparison.exactPlatformMatch,
+    exactProvisioningProfileMatch: comparison.exactProvisioningProfileMatch,
+    exactServerMatch: comparison.exactServerMatch,
+    workingReference: {
+      ...comparison.workingReference,
+      providerAccountId: comparableSnapshot.providerAccountId,
+    },
+  })}`);
+
+  return comparison;
+}
+
+function buildConnectionUserMessage(
+  snapshot: MetaApiStatusSnapshot,
+  comparison: BrokerConnectionComparison,
+) {
+  const parts: string[] = [`MetaApi: ${snapshot.state} / ${snapshot.connectionStatus}.`];
+
+  if (snapshot.state === "DEPLOYING") {
+    parts.push("Il deploy del conto è ancora in corso.");
+  } else if (snapshot.state === "DEPLOY_FAILED") {
+    parts.push("Il deploy MetaApi è fallito.");
+  } else if (snapshot.connectionStatus === "DISCONNECTED_FROM_BROKER") {
+    parts.push("Il deploy è completato ma il broker risulta disconnesso.");
+  } else if (snapshot.state === "DEPLOYED" && snapshot.connectionStatus === "DISCONNECTED") {
+    parts.push("Il deploy è completato ma il broker non risulta ancora connesso.");
+  } else {
+    parts.push("Il conto è in uno stato intermedio e richiede un nuovo controllo.");
+  }
+
+  parts.push(`Server conto: ${snapshot.server || "—"}.`);
+
+  if (snapshot.providerError) {
+    parts.push(`Provider message: ${snapshot.providerError}.`);
+  } else {
+    parts.push("Provider message: nessun errore esplicito.");
+  }
+
+  if (comparison.workingReference) {
+    const workingServer = comparison.workingReference.server || "—";
+    const serverMessage = comparison.exactServerMatch === true
+      ? `Server confronto: identico al conto funzionante (${workingServer}).`
+      : comparison.exactServerMatch === false
+        ? `Server confronto: diverso dal conto funzionante (corrente ${snapshot.server || "—"}, funzionante ${workingServer}).`
+        : "Server confronto: non verificabile.";
+
+    const profileMessage = comparison.exactProvisioningProfileMatch === true
+      ? "Provisioning profile: identico al conto funzionante."
+      : comparison.exactProvisioningProfileMatch === false
+        ? "Provisioning profile: diverso dal conto funzionante."
+        : "Provisioning profile: non verificabile.";
+
+    parts.push(serverMessage, profileMessage);
+  }
+
+  return parts.join(" ");
+}
+
+function mergeAccountMetadata(existingMetadata: unknown, patch: Record<string, unknown>) {
+  const safeExisting = existingMetadata && typeof existingMetadata === "object" && !Array.isArray(existingMetadata)
+    ? existingMetadata as Record<string, unknown>
+    : {};
+
+  return {
+    ...safeExisting,
+    ...patch,
+  };
+}
+
 // Deploy a MetaApi account and wait for it to connect
 async function createMetaApiAccount(account: any): Promise<string> {
   const token = Deno.env.get("METAAPI_TOKEN");
@@ -836,6 +1075,7 @@ interface ConnectionResult {
   replicaStates?: any[];
   elapsedMs: number;
   lastPollDetail: string;
+  snapshot: MetaApiStatusSnapshot;
 }
 
 async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Promise<ConnectionResult> {
@@ -848,10 +1088,10 @@ async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Prom
     const info = await metaapiRequest(`/users/current/accounts/${metaAccountId}`);
     lastInfo = info;
 
-    const state = info.state || "UNKNOWN";
-    const connStatus = info.connectionStatus || "UNKNOWN";
-    const providerError = info.providerError || null;
-    const replicaStates = info.accountReplicas || info.replicaStates || null;
+    const snapshot = buildMetaApiStatusSnapshot(info, {
+      providerAccountId: metaAccountId,
+    });
+    const { state, connectionStatus: connStatus, providerError, replicaStates } = snapshot;
 
     console.log(`[waitForConnection] Poll #${pollCount} state=${state} connectionStatus=${connStatus} providerError=${providerError || "none"} replicaStates=${replicaStates ? JSON.stringify(replicaStates) : "none"} elapsed=${Date.now() - start}ms`);
 
@@ -862,23 +1102,36 @@ async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Prom
         connectionStatus: connStatus,
         elapsedMs: Date.now() - start,
         lastPollDetail: `Connected after ${pollCount} polls`,
+        snapshot,
       };
     }
 
-    if (state === "DEPLOY_FAILED") {
+    if (state === "DEPLOY_FAILED" || connStatus === "DISCONNECTED_FROM_BROKER") {
       const detail = providerError || connStatus || "stato sconosciuto";
-      console.error(`[waitForConnection] DEPLOY_FAILED: ${detail}`);
-      throw new Error(`Deploy fallito: ${detail}`);
+      console.warn(`[waitForConnection] terminal non-connected state detected: ${state}/${connStatus} detail=${detail}`);
+      return {
+        connected: false,
+        state,
+        connectionStatus: connStatus,
+        providerError: providerError || undefined,
+        replicaStates: replicaStates || undefined,
+        elapsedMs: Date.now() - start,
+        lastPollDetail: `Stopped after ${pollCount} polls due to ${state}/${connStatus}`,
+        snapshot,
+      };
     }
 
     await new Promise((r) => setTimeout(r, 3000));
   }
 
   // Timeout reached — return intermediate state instead of throwing
-  const finalState = lastInfo?.state || "UNKNOWN";
-  const finalConnStatus = lastInfo?.connectionStatus || "UNKNOWN";
-  const finalProviderError = lastInfo?.providerError || null;
-  const finalReplicas = lastInfo?.accountReplicas || lastInfo?.replicaStates || null;
+  const finalSnapshot = buildMetaApiStatusSnapshot(lastInfo, {
+    providerAccountId: metaAccountId,
+  });
+  const finalState = finalSnapshot.state;
+  const finalConnStatus = finalSnapshot.connectionStatus;
+  const finalProviderError = finalSnapshot.providerError;
+  const finalReplicas = finalSnapshot.replicaStates;
 
   console.warn(`[waitForConnection] TIMEOUT after ${Date.now() - start}ms (${pollCount} polls). state=${finalState} connectionStatus=${finalConnStatus} providerError=${finalProviderError || "none"} replicaStates=${finalReplicas ? JSON.stringify(finalReplicas) : "none"}`);
 
@@ -890,6 +1143,7 @@ async function waitForConnection(metaAccountId: string, maxWaitMs = 90000): Prom
     replicaStates: finalReplicas || undefined,
     elapsedMs: Date.now() - start,
     lastPollDetail: `Timeout after ${pollCount} polls. Last state: ${finalState}/${finalConnStatus}`,
+    snapshot: finalSnapshot,
   };
 }
 
@@ -1293,12 +1547,35 @@ Deno.serve(async (req) => {
         await deployMetaApiAccount(metaAccountId);
         console.log("[connect_metaapi] Step 3 done.");
 
+        const { profileId: usedProfileId, source: usedProfileSource } = resolveProvisioningProfileId(account.broker || "");
+        const postDeployInfo = await metaapiRequest(`/users/current/accounts/${metaAccountId}`);
+        const postDeploySnapshot = buildMetaApiStatusSnapshot(postDeployInfo, {
+          broker: account.broker,
+          server: account.server,
+          platform: account.platform,
+          accountType: account.account_type ?? account.metadata?.account_type ?? postDeployInfo?.type ?? null,
+          provisioningProfileId: usedProfileId,
+          provisioningProfileSource: usedProfileSource,
+          providerAccountId: metaAccountId,
+        });
+        console.log(`[connect_metaapi] Post-deploy status ${JSON.stringify(postDeploySnapshot)}`);
+
         // 4. Wait for connection
         console.log("[connect_metaapi] Step 4: Waiting for connection...");
         const connResult = await waitForConnection(metaAccountId);
 
-        // Log the provisioning profile used for debugging
-        const { profileId: usedProfileId, source: usedProfileSource } = resolveProvisioningProfileId(account.broker || "");
+        const effectiveSnapshot = {
+          ...connResult.snapshot,
+          broker: normalizeNullableString(account.broker),
+          server: normalizeNullableString(account.server) || connResult.snapshot.server,
+          platform: normalizeNullableString(account.platform) || connResult.snapshot.platform,
+          accountType: normalizeNullableString(account.account_type ?? account.metadata?.account_type ?? connResult.snapshot.accountType),
+          provisioningProfileId: usedProfileId,
+          provisioningProfileSource: usedProfileSource,
+          providerAccountId: metaAccountId,
+        } as MetaApiStatusSnapshot;
+        const comparison = await buildBrokerConnectionComparison(supabase, account, effectiveSnapshot);
+
         console.log(`[connect_metaapi] Connection result: connected=${connResult.connected} state=${connResult.state} connectionStatus=${connResult.connectionStatus} providerError=${connResult.providerError || "none"} elapsed=${connResult.elapsedMs}ms profileId=${usedProfileId} profileSource=${usedProfileSource}`);
 
         if (connResult.connected) {
@@ -1309,6 +1586,13 @@ Deno.serve(async (req) => {
             connection_status: "connected",
             sync_status: "idle",
             last_sync_error: null,
+            metadata: mergeAccountMetadata(account.metadata, {
+              connection_debug: {
+                checked_at: new Date().toISOString(),
+                comparison,
+                snapshot: effectiveSnapshot,
+              },
+            }),
           }).eq("id", account_id);
 
           return new Response(JSON.stringify({
@@ -1317,6 +1601,8 @@ Deno.serve(async (req) => {
             provider_account_id: metaAccountId,
             metaapi_state: connResult.state,
             metaapi_connection_status: connResult.connectionStatus,
+            provisioning_profile_id: usedProfileId,
+            provisioning_profile_source: usedProfileSource,
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -1325,31 +1611,20 @@ Deno.serve(async (req) => {
         // Connection not yet established — save as intermediate state, NOT failure
         console.warn(`[connect_metaapi] Connection not established within timeout. Saving intermediate state.`);
 
-        // Build a user-friendly status message
-        let userMessage: string;
-        let intermediateStatus: string;
-        if (connResult.state === "DEPLOYING") {
-          userMessage = "Il conto è ancora in fase di deploy. Riprova tra qualche minuto con il pulsante 'Verifica stato'.";
-          intermediateStatus = "deploying";
-        } else if (connResult.connectionStatus === "DISCONNECTED_FROM_BROKER") {
-          userMessage = "Il conto è deployato ma disconnesso dal broker. Verifica le credenziali e il server, oppure riprova tra qualche minuto.";
-          intermediateStatus = "disconnected_from_broker";
-        } else if (connResult.connectionStatus === "DISCONNECTED") {
-          userMessage = "Il conto è deployato ma non ancora connesso. Riprova tra qualche minuto con il pulsante 'Verifica stato'.";
-          intermediateStatus = "awaiting_connection";
-        } else {
-          userMessage = `Stato: ${connResult.state}/${connResult.connectionStatus}. Il conto potrebbe richiedere più tempo per connettersi. Riprova tra qualche minuto.`;
-          intermediateStatus = "awaiting_connection";
-        }
-
-        if (connResult.providerError) {
-          userMessage += ` (Dettaglio provider: ${connResult.providerError})`;
-        }
+        const { status: intermediateStatus, canRetry } = resolveStoredConnectionState(effectiveSnapshot);
+        const userMessage = buildConnectionUserMessage(effectiveSnapshot, comparison);
 
         await supabase.from("trading_accounts").update({
           connection_status: intermediateStatus,
           sync_status: "idle",
           last_sync_error: userMessage,
+          metadata: mergeAccountMetadata(account.metadata, {
+            connection_debug: {
+              checked_at: new Date().toISOString(),
+              comparison,
+              snapshot: effectiveSnapshot,
+            },
+          }),
         }).eq("id", account_id);
 
         return new Response(JSON.stringify({
@@ -1357,13 +1632,14 @@ Deno.serve(async (req) => {
           status: intermediateStatus,
           error: userMessage,
           provider_account_id: metaAccountId,
-          metaapi_state: connResult.state,
-          metaapi_connection_status: connResult.connectionStatus,
-          metaapi_provider_error: connResult.providerError || null,
-          metaapi_replica_states: connResult.replicaStates || null,
+          metaapi_state: effectiveSnapshot.state,
+          metaapi_connection_status: effectiveSnapshot.connectionStatus,
+          metaapi_provider_error: effectiveSnapshot.providerError || null,
+          metaapi_replica_states: effectiveSnapshot.replicaStates || null,
           provisioning_profile_id: usedProfileId,
           provisioning_profile_source: usedProfileSource,
-          can_retry: true,
+          comparison,
+          can_retry: canRetry,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1409,10 +1685,21 @@ Deno.serve(async (req) => {
       try {
         console.log(`[recheck_connection] Checking MetaApi status for account=${account_id} provider=${account.provider_account_id}`);
         const info = await metaapiRequest(`/users/current/accounts/${account.provider_account_id}`);
-        const state = info.state || "UNKNOWN";
-        const connStatus = info.connectionStatus || "UNKNOWN";
-        const providerError = info.providerError || null;
-        const replicaStates = info.accountReplicas || info.replicaStates || null;
+        const { profileId: usedProfileId, source: usedProfileSource } = resolveProvisioningProfileId(account.broker || "");
+        const snapshot = buildMetaApiStatusSnapshot(info, {
+          broker: account.broker,
+          server: account.server,
+          platform: account.platform,
+          accountType: account.account_type ?? account.metadata?.account_type ?? info?.type ?? null,
+          provisioningProfileId: usedProfileId,
+          provisioningProfileSource: usedProfileSource,
+          providerAccountId: account.provider_account_id,
+        });
+        const state = snapshot.state;
+        const connStatus = snapshot.connectionStatus;
+        const providerError = snapshot.providerError;
+        const replicaStates = snapshot.replicaStates;
+        const comparison = await buildBrokerConnectionComparison(supabase, account, snapshot);
 
         console.log(`[recheck_connection] state=${state} connectionStatus=${connStatus} providerError=${providerError || "none"} replicaStates=${replicaStates ? JSON.stringify(replicaStates) : "none"}`);
 
@@ -1421,6 +1708,13 @@ Deno.serve(async (req) => {
             connection_status: "connected",
             sync_status: "idle",
             last_sync_error: null,
+            metadata: mergeAccountMetadata(account.metadata, {
+              connection_debug: {
+                checked_at: new Date().toISOString(),
+                comparison,
+                snapshot,
+              },
+            }),
           }).eq("id", account_id);
 
           return new Response(JSON.stringify({
@@ -1428,31 +1722,27 @@ Deno.serve(async (req) => {
             status: "connected",
             metaapi_state: state,
             metaapi_connection_status: connStatus,
+            provisioning_profile_id: usedProfileId,
+            provisioning_profile_source: usedProfileSource,
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
         // Still not connected — update status
-        let newStatus: string;
-        let userMessage: string;
-        if (state === "DEPLOY_FAILED") {
-          newStatus = "failed";
-          userMessage = `Deploy fallito. ${providerError || ""}`.trim();
-        } else if (state === "DEPLOYING") {
-          newStatus = "deploying";
-          userMessage = "Il conto è ancora in fase di deploy.";
-        } else if (connStatus === "DISCONNECTED_FROM_BROKER") {
-          newStatus = "disconnected_from_broker";
-          userMessage = `Disconnesso dal broker. ${providerError || "Verifica credenziali e server."}`.trim();
-        } else {
-          newStatus = "awaiting_connection";
-          userMessage = `Stato: ${state}/${connStatus}. Riprova tra qualche minuto.`;
-        }
+        const { status: newStatus, canRetry } = resolveStoredConnectionState(snapshot);
+        const userMessage = buildConnectionUserMessage(snapshot, comparison);
 
         await supabase.from("trading_accounts").update({
           connection_status: newStatus,
           last_sync_error: userMessage,
+          metadata: mergeAccountMetadata(account.metadata, {
+            connection_debug: {
+              checked_at: new Date().toISOString(),
+              comparison,
+              snapshot,
+            },
+          }),
         }).eq("id", account_id);
 
         return new Response(JSON.stringify({
@@ -1463,7 +1753,10 @@ Deno.serve(async (req) => {
           metaapi_connection_status: connStatus,
           metaapi_provider_error: providerError,
           metaapi_replica_states: replicaStates,
-          can_retry: newStatus !== "failed",
+          provisioning_profile_id: usedProfileId,
+          provisioning_profile_source: usedProfileSource,
+          comparison,
+          can_retry: canRetry,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
