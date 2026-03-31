@@ -237,6 +237,7 @@ function AdminUsers() {
     load();
   };
 
+  const getDaysRemaining = (p: any): number | null => {
     if (!p.access_expires_at) return null;
     if (p.license_status === "lifetime") return null;
     const diff = new Date(p.access_expires_at).getTime() - Date.now();
