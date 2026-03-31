@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { trackEvent } from "@/lib/analytics";
 import AppLayout from "@/components/AppLayout";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import LicenseGate from "@/components/LicenseGate";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
