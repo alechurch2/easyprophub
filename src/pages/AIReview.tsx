@@ -20,6 +20,7 @@ import { TierSelector } from "@/components/ai-review/TierSelector";
 
 export default function AIReview() {
   const { user } = useAuth();
+  const { settings: licenseSettings, usage: licenseUsage, refresh: refreshLicense } = useLicenseSettings();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
