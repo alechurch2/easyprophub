@@ -43,11 +43,16 @@ const navItems: NavItem[] = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { profile, isAdmin, signOut } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const filteredItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const filteredItems = navItems.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.requireKey && !isAdmin && !licenseSettings[item.requireKey]) return false;
+    return true;
+  });
 
   const handleSignOut = async () => {
     await signOut();
