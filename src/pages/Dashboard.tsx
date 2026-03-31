@@ -79,6 +79,7 @@ export default function Dashboard() {
 
         setStats({ totalPro, totalEasy, avgQuality, topAssets });
       });
+    }
 
     // Premium usage
     if (user) {
