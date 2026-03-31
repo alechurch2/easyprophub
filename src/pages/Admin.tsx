@@ -553,6 +553,111 @@ function AdminUsers() {
                     </Button>
                   </div>
                 </div>
+
+                {/* License Level Management */}
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground mb-2 block">
+                    <Layers className="h-3 w-3 inline mr-1 text-primary" />Piano Licenza
+                  </Label>
+                  {(() => {
+                    const ls = licenseSettings[p.user_id];
+                    const currentLevel = ls?.license_level || "free";
+                    return (
+                      <div className="space-y-3">
+                        {/* Current level display */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <div className="card-premium p-2">
+                            <p className="text-[10px] text-muted-foreground">Piano</p>
+                            <p className="text-xs font-bold text-foreground capitalize">{currentLevel}</p>
+                          </div>
+                          <div className="card-premium p-2">
+                            <p className="text-[10px] text-muted-foreground">Chart Review/mese</p>
+                            <p className="text-xs font-bold text-foreground">{ls?.chart_review_monthly_limit ?? 5}</p>
+                          </div>
+                          <div className="card-premium p-2">
+                            <p className="text-[10px] text-muted-foreground">Account Center</p>
+                            <p className={cn("text-xs font-bold", ls?.account_center_enabled ? "text-success" : "text-muted-foreground")}>
+                              {ls?.account_center_enabled ? "✅" : "❌"}
+                            </p>
+                          </div>
+                          <div className="card-premium p-2">
+                            <p className="text-[10px] text-muted-foreground">Trade Exec</p>
+                            <p className={cn("text-xs font-bold", ls?.trade_execution_enabled ? "text-success" : "text-muted-foreground")}>
+                              {ls?.trade_execution_enabled ? "✅" : "❌"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Quick level select */}
+                        <div className="flex flex-wrap gap-2">
+                          <Label className="text-xs text-muted-foreground w-full">Cambia piano:</Label>
+                          {(["free", "pro", "live"] as LicenseLevel[]).map(level => (
+                            <Button
+                              key={level}
+                              size="sm"
+                              variant={currentLevel === level ? "default" : "outline"}
+                              className="h-7 text-xs capitalize"
+                              onClick={() => applyLicensePreset(p.user_id, level)}
+                            >
+                              {LICENSE_LABELS[level]}
+                            </Button>
+                          ))}
+                        </div>
+
+                        {/* Manual overrides */}
+                        <div className="space-y-2 pt-2 border-t border-border">
+                          <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Override manuali</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Chart Review/mese</span>
+                              <div className="flex gap-1">
+                                {[5, 50, 100, 200].map(v => (
+                                  <Button key={v} size="sm" variant="outline" className={cn("h-6 text-[10px] px-1.5", (ls?.chart_review_monthly_limit ?? 5) === v && "border-primary text-primary")} onClick={() => updateLicenseSetting(p.user_id, "chart_review_monthly_limit", v)}>
+                                    {v}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Premium/mese</span>
+                              <div className="flex gap-1">
+                                {[0, 3, 5, 10].map(v => (
+                                  <Button key={v} size="sm" variant="outline" className={cn("h-6 text-[10px] px-1.5", (ls?.premium_review_monthly_limit ?? 0) === v && "border-primary text-primary")} onClick={() => updateLicenseSetting(p.user_id, "premium_review_monthly_limit", v)}>
+                                    {v}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Account Center</span>
+                              <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", ls?.account_center_enabled && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "account_center_enabled", !(ls?.account_center_enabled ?? false))}>
+                                {ls?.account_center_enabled ? "ON" : "OFF"}
+                              </Button>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Trade Execution</span>
+                              <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", ls?.trade_execution_enabled && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "trade_execution_enabled", !(ls?.trade_execution_enabled ?? false))}>
+                                {ls?.trade_execution_enabled ? "ON" : "OFF"}
+                              </Button>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Formazione</span>
+                              <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", (ls?.training_access_level ?? "partial") === "full" && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "training_access_level", (ls?.training_access_level ?? "partial") === "full" ? "partial" : "full")}>
+                                {(ls?.training_access_level ?? "partial") === "full" ? "Full" : "Partial"}
+                              </Button>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">AI Assistant</span>
+                              <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", (ls?.ai_assistant_enabled ?? true) && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "ai_assistant_enabled", !(ls?.ai_assistant_enabled ?? true))}>
+                                {(ls?.ai_assistant_enabled ?? true) ? "ON" : "OFF"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             )}
           </div>
