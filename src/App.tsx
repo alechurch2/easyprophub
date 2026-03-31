@@ -17,6 +17,7 @@ import AIAssistant from "./pages/AIAssistant";
 import Admin from "./pages/Admin";
 import CaseStudies from "./pages/CaseStudies";
 import AccountCenter from "./pages/AccountCenter";
+import AccountSettings from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
 import Unsubscribe from "./pages/Unsubscribe";
 
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/ai-assistant" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
             <Route path="/case-studies" element={<ProtectedRoute><CaseStudies /></ProtectedRoute>} />
             <Route path="/account-center" element={<ProtectedRoute><AccountCenter /></ProtectedRoute>} />
+            <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="*" element={<NotFound />} />
