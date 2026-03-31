@@ -540,6 +540,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          min_license_level: Database["public"]["Enums"]["license_level"]
           sort_order: number
           thumbnail_url: string | null
           title: string
@@ -549,6 +550,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          min_license_level?: Database["public"]["Enums"]["license_level"]
           sort_order?: number
           thumbnail_url?: string | null
           title: string
@@ -558,6 +560,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          min_license_level?: Database["public"]["Enums"]["license_level"]
           sort_order?: number
           thumbnail_url?: string | null
           title?: string
@@ -572,6 +575,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          min_license_level: Database["public"]["Enums"]["license_level"]
           module_id: string
           sort_order: number
           title: string
@@ -584,6 +588,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          min_license_level?: Database["public"]["Enums"]["license_level"]
           module_id: string
           sort_order?: number
           title: string
@@ -596,6 +601,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          min_license_level?: Database["public"]["Enums"]["license_level"]
           module_id?: string
           sort_order?: number
           title?: string
@@ -618,6 +624,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          min_license_level: Database["public"]["Enums"]["license_level"]
           sort_order: number
           thumbnail_url: string | null
           title: string
@@ -628,6 +635,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          min_license_level?: Database["public"]["Enums"]["license_level"]
           sort_order?: number
           thumbnail_url?: string | null
           title: string
@@ -638,6 +646,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          min_license_level?: Database["public"]["Enums"]["license_level"]
           sort_order?: number
           thumbnail_url?: string | null
           title?: string
@@ -1022,6 +1031,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      standard_review_usage: {
+        Row: {
+          created_at: string
+          id: string
+          month_year: string
+          reviews_used: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month_year: string
+          reviews_used?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month_year?: string
+          reviews_used?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       support_messages: {
         Row: {
@@ -1425,6 +1461,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_license_settings: {
+        Row: {
+          account_center_enabled: boolean
+          ai_assistant_enabled: boolean
+          chart_review_monthly_limit: number
+          id: string
+          license_level: Database["public"]["Enums"]["license_level"]
+          premium_review_monthly_limit: number
+          trade_execution_enabled: boolean
+          training_access_level: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          account_center_enabled?: boolean
+          ai_assistant_enabled?: boolean
+          chart_review_monthly_limit?: number
+          id?: string
+          license_level?: Database["public"]["Enums"]["license_level"]
+          premium_review_monthly_limit?: number
+          trade_execution_enabled?: boolean
+          training_access_level?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          account_center_enabled?: boolean
+          ai_assistant_enabled?: boolean
+          chart_review_monthly_limit?: number
+          id?: string
+          license_level?: Database["public"]["Enums"]["license_level"]
+          premium_review_monthly_limit?: number
+          trade_execution_enabled?: boolean
+          training_access_level?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_onboarding_progress: {
         Row: {
           completed_at: string | null
@@ -1491,6 +1569,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: string
       }
+      get_user_license_settings: { Args: { _user_id: string }; Returns: Json }
       get_user_status: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["user_status"]
@@ -1527,6 +1606,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "member"
+      license_level: "free" | "pro" | "live"
       review_status: "pending" | "completed" | "failed"
       ticket_status: "open" | "pending" | "resolved"
       user_status: "pending" | "approved" | "suspended"
@@ -1658,6 +1738,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "member"],
+      license_level: ["free", "pro", "live"],
       review_status: ["pending", "completed", "failed"],
       ticket_status: ["open", "pending", "resolved"],
       user_status: ["pending", "approved", "suspended"],
