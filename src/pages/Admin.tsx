@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { LICENSE_PRESETS, LicenseLevel, LicenseSettings, LICENSE_LABELS } from "@/config/licensePresets";
 import {
   Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone, Bot,
   Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft,
   ThumbsUp, ThumbsDown, Star, MessageSquare, Link2, GraduationCap, Search, ArrowUpDown, Wallet,
-  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity, Radio
+  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity, Radio, Layers
 } from "lucide-react";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminSignals from "@/components/admin/AdminSignals";
