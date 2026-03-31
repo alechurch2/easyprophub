@@ -28,6 +28,7 @@ import { format } from "date-fns";
 function AdminUsers() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [premiumUsage, setPremiumUsage] = useState<Record<string, any>>({});
+  const [licenseSettings, setLicenseSettings] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterLicense, setFilterLicense] = useState("all");
