@@ -1548,6 +1548,7 @@ const FAST_REFRESH_DEBOUNCE = 3_000;
 
 export default function AccountCenter() {
   const { user } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
