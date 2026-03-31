@@ -408,12 +408,12 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
         } else {
           toast.warning(`Conto collegato ma errore sync: ${syncResult.error || "Riprova manualmente"}`);
         }
-      } else if (result.intermediate_status) {
+      } else if (result.can_retry && result.status && result.status !== "failed") {
         // Account saved with intermediate state — do NOT delete
         connectSuccess = true; // prevent deletion
-        const statusLabel = result.intermediate_status === "deploying" ? "Deploy in corso"
-          : result.intermediate_status === "disconnected" ? "Deploy completato, in attesa connessione broker"
-          : result.intermediate_status === "disconnected_from_broker" ? "Disconnesso dal broker"
+        const statusLabel = result.status === "deploying" ? "Deploy in corso"
+          : result.status === "disconnected" ? "Deploy completato, in attesa connessione broker"
+          : result.status === "disconnected_from_broker" ? "Disconnesso dal broker"
           : "In attesa connessione";
         toast.warning(`${statusLabel}. Usa "Verifica stato" per controllare quando il conto sarà connesso.`);
       } else {
