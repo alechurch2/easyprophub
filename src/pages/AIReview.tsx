@@ -157,12 +157,36 @@ export default function AIReview() {
         </div>
 
         {/* Disclaimer */}
-        <div className="p-4 mb-6 bg-secondary/50 rounded-lg border border-border">
+        <div className="p-4 mb-4 bg-secondary/50 rounded-lg border border-border">
           <p className="text-xs text-muted-foreground">
             <strong>⚠️ Disclaimer:</strong> Questa analisi ha finalità informative, educative e di supporto operativo.
             Non costituisce esecuzione automatica, consulenza finanziaria personalizzata o garanzia di risultato.
             In assenza di contesto sufficiente, il sistema può non proporre alcun setup.
           </p>
+        </div>
+
+        {/* License usage counters */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="card-premium p-3">
+            <p className="text-[10px] text-muted-foreground">Piano</p>
+            <p className="text-sm font-bold text-foreground capitalize">{licenseSettings.license_level}</p>
+          </div>
+          <div className="card-premium p-3">
+            <p className="text-[10px] text-muted-foreground">Standard rimaste</p>
+            <p className={cn("text-sm font-bold", licenseUsage.standardReviewsRemaining <= 0 ? "text-destructive" : "text-success")}>
+              {licenseUsage.standardReviewsRemaining}/{licenseSettings.chart_review_monthly_limit}
+            </p>
+          </div>
+          <div className="card-premium p-3">
+            <p className="text-[10px] text-muted-foreground">Premium rimaste</p>
+            <p className={cn("text-sm font-bold", licenseUsage.premiumReviewsRemaining <= 0 ? "text-destructive" : "text-amber-500")}>
+              {licenseUsage.premiumReviewsRemaining}/{licenseSettings.premium_review_monthly_limit}
+            </p>
+          </div>
+          <div className="card-premium p-3">
+            <p className="text-[10px] text-muted-foreground">Usate questo mese</p>
+            <p className="text-sm font-bold text-foreground">{licenseUsage.standardReviewsUsed + licenseUsage.premiumReviewsUsed}</p>
+          </div>
         </div>
 
         {/* Tier selector + Mode selector + Form */}
