@@ -340,6 +340,14 @@ export default function AIAssistant() {
   const isNewChat = !activeConv && messages.length === 0;
   const canSend = (input.trim() || pendingImage) && !isLoading && !(isNewChat && showModeSelect);
 
+  if (!licenseSettings.ai_assistant_enabled) {
+    return (
+      <AppLayout>
+        <LicenseGate allowed={false} requiredLevel="pro" message="L'AI Assistant è disponibile dal piano Pro." />
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="flex h-[calc(100vh-3.5rem)] lg:h-screen">
