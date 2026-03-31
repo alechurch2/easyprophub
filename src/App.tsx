@@ -17,6 +17,7 @@ import AIAssistant from "./pages/AIAssistant";
 import Admin from "./pages/Admin";
 import CaseStudies from "./pages/CaseStudies";
 import AccountCenter from "./pages/AccountCenter";
+import AccountSettings from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
 import Unsubscribe from "./pages/Unsubscribe";
 
