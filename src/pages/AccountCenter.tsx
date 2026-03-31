@@ -408,6 +408,14 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
         } else {
           toast.warning(`Conto collegato ma errore sync: ${syncResult.error || "Riprova manualmente"}`);
         }
+      } else if (result.can_retry && result.status && result.status !== "failed") {
+        // Account saved with intermediate state — do NOT delete
+        connectSuccess = true; // prevent deletion
+        const statusLabel = result.status === "deploying" ? "Deploy in corso"
+          : result.status === "disconnected" ? "Deploy completato, in attesa connessione broker"
+          : result.status === "disconnected_from_broker" ? "Disconnesso dal broker"
+          : "In attesa connessione";
+        toast.warning(`${statusLabel}. Usa "Verifica stato" per controllare quando il conto sarà connesso.`);
       } else {
         toast.error(`Errore connessione: ${result.error || "Sconosciuto"}`);
       }
@@ -523,12 +531,12 @@ function StatusBadge({ status, lastError }: { status: string; lastError?: string
     awaiting_connection: { class: "bg-warning/10 text-warning", label: "In attesa connessione", icon: <Clock className="h-2.5 w-2.5" /> },
     pending: { class: "bg-warning/10 text-warning", label: "In attesa", icon: <Clock className="h-2.5 w-2.5" /> },
     failed: { class: "bg-destructive/10 text-destructive", label: "Errore", icon: <XCircle className="h-2.5 w-2.5" /> },
-    disconnected: { class: "bg-secondary text-muted-foreground", label: "Disconnesso", icon: <WifiOff className="h-2.5 w-2.5" /> },
+    disconnected: { class: "bg-warning/10 text-warning", label: "Deploy OK, attesa broker", icon: <Clock className="h-2.5 w-2.5" /> },
     disconnected_from_broker: { class: "bg-destructive/10 text-destructive", label: "Disconnesso dal broker", icon: <WifiOff className="h-2.5 w-2.5" /> },
     deploy_failed: { class: "bg-destructive/10 text-destructive", label: "Deploy fallito", icon: <XCircle className="h-2.5 w-2.5" /> },
   };
   const c = config[status] || config.disconnected;
-  const isIntermediate = ["deploying", "awaiting_connection", "disconnected_from_broker"].includes(status);
+  const isIntermediate = ["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected"].includes(status);
   const errorHint = lastError && (status === "failed" || isIntermediate) ? ` — ${lastError.substring(0, 80)}` : "";
   return (
     <Badge className={cn(c.class, "flex items-center gap-1")} title={lastError || undefined}>
@@ -598,7 +606,7 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
               </Badge>
               <SyncStatusBadge status={acc.sync_status} />
               <StatusBadge status={acc.connection_status} lastError={acc.last_sync_error} />
-              {["deploying", "awaiting_connection", "disconnected_from_broker"].includes(acc.connection_status) && (
+              {["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected"].includes(acc.connection_status) && (
                 <Button
                   size="sm"
                   variant="outline"
