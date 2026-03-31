@@ -6,7 +6,7 @@ interface LicenseGateProps {
   allowed: boolean;
   requiredLevel?: LicenseLevel;
   message?: string;
-  children: ReactNode;
+  children?: ReactNode;
 }
 
 export default function LicenseGate({ allowed, requiredLevel, message, children }: LicenseGateProps) {
