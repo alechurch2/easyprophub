@@ -536,7 +536,7 @@ function StatusBadge({ status, lastError }: { status: string; lastError?: string
     deploy_failed: { class: "bg-destructive/10 text-destructive", label: "Deploy fallito", icon: <XCircle className="h-2.5 w-2.5" /> },
   };
   const c = config[status] || config.disconnected;
-  const isIntermediate = ["deploying", "awaiting_connection", "disconnected_from_broker"].includes(status);
+  const isIntermediate = ["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected"].includes(status);
   const errorHint = lastError && (status === "failed" || isIntermediate) ? ` — ${lastError.substring(0, 80)}` : "";
   return (
     <Badge className={cn(c.class, "flex items-center gap-1")} title={lastError || undefined}>
