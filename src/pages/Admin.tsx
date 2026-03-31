@@ -52,6 +52,14 @@ function AdminUsers() {
       setPremiumUsage(map);
     }
 
+    // Load license settings for all users
+    const { data: lsData } = await supabase.from("user_license_settings" as any).select("*");
+    if (lsData) {
+      const map: Record<string, any> = {};
+      (lsData as any[]).forEach((ls: any) => { map[ls.user_id] = ls; });
+      setLicenseSettings(map);
+    }
+
     setLoading(false);
   };
 
