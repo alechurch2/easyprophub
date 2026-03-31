@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import LicenseGate from "@/components/LicenseGate";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -1546,6 +1548,7 @@ const FAST_REFRESH_DEBOUNCE = 3_000;
 
 export default function AccountCenter() {
   const { user } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
@@ -1975,6 +1978,14 @@ export default function AccountCenter() {
     setRechecking(null);
     loadData();
   };
+
+  if (!licenseSettings.account_center_enabled) {
+    return (
+      <AppLayout>
+        <LicenseGate allowed={false} requiredLevel="live" message="L'Account Center è disponibile dal piano Live." />
+      </AppLayout>
+    );
+  }
 
   if (loading) {
     return (

@@ -3,7 +3,8 @@ import { trackEvent } from "@/lib/analytics";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap, Crown } from "lucide-react";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap, Crown, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -19,6 +20,7 @@ import { TierSelector } from "@/components/ai-review/TierSelector";
 
 export default function AIReview() {
   const { user } = useAuth();
+  const { settings: licenseSettings, usage: licenseUsage, refresh: refreshLicense } = useLicenseSettings();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -155,12 +157,36 @@ export default function AIReview() {
         </div>
 
         {/* Disclaimer */}
-        <div className="p-4 mb-6 bg-secondary/50 rounded-lg border border-border">
+        <div className="p-4 mb-4 bg-secondary/50 rounded-lg border border-border">
           <p className="text-xs text-muted-foreground">
             <strong>⚠️ Disclaimer:</strong> Questa analisi ha finalità informative, educative e di supporto operativo.
             Non costituisce esecuzione automatica, consulenza finanziaria personalizzata o garanzia di risultato.
             In assenza di contesto sufficiente, il sistema può non proporre alcun setup.
           </p>
+        </div>
+
+        {/* License usage counters */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="card-premium p-3">
+            <p className="text-[10px] text-muted-foreground">Piano</p>
+            <p className="text-sm font-bold text-foreground capitalize">{licenseSettings.license_level}</p>
+          </div>
+          <div className="card-premium p-3">
+            <p className="text-[10px] text-muted-foreground">Standard rimaste</p>
+            <p className={cn("text-sm font-bold", licenseUsage.standardReviewsRemaining <= 0 ? "text-destructive" : "text-success")}>
+              {licenseUsage.standardReviewsRemaining}/{licenseSettings.chart_review_monthly_limit}
+            </p>
+          </div>
+          <div className="card-premium p-3">
+            <p className="text-[10px] text-muted-foreground">Premium rimaste</p>
+            <p className={cn("text-sm font-bold", licenseUsage.premiumReviewsRemaining <= 0 ? "text-destructive" : "text-amber-500")}>
+              {licenseUsage.premiumReviewsRemaining}/{licenseSettings.premium_review_monthly_limit}
+            </p>
+          </div>
+          <div className="card-premium p-3">
+            <p className="text-[10px] text-muted-foreground">Usate questo mese</p>
+            <p className="text-sm font-bold text-foreground">{licenseUsage.standardReviewsUsed + licenseUsage.premiumReviewsUsed}</p>
+          </div>
         </div>
 
         {/* Tier selector + Mode selector + Form */}

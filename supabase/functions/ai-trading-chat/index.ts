@@ -142,6 +142,17 @@ serve(async (req) => {
 
     // Check admin status and usage limits
     const { data: isAdminCheck } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+
+    // License-level check for AI Assistant
+    if (!isAdminCheck) {
+      const { data: userLicense } = await supabase.rpc("get_user_license_settings", { _user_id: user.id });
+      if (userLicense && !userLicense.ai_assistant_enabled) {
+        return new Response(JSON.stringify({ error: "AI Assistant non disponibile per il tuo piano.", license_blocked: true }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const limitError = await checkChatLimits(supabase, user.id, !!isAdminCheck);
     if (limitError) {
       return new Response(JSON.stringify({ error: limitError, limit_exceeded: true }), {

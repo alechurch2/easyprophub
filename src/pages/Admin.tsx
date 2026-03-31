@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { LICENSE_PRESETS, LicenseLevel, LicenseSettings, LICENSE_LABELS } from "@/config/licensePresets";
 import {
   Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone, Bot,
   Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft,
   ThumbsUp, ThumbsDown, Star, MessageSquare, Link2, GraduationCap, Search, ArrowUpDown, Wallet,
-  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity, Radio
+  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity, Radio, Layers
 } from "lucide-react";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminSignals from "@/components/admin/AdminSignals";
@@ -27,6 +28,7 @@ import { format } from "date-fns";
 function AdminUsers() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [premiumUsage, setPremiumUsage] = useState<Record<string, any>>({});
+  const [licenseSettings, setLicenseSettings] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterLicense, setFilterLicense] = useState("all");
@@ -48,6 +50,14 @@ function AdminUsers() {
       const map: Record<string, any> = {};
       usageData.forEach((u: any) => { map[u.user_id] = u; });
       setPremiumUsage(map);
+    }
+
+    // Load license settings for all users
+    const { data: lsData } = await supabase.from("user_license_settings" as any).select("*");
+    if (lsData) {
+      const map: Record<string, any> = {};
+      (lsData as any[]).forEach((ls: any) => { map[ls.user_id] = ls; });
+      setLicenseSettings(map);
     }
 
     setLoading(false);
@@ -177,6 +187,53 @@ function AdminUsers() {
       } as any);
     }
     toast.success(`Aggiunte ${extra} review premium extra`);
+    load();
+  };
+
+  // License level management
+  const { user: authUser } = useAuth();
+  
+  const applyLicensePreset = async (userId: string, level: LicenseLevel) => {
+    const preset = LICENSE_PRESETS[level];
+    const existing = licenseSettings[userId];
+    const payload = {
+      license_level: level,
+      training_access_level: preset.training_access_level,
+      ai_assistant_enabled: preset.ai_assistant_enabled,
+      chart_review_monthly_limit: preset.chart_review_monthly_limit,
+      premium_review_monthly_limit: preset.premium_review_monthly_limit,
+      account_center_enabled: preset.account_center_enabled,
+      trade_execution_enabled: preset.trade_execution_enabled,
+      updated_at: new Date().toISOString(),
+      updated_by: authUser?.id || null,
+    };
+    if (existing) {
+      await supabase.from("user_license_settings" as any).update(payload as any).eq("user_id", userId);
+    } else {
+      await supabase.from("user_license_settings" as any).insert({ user_id: userId, ...payload } as any);
+    }
+    // Also sync premium_review_usage quota
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const existingUsage = premiumUsage[userId];
+    if (existingUsage) {
+      await supabase.from("premium_review_usage").update({ quota_limit: preset.premium_review_monthly_limit } as any).eq("id", existingUsage.id);
+    } else if (preset.premium_review_monthly_limit > 0) {
+      await supabase.from("premium_review_usage").insert({ user_id: userId, month_year: monthYear, reviews_used: 0, quota_limit: preset.premium_review_monthly_limit } as any);
+    }
+    toast.success(`Piano ${LICENSE_LABELS[level]} applicato`);
+    load();
+  };
+
+  const updateLicenseSetting = async (userId: string, field: string, value: any) => {
+    const existing = licenseSettings[userId];
+    const payload = { [field]: value, updated_at: new Date().toISOString(), updated_by: authUser?.id || null };
+    if (existing) {
+      await supabase.from("user_license_settings" as any).update(payload as any).eq("user_id", userId);
+    } else {
+      await supabase.from("user_license_settings" as any).insert({ user_id: userId, ...payload } as any);
+    }
+    toast.success("Impostazione aggiornata");
     load();
   };
 
@@ -312,6 +369,7 @@ function AdminUsers() {
       {filtered.map((p) => {
         const days = getDaysRemaining(p);
         const usage = premiumUsage[p.user_id];
+        const ls = licenseSettings[p.user_id];
         const isExpanded = expandedUser === p.user_id;
 
         return (
@@ -328,6 +386,12 @@ function AdminUsers() {
                       <Badge variant="outline" className="text-[10px]">
                         <Crown className="h-2.5 w-2.5 mr-0.5 text-amber-500" />
                         {usage.reviews_used}/{usage.quota_limit}
+                      </Badge>
+                    )}
+                    {ls && (
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        <Layers className="h-2.5 w-2.5 mr-0.5 text-primary" />
+                        {ls.license_level || "free"}
                       </Badge>
                     )}
                   </div>
@@ -495,6 +559,111 @@ function AdminUsers() {
                       <Plus className="h-3 w-3 mr-1" />+5 extra
                     </Button>
                   </div>
+                </div>
+
+                {/* License Level Management */}
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground mb-2 block">
+                    <Layers className="h-3 w-3 inline mr-1 text-primary" />Piano Licenza
+                  </Label>
+                  {(() => {
+                    const ls = licenseSettings[p.user_id];
+                    const currentLevel = ls?.license_level || "free";
+                    return (
+                      <div className="space-y-3">
+                        {/* Current level display */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          <div className="card-premium p-2">
+                            <p className="text-[10px] text-muted-foreground">Piano</p>
+                            <p className="text-xs font-bold text-foreground capitalize">{currentLevel}</p>
+                          </div>
+                          <div className="card-premium p-2">
+                            <p className="text-[10px] text-muted-foreground">Chart Review/mese</p>
+                            <p className="text-xs font-bold text-foreground">{ls?.chart_review_monthly_limit ?? 5}</p>
+                          </div>
+                          <div className="card-premium p-2">
+                            <p className="text-[10px] text-muted-foreground">Account Center</p>
+                            <p className={cn("text-xs font-bold", ls?.account_center_enabled ? "text-success" : "text-muted-foreground")}>
+                              {ls?.account_center_enabled ? "✅" : "❌"}
+                            </p>
+                          </div>
+                          <div className="card-premium p-2">
+                            <p className="text-[10px] text-muted-foreground">Trade Exec</p>
+                            <p className={cn("text-xs font-bold", ls?.trade_execution_enabled ? "text-success" : "text-muted-foreground")}>
+                              {ls?.trade_execution_enabled ? "✅" : "❌"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Quick level select */}
+                        <div className="flex flex-wrap gap-2">
+                          <Label className="text-xs text-muted-foreground w-full">Cambia piano:</Label>
+                          {(["free", "pro", "live"] as LicenseLevel[]).map(level => (
+                            <Button
+                              key={level}
+                              size="sm"
+                              variant={currentLevel === level ? "default" : "outline"}
+                              className="h-7 text-xs capitalize"
+                              onClick={() => applyLicensePreset(p.user_id, level)}
+                            >
+                              {LICENSE_LABELS[level]}
+                            </Button>
+                          ))}
+                        </div>
+
+                        {/* Manual overrides */}
+                        <div className="space-y-2 pt-2 border-t border-border">
+                          <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Override manuali</Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Chart Review/mese</span>
+                              <div className="flex gap-1">
+                                {[5, 50, 100, 200].map(v => (
+                                  <Button key={v} size="sm" variant="outline" className={cn("h-6 text-[10px] px-1.5", (ls?.chart_review_monthly_limit ?? 5) === v && "border-primary text-primary")} onClick={() => updateLicenseSetting(p.user_id, "chart_review_monthly_limit", v)}>
+                                    {v}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Premium/mese</span>
+                              <div className="flex gap-1">
+                                {[0, 3, 5, 10].map(v => (
+                                  <Button key={v} size="sm" variant="outline" className={cn("h-6 text-[10px] px-1.5", (ls?.premium_review_monthly_limit ?? 0) === v && "border-primary text-primary")} onClick={() => updateLicenseSetting(p.user_id, "premium_review_monthly_limit", v)}>
+                                    {v}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Account Center</span>
+                              <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", ls?.account_center_enabled && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "account_center_enabled", !(ls?.account_center_enabled ?? false))}>
+                                {ls?.account_center_enabled ? "ON" : "OFF"}
+                              </Button>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Trade Execution</span>
+                              <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", ls?.trade_execution_enabled && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "trade_execution_enabled", !(ls?.trade_execution_enabled ?? false))}>
+                                {ls?.trade_execution_enabled ? "ON" : "OFF"}
+                              </Button>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Formazione</span>
+                              <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", (ls?.training_access_level ?? "partial") === "full" && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "training_access_level", (ls?.training_access_level ?? "partial") === "full" ? "partial" : "full")}>
+                                {(ls?.training_access_level ?? "partial") === "full" ? "Full" : "Partial"}
+                              </Button>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">AI Assistant</span>
+                              <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", (ls?.ai_assistant_enabled ?? true) && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "ai_assistant_enabled", !(ls?.ai_assistant_enabled ?? true))}>
+                                {(ls?.ai_assistant_enabled ?? true) ? "ON" : "OFF"}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

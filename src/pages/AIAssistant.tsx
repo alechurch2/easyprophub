@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { trackEvent } from "@/lib/analytics";
 import AppLayout from "@/components/AppLayout";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import LicenseGate from "@/components/LicenseGate";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -47,6 +49,7 @@ const DISCLAIMER = "Questa chat ha finalità informative, educative e di support
 
 export default function AIAssistant() {
   const { user } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -336,6 +339,14 @@ export default function AIAssistant() {
   const currentMode = MODES.find((m) => m.value === mode);
   const isNewChat = !activeConv && messages.length === 0;
   const canSend = (input.trim() || pendingImage) && !isLoading && !(isNewChat && showModeSelect);
+
+  if (!licenseSettings.ai_assistant_enabled) {
+    return (
+      <AppLayout>
+        <LicenseGate allowed={false} requiredLevel="pro" message="L'AI Assistant è disponibile dal piano Pro." />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

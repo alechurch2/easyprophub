@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import BrandLogo from "@/components/BrandLogo";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import {
   BookOpen,
   HeadphonesIcon,
@@ -26,6 +27,7 @@ interface NavItem {
   icon: React.ElementType;
   path: string;
   adminOnly?: boolean;
+  requireKey?: keyof Pick<import("@/config/licensePresets").LicenseSettings, "account_center_enabled" | "ai_assistant_enabled">;
 }
 
 const navItems: NavItem[] = [
@@ -33,19 +35,24 @@ const navItems: NavItem[] = [
   { label: "Formazione", icon: BookOpen, path: "/training" },
   { label: "Libreria Didattica", icon: GraduationCap, path: "/case-studies" },
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
-  { label: "AI Assistant", icon: Bot, path: "/ai-assistant" },
-  { label: "Account Center", icon: Wallet, path: "/account-center" },
+  { label: "AI Assistant", icon: Bot, path: "/ai-assistant", requireKey: "ai_assistant_enabled" },
+  { label: "Account Center", icon: Wallet, path: "/account-center", requireKey: "account_center_enabled" },
   { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
   { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { profile, isAdmin, signOut } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const filteredItems = navItems.filter((item) => !item.adminOnly || isAdmin);
+  const filteredItems = navItems.filter((item) => {
+    if (item.adminOnly && !isAdmin) return false;
+    if (item.requireKey && !isAdmin && !licenseSettings[item.requireKey]) return false;
+    return true;
+  });
 
   const handleSignOut = async () => {
     await signOut();
