@@ -606,7 +606,7 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
               </Badge>
               <SyncStatusBadge status={acc.sync_status} />
               <StatusBadge status={acc.connection_status} lastError={acc.last_sync_error} />
-              {["deploying", "awaiting_connection", "disconnected_from_broker"].includes(acc.connection_status) && (
+              {["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected"].includes(acc.connection_status) && (
                 <Button
                   size="sm"
                   variant="outline"
