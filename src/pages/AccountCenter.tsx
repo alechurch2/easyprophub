@@ -531,7 +531,7 @@ function StatusBadge({ status, lastError }: { status: string; lastError?: string
     awaiting_connection: { class: "bg-warning/10 text-warning", label: "In attesa connessione", icon: <Clock className="h-2.5 w-2.5" /> },
     pending: { class: "bg-warning/10 text-warning", label: "In attesa", icon: <Clock className="h-2.5 w-2.5" /> },
     failed: { class: "bg-destructive/10 text-destructive", label: "Errore", icon: <XCircle className="h-2.5 w-2.5" /> },
-    disconnected: { class: "bg-secondary text-muted-foreground", label: "Disconnesso", icon: <WifiOff className="h-2.5 w-2.5" /> },
+    disconnected: { class: "bg-warning/10 text-warning", label: "Deploy OK, attesa broker", icon: <Clock className="h-2.5 w-2.5" /> },
     disconnected_from_broker: { class: "bg-destructive/10 text-destructive", label: "Disconnesso dal broker", icon: <WifiOff className="h-2.5 w-2.5" /> },
     deploy_failed: { class: "bg-destructive/10 text-destructive", label: "Deploy fallito", icon: <XCircle className="h-2.5 w-2.5" /> },
   };
