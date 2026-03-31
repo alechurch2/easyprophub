@@ -93,6 +93,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <p className="text-sm font-medium text-foreground truncate">{profile?.full_name || "Utente"}</p>
               <p className="text-xs text-muted-foreground">{isAdmin ? "Admin" : "Membro"}</p>
             </div>
+            <Link to="/account-settings" className="text-muted-foreground hover:text-foreground transition-colors" title="Impostazioni account">
+              <Settings className="h-4 w-4" />
+            </Link>
           </div>
           <Button
             variant="ghost"
