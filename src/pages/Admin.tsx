@@ -190,7 +190,53 @@ function AdminUsers() {
     load();
   };
 
-  const getDaysRemaining = (p: any): number | null => {
+  // License level management
+  const { user: authUser } = useAuth();
+  
+  const applyLicensePreset = async (userId: string, level: LicenseLevel) => {
+    const preset = LICENSE_PRESETS[level];
+    const existing = licenseSettings[userId];
+    const payload = {
+      license_level: level,
+      training_access_level: preset.training_access_level,
+      ai_assistant_enabled: preset.ai_assistant_enabled,
+      chart_review_monthly_limit: preset.chart_review_monthly_limit,
+      premium_review_monthly_limit: preset.premium_review_monthly_limit,
+      account_center_enabled: preset.account_center_enabled,
+      trade_execution_enabled: preset.trade_execution_enabled,
+      updated_at: new Date().toISOString(),
+      updated_by: authUser?.id || null,
+    };
+    if (existing) {
+      await supabase.from("user_license_settings" as any).update(payload as any).eq("user_id", userId);
+    } else {
+      await supabase.from("user_license_settings" as any).insert({ user_id: userId, ...payload } as any);
+    }
+    // Also sync premium_review_usage quota
+    const now = new Date();
+    const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const existingUsage = premiumUsage[userId];
+    if (existingUsage) {
+      await supabase.from("premium_review_usage").update({ quota_limit: preset.premium_review_monthly_limit } as any).eq("id", existingUsage.id);
+    } else if (preset.premium_review_monthly_limit > 0) {
+      await supabase.from("premium_review_usage").insert({ user_id: userId, month_year: monthYear, reviews_used: 0, quota_limit: preset.premium_review_monthly_limit } as any);
+    }
+    toast.success(`Piano ${LICENSE_LABELS[level]} applicato`);
+    load();
+  };
+
+  const updateLicenseSetting = async (userId: string, field: string, value: any) => {
+    const existing = licenseSettings[userId];
+    const payload = { [field]: value, updated_at: new Date().toISOString(), updated_by: authUser?.id || null };
+    if (existing) {
+      await supabase.from("user_license_settings" as any).update(payload as any).eq("user_id", userId);
+    } else {
+      await supabase.from("user_license_settings" as any).insert({ user_id: userId, ...payload } as any);
+    }
+    toast.success("Impostazione aggiornata");
+    load();
+  };
+
     if (!p.access_expires_at) return null;
     if (p.license_status === "lifetime") return null;
     const diff = new Date(p.access_expires_at).getTime() - Date.now();
