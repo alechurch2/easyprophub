@@ -49,6 +49,7 @@ const DISCLAIMER = "Questa chat ha finalità informative, educative e di support
 
 export default function AIAssistant() {
   const { user } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
