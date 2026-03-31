@@ -1133,11 +1133,27 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       console.error("Update error:", updateError);
     }
 
-    // Increment premium usage if premium
-    if (isPremium) {
-      const now = new Date();
-      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    // Increment standard review usage if not premium
+    if (!isPremium && !isAdminCheck) {
+      const { data: stdExisting } = await supabase
+        .from("standard_review_usage")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("month_year", monthYear)
+        .single();
 
+      if (stdExisting) {
+        await supabase.from("standard_review_usage")
+          .update({ reviews_used: stdExisting.reviews_used + 1, updated_at: new Date().toISOString() })
+          .eq("id", stdExisting.id);
+      } else {
+        await supabase.from("standard_review_usage")
+          .insert({ user_id: user.id, month_year: monthYear, reviews_used: 1 });
+      }
+    }
+
+    // Increment premium usage if premium
+    if (isPremium && !isAdminCheck) {
       const { data: existing } = await supabase
         .from("premium_review_usage")
         .select("*")
@@ -1153,7 +1169,7 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
       } else {
         await supabase
           .from("premium_review_usage")
-          .insert({ user_id: user.id, month_year: monthYear, reviews_used: 1, quota_limit: 3 });
+          .insert({ user_id: user.id, month_year: monthYear, reviews_used: 1, quota_limit: licenseSettings.premium_review_monthly_limit || 3 });
       }
     }
 
