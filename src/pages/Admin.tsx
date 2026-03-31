@@ -369,6 +369,7 @@ function AdminUsers() {
       {filtered.map((p) => {
         const days = getDaysRemaining(p);
         const usage = premiumUsage[p.user_id];
+        const ls = licenseSettings[p.user_id];
         const isExpanded = expandedUser === p.user_id;
 
         return (
