@@ -141,6 +141,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Parametri mancanti" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ===== LICENSE-LEVEL PERMISSION CHECK =====
+    const { data: userLicense } = await supabase.rpc("get_user_license_settings", { _user_id: user.id });
+    const { data: isAdminCheck } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+    if (!isAdminCheck && (!userLicense || !userLicense.trade_execution_enabled)) {
+      return new Response(JSON.stringify({ error: "Esecuzione trading non disponibile per il tuo piano." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // ===== SERVER-SIDE PERMISSION CHECKS =====
     
     // 1. Verify account belongs to user
