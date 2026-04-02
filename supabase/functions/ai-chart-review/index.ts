@@ -879,7 +879,7 @@ serve(async (req) => {
     if (isEasy && account_size) {
       insertData.account_size = account_size;
     }
-    if (isEasy && risk_percent && risk_percent > 0 && risk_percent <= 0.01) {
+    if (isEasy && risk_percent && risk_percent > 0 && risk_percent <= 0.05) {
       insertData.risk_percent = risk_percent;
     }
 

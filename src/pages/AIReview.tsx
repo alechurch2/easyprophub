@@ -244,9 +244,9 @@ export default function AIReview() {
             {/* Block 3: Review form */}
             <div>
               {reviewMode === "pro" ? (
-                <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
+                <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); refreshLicense(); }} reviewTier={reviewTier} />
               ) : (
-                <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
+                <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); refreshLicense(); }} reviewTier={reviewTier} />
               )}
             </div>
           </div>

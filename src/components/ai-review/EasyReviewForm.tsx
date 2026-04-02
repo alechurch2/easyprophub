@@ -226,7 +226,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
             type="single"
             value={riskPercent}
             onValueChange={(v) => v && setRiskPercent(v)}
-            className="justify-start"
+            className="justify-start flex-wrap"
           >
             {RISK_PRESETS.map((p) => (
               <ToggleGroupItem
@@ -240,8 +240,32 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
                 {p.label}
               </ToggleGroupItem>
             ))}
+            <ToggleGroupItem
+              value="custom"
+              className={cn(
+                "text-xs px-5 py-2 font-semibold",
+                isCustomRisk && "ring-1 ring-primary"
+              )}
+            >
+              Personalizzato
+            </ToggleGroupItem>
           </ToggleGroup>
-          {riskMonetary && accountSize > 0 && (
+          {isCustomRisk && (
+            <div className="mt-2 flex items-center gap-2">
+              <Input
+                type="number"
+                value={customRisk}
+                onChange={(e) => setCustomRisk(e.target.value)}
+                placeholder="Es: 0.15"
+                className="max-w-[140px]"
+                min={0.01}
+                max={MAX_CUSTOM_RISK * 100}
+                step={0.01}
+              />
+              <span className="text-xs text-muted-foreground">% (max {MAX_CUSTOM_RISK * 100}%)</span>
+            </div>
+          )}
+          {riskMonetary && accountSize > 0 && selectedRisk > 0 && (
             <div className="mt-2 rounded-lg border border-border bg-secondary/40 px-3 py-2">
               <p className="text-xs text-muted-foreground">
                 Rischio: <span className="font-semibold text-foreground">{(selectedRisk * 100).toFixed(2).replace(/\.?0+$/, '')}%</span> di{" "}
@@ -250,6 +274,13 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
               </p>
             </div>
           )}
+          {/* Prop firm disclaimer */}
+          <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+            <p className="text-[11px] text-muted-foreground">
+              <span className="font-semibold text-amber-600">💡 Prop firm:</span>{" "}
+              Se stai operando su un conto prop firm, ti consigliamo di mantenere il rischio sotto lo 0,25% per rispettare i limiti di drawdown.
+            </p>
+          </div>
         </div>
 
         <div>

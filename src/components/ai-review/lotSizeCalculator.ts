@@ -167,10 +167,14 @@ export function fullLotCalculationFromPrices(
   return fullLotCalculation(accountSize, slPips, tpPips, asset, riskPercent);
 }
 
-/** Available risk presets for Easy Mode (max 1%) */
+/** Available risk presets for Easy Mode */
 export const RISK_PRESETS = [
+  { label: "0.10%", value: 0.001 },
   { label: "0.25%", value: 0.0025 },
   { label: "0.50%", value: 0.005 },
   { label: "0.75%", value: 0.0075 },
   { label: "1.00%", value: 0.01 },
 ];
+
+/** Maximum allowed risk percent (5%) */
+export const MAX_CUSTOM_RISK = 0.05;
