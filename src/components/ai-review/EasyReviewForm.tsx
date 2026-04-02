@@ -72,7 +72,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
       : parseInt(accountPreset);
 
   const selectedRisk = isCustomRisk
-    ? Math.min(parseFloat(customRisk) / 100 || 0, MAX_CUSTOM_RISK * 100) / 100
+    ? Math.min(Math.max(parseFloat(customRisk) || 0, 0) / 100, MAX_CUSTOM_RISK)
     : parseFloat(riskPercent);
   const riskMonetary = accountSize > 0 && selectedRisk > 0 ? (accountSize * selectedRisk).toFixed(2) : null;
 
