@@ -4,6 +4,7 @@ import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap, Crown, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,7 @@ import { TierSelector } from "@/components/ai-review/TierSelector";
 
 export default function AIReview() {
   const { user } = useAuth();
-  const { settings: licenseSettings, usage: licenseUsage, refresh: refreshLicense } = useLicenseSettings();
+  const { settings: licenseSettings, usage: licenseUsage, loading: licenseLoading, refresh: refreshLicense } = useLicenseSettings();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -166,28 +167,39 @@ export default function AIReview() {
         </div>
 
         {/* License usage counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <div className="card-premium p-3">
-            <p className="text-[10px] text-muted-foreground">Piano</p>
-            <p className="text-sm font-bold text-foreground capitalize">{licenseSettings.license_level}</p>
+        {licenseLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="card-premium p-3">
+                <Skeleton className="h-3 w-16 mb-2" />
+                <Skeleton className="h-5 w-12" />
+              </div>
+            ))}
           </div>
-          <div className="card-premium p-3">
-            <p className="text-[10px] text-muted-foreground">Standard rimaste</p>
-            <p className={cn("text-sm font-bold", licenseUsage.standardReviewsRemaining <= 0 ? "text-destructive" : "text-success")}>
-              {licenseUsage.standardReviewsRemaining}/{licenseSettings.chart_review_monthly_limit}
-            </p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div className="card-premium p-3">
+              <p className="text-[10px] text-muted-foreground">Piano</p>
+              <p className="text-sm font-bold text-foreground capitalize">{licenseSettings.license_level}</p>
+            </div>
+            <div className="card-premium p-3">
+              <p className="text-[10px] text-muted-foreground">Standard rimaste</p>
+              <p className={cn("text-sm font-bold", licenseUsage.standardReviewsRemaining <= 0 ? "text-destructive" : "text-success")}>
+                {licenseUsage.standardReviewsRemaining}/{licenseSettings.chart_review_monthly_limit}
+              </p>
+            </div>
+            <div className="card-premium p-3">
+              <p className="text-[10px] text-muted-foreground">Premium rimaste</p>
+              <p className={cn("text-sm font-bold", licenseUsage.premiumReviewsRemaining <= 0 ? "text-destructive" : "text-amber-500")}>
+                {licenseUsage.premiumReviewsRemaining}/{licenseSettings.premium_review_monthly_limit}
+              </p>
+            </div>
+            <div className="card-premium p-3">
+              <p className="text-[10px] text-muted-foreground">Usate questo mese</p>
+              <p className="text-sm font-bold text-foreground">{licenseUsage.standardReviewsUsed + licenseUsage.premiumReviewsUsed}</p>
+            </div>
           </div>
-          <div className="card-premium p-3">
-            <p className="text-[10px] text-muted-foreground">Premium rimaste</p>
-            <p className={cn("text-sm font-bold", licenseUsage.premiumReviewsRemaining <= 0 ? "text-destructive" : "text-amber-500")}>
-              {licenseUsage.premiumReviewsRemaining}/{licenseSettings.premium_review_monthly_limit}
-            </p>
-          </div>
-          <div className="card-premium p-3">
-            <p className="text-[10px] text-muted-foreground">Usate questo mese</p>
-            <p className="text-sm font-bold text-foreground">{licenseUsage.standardReviewsUsed + licenseUsage.premiumReviewsUsed}</p>
-          </div>
-        </div>
+        )}
 
         {/* Tier selector + Mode selector + Form */}
         {showForm && (
@@ -232,9 +244,9 @@ export default function AIReview() {
             {/* Block 3: Review form */}
             <div>
               {reviewMode === "pro" ? (
-                <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
+                <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); refreshLicense(); }} reviewTier={reviewTier} />
               ) : (
-                <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); }} reviewTier={reviewTier} />
+                <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); refreshLicense(); }} reviewTier={reviewTier} />
               )}
             </div>
           </div>

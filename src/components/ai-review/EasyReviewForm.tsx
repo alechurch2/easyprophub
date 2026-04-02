@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES } from "./types";
-import { ACCOUNT_PRESETS, RISK_PRESETS } from "./lotSizeCalculator";
+import { ACCOUNT_PRESETS, RISK_PRESETS, MAX_CUSTOM_RISK } from "./lotSizeCalculator";
 import { ReviewLoadingState } from "./ReviewLoadingState";
 
 interface Props {
@@ -31,6 +31,8 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
   const [accountPreset, setAccountPreset] = useState("100000");
   const [customAccount, setCustomAccount] = useState("");
   const [riskPercent, setRiskPercent] = useState("0.005"); // default 0.50%
+  const [customRisk, setCustomRisk] = useState("");
+  const isCustomRisk = riskPercent === "custom";
   const [submitting, setSubmitting] = useState(false);
 
   // Connected account state
@@ -69,14 +71,20 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
       ? parseInt(customAccount) || 0
       : parseInt(accountPreset);
 
-  const selectedRisk = parseFloat(riskPercent);
-  const riskMonetary = accountSize > 0 ? (accountSize * selectedRisk).toFixed(2) : null;
+  const selectedRisk = isCustomRisk
+    ? Math.min(parseFloat(customRisk) / 100 || 0, MAX_CUSTOM_RISK * 100) / 100
+    : parseFloat(riskPercent);
+  const riskMonetary = accountSize > 0 && selectedRisk > 0 ? (accountSize * selectedRisk).toFixed(2) : null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) { toast.error("Carica uno screenshot del grafico"); return; }
     if (accountSize <= 0) {
       toast.error(isLinked ? "Nessun conto collegato con equity valida" : "Inserisci la dimensione del conto");
+      return;
+    }
+    if (selectedRisk <= 0 || selectedRisk > MAX_CUSTOM_RISK) {
+      toast.error(`Il rischio deve essere tra 0.01% e ${MAX_CUSTOM_RISK * 100}%`);
       return;
     }
     setSubmitting(true);
@@ -212,13 +220,13 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
             <Label className="text-foreground">Rischio per operazione</Label>
           </div>
           <p className="text-[11px] text-muted-foreground mb-2">
-            Seleziona quanto del conto vuoi rischiare su questa operazione (max 1%).
+            Seleziona quanto del conto vuoi rischiare su questa operazione.
           </p>
           <ToggleGroup
             type="single"
             value={riskPercent}
             onValueChange={(v) => v && setRiskPercent(v)}
-            className="justify-start"
+            className="justify-start flex-wrap"
           >
             {RISK_PRESETS.map((p) => (
               <ToggleGroupItem
@@ -232,8 +240,32 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
                 {p.label}
               </ToggleGroupItem>
             ))}
+            <ToggleGroupItem
+              value="custom"
+              className={cn(
+                "text-xs px-5 py-2 font-semibold",
+                isCustomRisk && "ring-1 ring-primary"
+              )}
+            >
+              Personalizzato
+            </ToggleGroupItem>
           </ToggleGroup>
-          {riskMonetary && accountSize > 0 && (
+          {isCustomRisk && (
+            <div className="mt-2 flex items-center gap-2">
+              <Input
+                type="number"
+                value={customRisk}
+                onChange={(e) => setCustomRisk(e.target.value)}
+                placeholder="Es: 0.15"
+                className="max-w-[140px]"
+                min={0.01}
+                max={MAX_CUSTOM_RISK * 100}
+                step={0.01}
+              />
+              <span className="text-xs text-muted-foreground">% (max {MAX_CUSTOM_RISK * 100}%)</span>
+            </div>
+          )}
+          {riskMonetary && accountSize > 0 && selectedRisk > 0 && (
             <div className="mt-2 rounded-lg border border-border bg-secondary/40 px-3 py-2">
               <p className="text-xs text-muted-foreground">
                 Rischio: <span className="font-semibold text-foreground">{(selectedRisk * 100).toFixed(2).replace(/\.?0+$/, '')}%</span> di{" "}
@@ -242,6 +274,13 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
               </p>
             </div>
           )}
+          {/* Prop firm disclaimer */}
+          <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+            <p className="text-[11px] text-muted-foreground">
+              <span className="font-semibold text-amber-600">💡 Prop firm:</span>{" "}
+              Se stai operando su un conto prop firm, ti consigliamo di mantenere il rischio sotto lo 0,25% per rispettare i limiti di drawdown.
+            </p>
+          </div>
         </div>
 
         <div>
