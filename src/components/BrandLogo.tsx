@@ -18,19 +18,17 @@ const sizes = {
 export default function BrandLogo({ size = "md", className, iconOnly }: BrandLogoProps) {
   const s = sizes[size];
 
-  // Full logo available — use it everywhere (it contains icon + text)
   if (!iconOnly) {
     return (
-      <div className={className}>
+      <div className={cn("transition-opacity", className)}>
         <img src={logoImage} alt={BRAND.name} className={cn(s.height, "w-auto object-contain")} />
       </div>
     );
   }
 
-  // Icon-only fallback (sidebar compact, etc.)
   return (
     <div className={className}>
-      <div className={cn(s.iconBox, "rounded-xl bg-primary flex items-center justify-center")}>
+      <div className={cn(s.iconBox, "rounded-xl bg-gradient-to-br from-primary to-gold-dark flex items-center justify-center shadow-sm shadow-primary/20")}>
         <span className={cn(s.fontSize, "font-bold text-primary-foreground tracking-tight")}>EP</span>
       </div>
     </div>
