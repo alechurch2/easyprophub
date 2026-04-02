@@ -167,28 +167,39 @@ export default function AIReview() {
         </div>
 
         {/* License usage counters */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-          <div className="card-premium p-3">
-            <p className="text-[10px] text-muted-foreground">Piano</p>
-            <p className="text-sm font-bold text-foreground capitalize">{licenseSettings.license_level}</p>
+        {licenseLoading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="card-premium p-3">
+                <Skeleton className="h-3 w-16 mb-2" />
+                <Skeleton className="h-5 w-12" />
+              </div>
+            ))}
           </div>
-          <div className="card-premium p-3">
-            <p className="text-[10px] text-muted-foreground">Standard rimaste</p>
-            <p className={cn("text-sm font-bold", licenseUsage.standardReviewsRemaining <= 0 ? "text-destructive" : "text-success")}>
-              {licenseUsage.standardReviewsRemaining}/{licenseSettings.chart_review_monthly_limit}
-            </p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div className="card-premium p-3">
+              <p className="text-[10px] text-muted-foreground">Piano</p>
+              <p className="text-sm font-bold text-foreground capitalize">{licenseSettings.license_level}</p>
+            </div>
+            <div className="card-premium p-3">
+              <p className="text-[10px] text-muted-foreground">Standard rimaste</p>
+              <p className={cn("text-sm font-bold", licenseUsage.standardReviewsRemaining <= 0 ? "text-destructive" : "text-success")}>
+                {licenseUsage.standardReviewsRemaining}/{licenseSettings.chart_review_monthly_limit}
+              </p>
+            </div>
+            <div className="card-premium p-3">
+              <p className="text-[10px] text-muted-foreground">Premium rimaste</p>
+              <p className={cn("text-sm font-bold", licenseUsage.premiumReviewsRemaining <= 0 ? "text-destructive" : "text-amber-500")}>
+                {licenseUsage.premiumReviewsRemaining}/{licenseSettings.premium_review_monthly_limit}
+              </p>
+            </div>
+            <div className="card-premium p-3">
+              <p className="text-[10px] text-muted-foreground">Usate questo mese</p>
+              <p className="text-sm font-bold text-foreground">{licenseUsage.standardReviewsUsed + licenseUsage.premiumReviewsUsed}</p>
+            </div>
           </div>
-          <div className="card-premium p-3">
-            <p className="text-[10px] text-muted-foreground">Premium rimaste</p>
-            <p className={cn("text-sm font-bold", licenseUsage.premiumReviewsRemaining <= 0 ? "text-destructive" : "text-amber-500")}>
-              {licenseUsage.premiumReviewsRemaining}/{licenseSettings.premium_review_monthly_limit}
-            </p>
-          </div>
-          <div className="card-premium p-3">
-            <p className="text-[10px] text-muted-foreground">Usate questo mese</p>
-            <p className="text-sm font-bold text-foreground">{licenseUsage.standardReviewsUsed + licenseUsage.premiumReviewsUsed}</p>
-          </div>
-        </div>
+        )}
 
         {/* Tier selector + Mode selector + Form */}
         {showForm && (
