@@ -31,6 +31,8 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
   const [accountPreset, setAccountPreset] = useState("100000");
   const [customAccount, setCustomAccount] = useState("");
   const [riskPercent, setRiskPercent] = useState("0.005"); // default 0.50%
+  const [customRisk, setCustomRisk] = useState("");
+  const isCustomRisk = riskPercent === "custom";
   const [submitting, setSubmitting] = useState(false);
 
   // Connected account state
