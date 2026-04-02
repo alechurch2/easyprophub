@@ -220,7 +220,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
             <Label className="text-foreground">Rischio per operazione</Label>
           </div>
           <p className="text-[11px] text-muted-foreground mb-2">
-            Seleziona quanto del conto vuoi rischiare su questa operazione (max 1%).
+            Seleziona quanto del conto vuoi rischiare su questa operazione.
           </p>
           <ToggleGroup
             type="single"
