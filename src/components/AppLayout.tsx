@@ -62,14 +62,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 border-r border-border bg-card">
-        <div className="flex h-16 items-center px-6 border-b border-border">
-          <Link to="/dashboard">
+      <aside className="hidden lg:flex lg:w-[260px] lg:flex-col lg:fixed lg:inset-y-0 border-r border-border/60 bg-card/80 glass-subtle">
+        {/* Logo */}
+        <div className="flex h-16 items-center px-6 border-b border-border/60">
+          <Link to="/dashboard" className="transition-opacity hover:opacity-80">
             <BrandLogo size="sm" />
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
           {filteredItems.map((item) => {
             const active = location.pathname.startsWith(item.path);
             return (
@@ -77,49 +79,52 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 group relative",
                   active
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    ? "bg-primary/8 text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                {active && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
+                )}
+                <item.icon className={cn("h-[18px] w-[18px] transition-colors", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
                 {item.label}
-                {active && <ChevronRight className="h-3 w-3 ml-auto" />}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-3 border-t border-border">
-          <div className="flex items-center gap-3 px-3 py-2 mb-2">
-            <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-secondary-foreground">
+        {/* User section */}
+        <div className="p-3 border-t border-border/60">
+          <div className="flex items-center gap-3 px-3 py-2.5 mb-1.5">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-xs font-bold text-primary ring-1 ring-primary/10">
               {profile?.full_name?.charAt(0)?.toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{profile?.full_name || "Utente"}</p>
-              <p className="text-xs text-muted-foreground">{isAdmin ? "Admin" : "Membro"}</p>
+              <p className="text-[11px] text-muted-foreground">{isAdmin ? "Admin" : "Membro"}</p>
             </div>
-            <Link to="/account-settings" className="text-muted-foreground hover:text-foreground transition-colors" title="Impostazioni account">
+            <Link to="/account-settings" className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/50" title="Impostazioni account">
               <Settings className="h-4 w-4" />
             </Link>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start text-muted-foreground hover:text-foreground"
+            className="w-full justify-start text-muted-foreground hover:text-foreground text-xs"
             onClick={handleSignOut}
           >
-            <LogOut className="h-4 w-4 mr-2" />
+            <LogOut className="h-3.5 w-3.5 mr-2" />
             Esci
           </Button>
         </div>
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card border-b border-border flex items-center justify-between px-4">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-card/90 glass-subtle border-b border-border/60 flex items-center justify-between px-4">
         <div className="flex items-center gap-3">
-          <button onClick={() => setMobileOpen(true)} className="text-foreground p-1.5 -ml-1.5 rounded-lg active:bg-secondary">
+          <button onClick={() => setMobileOpen(true)} className="text-foreground p-1.5 -ml-1.5 rounded-lg active:bg-muted transition-colors">
             <Menu className="h-5 w-5" />
           </button>
           <BrandLogo size="sm" />
@@ -129,15 +134,15 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* Mobile sidebar overlay */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-72 h-full bg-card border-r border-border flex flex-col">
-            <div className="flex h-14 items-center justify-between px-4 border-b border-border">
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-md" onClick={() => setMobileOpen(false)} />
+          <aside className="relative w-72 h-full bg-card border-r border-border/60 flex flex-col animate-slide-in-left shadow-2xl">
+            <div className="flex h-14 items-center justify-between px-4 border-b border-border/60">
               <BrandLogo size="sm" />
-              <button onClick={() => setMobileOpen(false)} className="text-muted-foreground">
+              <button onClick={() => setMobileOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+            <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
               {filteredItems.map((item) => {
                 const active = location.pathname.startsWith(item.path);
                 return (
@@ -146,28 +151,31 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     to={item.path}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors",
+                      "flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 relative",
                       active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                        ? "bg-primary/8 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
+                    {active && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
+                    )}
+                    <item.icon className={cn("h-5 w-5", active ? "text-primary" : "")} />
                     {item.label}
                   </Link>
                 );
               })}
             </nav>
-            <div className="p-3 border-t border-border space-y-1">
+            <div className="p-3 border-t border-border/60 space-y-1">
               <Link
                 to="/account-settings"
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
               >
                 <Settings className="h-5 w-5" />
                 Impostazioni account
               </Link>
-              <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground" onClick={handleSignOut}>
+              <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground text-xs" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Esci
               </Button>
@@ -177,7 +185,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       )}
 
       {/* Main content */}
-      <main className="flex-1 lg:ml-64">
+      <main className="flex-1 lg:ml-[260px]">
         <div className="pt-14 lg:pt-0 min-h-screen">
           {children}
         </div>

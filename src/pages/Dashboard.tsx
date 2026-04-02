@@ -42,7 +42,6 @@ export default function Dashboard() {
         if (data) setAnnouncements(data);
       });
 
-    // Fetch user's review stats (explicit user_id filter for defense-in-depth)
     if (user) {
     supabase
       .from("ai_chart_reviews")
@@ -81,7 +80,6 @@ export default function Dashboard() {
       });
     }
 
-    // Premium usage
     if (user) {
       const now = new Date();
       const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -104,7 +102,7 @@ export default function Dashboard() {
       icon: BookOpen,
       path: "/training",
       color: "text-primary",
-      bg: "bg-primary/10",
+      bg: "bg-primary/8",
     },
     {
       title: "Libreria Didattica",
@@ -112,7 +110,7 @@ export default function Dashboard() {
       icon: GraduationCap,
       path: "/case-studies",
       color: "text-info",
-      bg: "bg-info/10",
+      bg: "bg-info/8",
     },
     {
       title: "AI Chart Review",
@@ -120,7 +118,7 @@ export default function Dashboard() {
       icon: BarChart3,
       path: "/ai-review",
       color: "text-success",
-      bg: "bg-success/10",
+      bg: "bg-success/8",
     },
     {
       title: "AI Assistant",
@@ -128,7 +126,7 @@ export default function Dashboard() {
       icon: Bot,
       path: "/ai-assistant",
       color: "text-primary",
-      bg: "bg-primary/10",
+      bg: "bg-primary/8",
     },
     {
       title: "Account Center",
@@ -136,7 +134,7 @@ export default function Dashboard() {
       icon: Wallet,
       path: "/account-center",
       color: "text-success",
-      bg: "bg-success/10",
+      bg: "bg-success/8",
     },
     {
       title: "Supporto",
@@ -144,7 +142,7 @@ export default function Dashboard() {
       icon: HeadphonesIcon,
       path: "/support",
       color: "text-info",
-      bg: "bg-info/10",
+      bg: "bg-info/8",
     },
   ];
 
@@ -152,21 +150,21 @@ export default function Dashboard() {
     <AppLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Welcome */}
-        <div className="mb-8">
-          <h1 className="font-heading text-2xl lg:text-3xl font-bold text-foreground">
+        <div className="mb-10">
+          <h1 className="font-heading text-2xl lg:text-3xl font-bold text-foreground tracking-tight">
             Bentornato, {profile?.full_name?.split(" ")[0] || "Utente"}
           </h1>
-          <p className="text-muted-foreground mt-1">{BRAND.description}</p>
+          <p className="text-muted-foreground mt-1.5 text-sm">{BRAND.description}</p>
         </div>
 
         {/* Onboarding */}
         <OnboardingChecklist />
 
         {/* License & Status */}
-        <div className="grid grid-cols-1 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
           <div className="card-premium p-4 flex items-center gap-3 min-w-0">
-            <div className="h-2 w-2 rounded-full bg-success shrink-0" />
-            <span className="text-sm text-foreground whitespace-nowrap">Stato:</span>
+            <div className="h-2.5 w-2.5 rounded-full bg-success shrink-0 animate-pulse-soft" />
+            <span className="text-sm text-foreground font-medium">Stato:</span>
             <Badge variant="secondary" className="text-xs">
               {isAdmin ? "Amministratore" : "Attivo"}
             </Badge>
@@ -175,21 +173,21 @@ export default function Dashboard() {
             <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="text-xs text-muted-foreground">Licenza:</span>
             <Badge className={cn("text-xs",
-              licenseStatus === "lifetime" ? "bg-primary/10 text-primary" :
-              daysRemaining !== null && daysRemaining <= 7 ? "bg-amber-500/10 text-amber-600" :
-              "bg-success/10 text-success"
+              licenseStatus === "lifetime" ? "bg-primary/10 text-primary border-primary/20" :
+              daysRemaining !== null && daysRemaining <= 7 ? "bg-warning/10 text-warning border-warning/20" :
+              "bg-success/10 text-success border-success/20"
             )}>
               {licenseStatus === "lifetime" ? "♾️ Lifetime" :
                daysRemaining !== null ? `${daysRemaining}g rimanenti` : "Attiva"}
             </Badge>
             {accessExpiresAt && licenseStatus !== "lifetime" && (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[10px] text-muted-foreground/70">
                 Scade: {new Date(accessExpiresAt).toLocaleDateString("it-IT")}
               </span>
             )}
           </div>
           <div className="card-premium p-4 flex flex-wrap items-center gap-2">
-            <Crown className="h-4 w-4 text-amber-500 shrink-0" />
+            <Crown className="h-4 w-4 text-primary shrink-0" />
             <span className="text-xs text-muted-foreground">Premium:</span>
             {premiumUsage ? (
               <Badge variant="outline" className="text-xs">
@@ -206,51 +204,48 @@ export default function Dashboard() {
 
         {/* Review Stats */}
         {(stats.totalPro > 0 || stats.totalEasy > 0) && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            {/* Pro vs Easy */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
             <div className="card-premium p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="h-9 w-9 rounded-xl bg-primary/8 flex items-center justify-center">
                   <TrendingUp className="h-4 w-4 text-primary" />
                 </div>
                 <span className="text-sm font-medium text-foreground">Le tue Review</span>
               </div>
               <div className="flex items-end gap-4">
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{stats.totalPro + stats.totalEasy}</p>
+                  <p className="text-2xl font-bold text-foreground tracking-tight">{stats.totalPro + stats.totalEasy}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">totali completate</p>
                 </div>
-                <div className="flex gap-2 mb-1">
-                  <Badge variant="outline" className="text-xs">{stats.totalPro} Pro</Badge>
-                  <Badge variant="secondary" className="text-xs">{stats.totalEasy} Easy</Badge>
+                <div className="flex gap-1.5 mb-1">
+                  <Badge variant="outline" className="text-[10px]">{stats.totalPro} Pro</Badge>
+                  <Badge variant="secondary" className="text-[10px]">{stats.totalEasy} Easy</Badge>
                 </div>
               </div>
             </div>
 
-            {/* Average Quality */}
             <div className="card-premium p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="h-9 w-9 rounded-xl bg-success/8 flex items-center justify-center">
                   <Zap className="h-4 w-4 text-success" />
                 </div>
                 <span className="text-sm font-medium text-foreground">Qualità Media</span>
               </div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-bold text-foreground tracking-tight">
                 {stats.avgQuality != null ? `${stats.avgQuality}/10` : "—"}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">su tutte le review</p>
             </div>
 
-            {/* Top Assets */}
             <div className="card-premium p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-8 w-8 rounded-lg bg-info/10 flex items-center justify-center">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="h-9 w-9 rounded-xl bg-info/8 flex items-center justify-center">
                   <Target className="h-4 w-4 text-info" />
                 </div>
                 <span className="text-sm font-medium text-foreground">Asset più analizzati</span>
               </div>
               {stats.topAssets.length > 0 ? (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {stats.topAssets.map((a) => (
                     <div key={a.asset} className="flex items-center justify-between">
                       <span className="text-sm font-medium text-foreground">{a.asset}</span>
@@ -266,19 +261,20 @@ export default function Dashboard() {
         )}
 
         {/* Quick cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          {cards.map((card) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+          {cards.map((card, i) => (
             <Link
               key={card.path}
               to={card.path}
-              className="card-premium p-5 hover:border-primary/30 transition-all group"
+              className="card-premium p-5 hover:border-primary/25 hover:shadow-md transition-all duration-300 group"
+              style={{ animationDelay: `${i * 60}ms` }}
             >
-              <div className={`h-10 w-10 rounded-lg ${card.bg} flex items-center justify-center mb-4`}>
+              <div className={`h-10 w-10 rounded-xl ${card.bg} flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-105`}>
                 <card.icon className={`h-5 w-5 ${card.color}`} />
               </div>
-              <h3 className="font-heading font-semibold text-foreground">{card.title}</h3>
-              <p className="text-sm text-muted-foreground mt-1">{card.description}</p>
-              <div className="flex items-center gap-1 mt-3 text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+              <h3 className="font-heading font-semibold text-foreground text-[15px]">{card.title}</h3>
+              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{card.description}</p>
+              <div className="flex items-center gap-1 mt-3 text-xs text-primary font-semibold opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-0 group-hover:translate-x-0.5">
                 Accedi <ArrowRight className="h-3 w-3" />
               </div>
             </Link>
@@ -288,20 +284,22 @@ export default function Dashboard() {
         {/* Announcements */}
         {announcements.length > 0 && (
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Megaphone className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="h-8 w-8 rounded-lg bg-primary/8 flex items-center justify-center">
+                <Megaphone className="h-4 w-4 text-primary" />
+              </div>
               <h2 className="font-heading font-semibold text-foreground">Aggiornamenti</h2>
             </div>
             <div className="space-y-3">
               {announcements.map((a) => (
-                <div key={a.id} className="card-premium p-4">
-                  <div className="flex items-center justify-between mb-1">
+                <div key={a.id} className="card-premium p-5">
+                  <div className="flex items-center justify-between mb-1.5">
                     <h3 className="font-medium text-sm text-foreground">{a.title}</h3>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[11px] text-muted-foreground/70">
                       {new Date(a.created_at).toLocaleDateString("it-IT")}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{a.content}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{a.content}</p>
                 </div>
               ))}
             </div>

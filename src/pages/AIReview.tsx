@@ -137,11 +137,11 @@ export default function AIReview() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-success/8 flex items-center justify-center shrink-0">
               <BarChart3 className="h-5 w-5 text-success" />
             </div>
             <div>
-              <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground">AI Chart Review</h1>
+              <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground tracking-tight">AI Chart Review</h1>
               <p className="text-xs sm:text-sm text-muted-foreground">Analisi strutturata dei tuoi grafici</p>
             </div>
           </div>
@@ -158,9 +158,9 @@ export default function AIReview() {
         </div>
 
         {/* Disclaimer */}
-        <div className="p-4 mb-4 bg-secondary/50 rounded-lg border border-border">
-          <p className="text-xs text-muted-foreground">
-            <strong>⚠️ Disclaimer:</strong> Questa analisi ha finalità informative, educative e di supporto operativo.
+        <div className="p-4 mb-5 bg-muted/40 rounded-xl border border-border">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <strong className="text-foreground/70">⚠️ Disclaimer:</strong> Questa analisi ha finalità informative, educative e di supporto operativo.
             Non costituisce esecuzione automatica, consulenza finanziaria personalizzata o garanzia di risultato.
             In assenza di contesto sufficiente, il sistema può non proporre alcun setup.
           </p>
@@ -168,35 +168,35 @@ export default function AIReview() {
 
         {/* License usage counters */}
         {licenseLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="card-premium p-3">
-                <Skeleton className="h-3 w-16 mb-2" />
-                <Skeleton className="h-5 w-12" />
+              <div key={i} className="card-premium p-4">
+                <Skeleton className="h-3 w-16 mb-2.5" />
+                <Skeleton className="h-6 w-14" />
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <div className="card-premium p-3">
-              <p className="text-[10px] text-muted-foreground">Piano</p>
-              <p className="text-sm font-bold text-foreground capitalize">{licenseSettings.license_level}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+            <div className="card-premium p-4">
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Piano</p>
+              <p className="text-sm font-bold text-foreground capitalize mt-1">{licenseSettings.license_level}</p>
             </div>
-            <div className="card-premium p-3">
-              <p className="text-[10px] text-muted-foreground">Standard rimaste</p>
-              <p className={cn("text-sm font-bold", licenseUsage.standardReviewsRemaining <= 0 ? "text-destructive" : "text-success")}>
+            <div className="card-premium p-4">
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Standard rimaste</p>
+              <p className={cn("text-sm font-bold mt-1", licenseUsage.standardReviewsRemaining <= 0 ? "text-destructive" : "text-success")}>
                 {licenseUsage.standardReviewsRemaining}/{licenseSettings.chart_review_monthly_limit}
               </p>
             </div>
-            <div className="card-premium p-3">
-              <p className="text-[10px] text-muted-foreground">Premium rimaste</p>
-              <p className={cn("text-sm font-bold", licenseUsage.premiumReviewsRemaining <= 0 ? "text-destructive" : "text-amber-500")}>
+            <div className="card-premium p-4">
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Premium rimaste</p>
+              <p className={cn("text-sm font-bold mt-1", licenseUsage.premiumReviewsRemaining <= 0 ? "text-destructive" : "text-primary")}>
                 {licenseUsage.premiumReviewsRemaining}/{licenseSettings.premium_review_monthly_limit}
               </p>
             </div>
-            <div className="card-premium p-3">
-              <p className="text-[10px] text-muted-foreground">Usate questo mese</p>
-              <p className="text-sm font-bold text-foreground">{licenseUsage.standardReviewsUsed + licenseUsage.premiumReviewsUsed}</p>
+            <div className="card-premium p-4">
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Usate questo mese</p>
+              <p className="text-sm font-bold text-foreground mt-1">{licenseUsage.standardReviewsUsed + licenseUsage.premiumReviewsUsed}</p>
             </div>
           </div>
         )}
@@ -204,7 +204,6 @@ export default function AIReview() {
         {/* Tier selector + Mode selector + Form */}
         {showForm && (
           <div className="flex flex-col gap-10">
-            {/* Block 1: Tier + Mode selectors */}
             <div className="space-y-6">
               <TierSelector
                 tier={reviewTier}
@@ -215,33 +214,35 @@ export default function AIReview() {
               <ModeSelector mode={reviewMode} onChange={setReviewMode} />
             </div>
 
-            {/* Block 2: Selection summary */}
+            {/* Selection summary */}
             <div className={cn(
-              "rounded-xl border px-5 py-4",
+              "rounded-xl border px-5 py-4 relative overflow-hidden",
               reviewTier === "premium"
-                ? "border-amber-500/20 bg-amber-500/[0.04]"
-                : "border-border bg-secondary/40"
+                ? "border-primary/20 bg-primary/[0.03]"
+                : "border-border bg-muted/30"
             )}>
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+              {reviewTier === "premium" && (
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary/50 via-gold-light/30 to-transparent" />
+              )}
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
                 Review selezionata
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <span className={cn(
                   "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold",
                   reviewTier === "premium"
-                    ? "bg-amber-500/10 text-amber-600 border border-amber-500/20"
-                    : "bg-primary/10 text-primary border border-primary/20"
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "bg-success/10 text-success border border-success/20"
                 )}>
                   {reviewTier === "premium" ? "👑 Premium Review" : "⚡ Standard Review"}
                 </span>
-                <span className="text-muted-foreground/40 text-sm">·</span>
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 px-3 py-1.5 text-xs font-semibold">
+                <span className="text-muted-foreground/30 text-sm">·</span>
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/8 text-primary border border-primary/15 px-3 py-1.5 text-xs font-semibold">
                   {reviewMode === "pro" ? "📊 Pro Mode" : "⚡ Easy Mode"}
                 </span>
               </div>
             </div>
 
-            {/* Block 3: Review form */}
             <div>
               {reviewMode === "pro" ? (
                 <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); refreshLicense(); }} reviewTier={reviewTier} />
@@ -263,34 +264,36 @@ export default function AIReview() {
         />
 
         {compareIds.size > 0 && (
-          <div className="mb-4 p-3 bg-primary/5 rounded-lg border border-primary/20">
-            <p className="text-xs text-primary">
+          <div className="mb-4 p-3 bg-primary/5 rounded-xl border border-primary/15">
+            <p className="text-xs text-primary font-medium">
               <GitCompare className="h-3 w-3 inline mr-1" />
               {compareIds.size}/2 review selezionate per il confronto
               {compareIds.size < 2 && " — selezionane un'altra"}
-              <button onClick={() => setCompareIds(new Set())} className="ml-2 underline">Annulla</button>
+              <button onClick={() => setCompareIds(new Set())} className="ml-2 underline hover:no-underline">Annulla</button>
             </p>
           </div>
         )}
 
         {/* Reviews list */}
         <div>
-          <h2 className="font-heading text-lg font-semibold text-foreground mb-4">
+          <h2 className="font-heading text-lg font-semibold text-foreground mb-4 tracking-tight">
             Le tue review <span className="text-muted-foreground font-normal text-sm">({filtered.length})</span>
           </h2>
           {loading ? (
-            <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+            <div className="flex justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
           ) : filtered.length === 0 ? (
-            <div className="card-premium p-8 text-center">
-              <BarChart3 className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">Nessuna review trovata</p>
+            <div className="card-premium p-12 text-center">
+              <div className="h-12 w-12 rounded-xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="text-muted-foreground text-sm">Nessuna review trovata</p>
             </div>
           ) : (
             <div className="space-y-2">
               {filtered.map((r) => (
                 <div key={r.id} className={cn(
-                  "card-premium p-4 hover:border-primary/30 transition-colors flex items-center gap-3",
-                  r.review_tier === "premium" && "border-amber-500/20"
+                  "card-premium p-4 hover:border-primary/20 transition-all duration-200 flex items-center gap-3",
+                  r.review_tier === "premium" && "border-primary/15"
                 )}>
                   <Checkbox
                     checked={compareIds.has(r.id)}
@@ -298,27 +301,27 @@ export default function AIReview() {
                     disabled={compareIds.size >= 2 && !compareIds.has(r.id)}
                     className="shrink-0"
                   />
-                  <button onClick={() => setSelectedReview(r)} className="flex-1 text-left">
+                  <button onClick={() => setSelectedReview(r)} className="flex-1 text-left group">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div>
-                          <h3 className="text-sm font-medium text-foreground">
+                          <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                             {r.asset} - {r.timeframe}
                             {r.parent_review_id && <span className="text-primary text-[10px] ml-2">🔗 Riesame</span>}
                           </h3>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
                             {r.request_type} · {new Date(r.created_at).toLocaleDateString("it-IT")}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
                         {r.review_tier === "premium" && (
-                          <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+                          <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px]">
                             <Crown className="h-2.5 w-2.5 mr-0.5" />Premium
                           </Badge>
                         )}
                         {r.review_mode === "easy" && (
-                          <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+                          <Badge variant="outline" className="text-[10px] border-primary/20 text-primary">
                             <Zap className="h-2.5 w-2.5 mr-0.5" />Easy
                           </Badge>
                         )}
@@ -334,6 +337,7 @@ export default function AIReview() {
                           </Badge>
                         )}
                         <Badge className={cn(
+                          "text-[10px]",
                           r.status === "completed" ? "bg-success/10 text-success" :
                           r.status === "failed" ? "bg-destructive/10 text-destructive" :
                           "bg-warning/10 text-warning"
