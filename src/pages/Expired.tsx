@@ -20,12 +20,8 @@ export default function Expired() {
         <div className="mb-8 flex justify-center">
           <BrandLogo size="md" />
         </div>
-        <div className="mx-auto h-16 w-16 rounded-2xl flex items-center justify-center mb-6 ring-1 ring-inset"
-          style={{
-            background: isSuspended ? 'hsl(var(--destructive) / 0.08)' : 'hsl(38 92% 50% / 0.08)',
-            ringColor: isSuspended ? 'hsl(var(--destructive) / 0.15)' : 'hsl(38 92% 50% / 0.15)',
-          }}
-        >
+        <div className={`mx-auto h-16 w-16 rounded-2xl flex items-center justify-center mb-6 ${isSuspended ? 'bg-destructive/10 ring-1 ring-destructive/15' : 'bg-warning/10 ring-1 ring-warning/15'}`}>
+
           {isSuspended ? (
             <ShieldX className="h-8 w-8 text-destructive" />
           ) : (
