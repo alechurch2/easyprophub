@@ -83,6 +83,10 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
       toast.error(isLinked ? "Nessun conto collegato con equity valida" : "Inserisci la dimensione del conto");
       return;
     }
+    if (selectedRisk <= 0 || selectedRisk > MAX_CUSTOM_RISK) {
+      toast.error(`Il rischio deve essere tra 0.01% e ${MAX_CUSTOM_RISK * 100}%`);
+      return;
+    }
     setSubmitting(true);
 
     try {
