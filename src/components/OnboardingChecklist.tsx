@@ -13,26 +13,29 @@ export function OnboardingChecklist() {
   if (loading || dismissed || (isComplete && completedCount > 0)) return null;
 
   return (
-    <div className="card-premium p-5 mb-6 animate-fade-in relative">
+    <div className="card-premium p-5 mb-8 animate-fade-in relative overflow-hidden">
+      {/* Subtle gradient accent */}
+      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary/60 via-gold-light/40 to-transparent" />
+      
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Sparkles className="h-4.5 w-4.5 text-primary" />
+          <div className="h-9 w-9 rounded-xl bg-primary/8 flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div>
             <h3 className="font-heading font-semibold text-foreground text-sm">Guida introduttiva</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-[11px] text-muted-foreground mt-0.5">
               {completedCount}/{totalCount} completati
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">{progress}%</Badge>
-          <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground transition-colors">
+        <div className="flex items-center gap-1.5">
+          <Badge variant="outline" className="text-[10px] font-semibold">{progress}%</Badge>
+          <button onClick={() => setExpanded(!expanded)} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/50">
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
-          <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => setDismissed(true)} className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/50">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -43,7 +46,7 @@ export function OnboardingChecklist() {
 
       {/* Steps */}
       {expanded && (
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           {steps.map((step) => (
             <OnboardingStepItem key={step.key} step={step} isNext={nextStep?.key === step.key} />
           ))}
@@ -54,7 +57,7 @@ export function OnboardingChecklist() {
       {expanded && nextStep && (
         <Link
           to={nextStep.path}
-          className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
+          className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-primary/8 text-primary text-sm font-semibold hover:bg-primary/12 transition-all duration-200"
         >
           Prossimo: {nextStep.title}
           <ChevronRight className="h-3.5 w-3.5" />
@@ -71,13 +74,13 @@ function OnboardingStepItem({ step, isNext }: { step: OnboardingStep; isNext: bo
     <Link
       to={step.path}
       className={cn(
-        "flex items-center gap-3 p-2.5 rounded-lg transition-colors group",
-        done ? "opacity-60" : isNext ? "bg-primary/5 border border-primary/10" : "hover:bg-muted/50"
+        "flex items-center gap-3 p-2.5 rounded-lg transition-all duration-200 group",
+        done ? "opacity-50" : isNext ? "bg-primary/5 border border-primary/10" : "hover:bg-muted/40"
       )}
     >
       <div className={cn(
-        "h-6 w-6 rounded-full flex items-center justify-center shrink-0 transition-colors",
-        done ? "bg-success/20 text-success" : "border border-border text-muted-foreground group-hover:border-primary/40"
+        "h-6 w-6 rounded-full flex items-center justify-center shrink-0 transition-all duration-200",
+        done ? "bg-success/15 text-success" : "border border-border text-muted-foreground group-hover:border-primary/30 group-hover:text-primary"
       )}>
         {done ? <Check className="h-3.5 w-3.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
       </div>
@@ -85,9 +88,9 @@ function OnboardingStepItem({ step, isNext }: { step: OnboardingStep; isNext: bo
         <p className={cn("text-sm font-medium", done ? "line-through text-muted-foreground" : "text-foreground")}>
           {step.title}
         </p>
-        <p className="text-xs text-muted-foreground truncate">{step.description}</p>
+        <p className="text-[11px] text-muted-foreground truncate">{step.description}</p>
       </div>
-      {!done && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />}
+      {!done && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-200" />}
     </Link>
   );
 }
