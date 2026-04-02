@@ -16,27 +16,32 @@ export default function Expired() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="max-w-sm text-center">
-        <div className="mb-6 flex justify-center">
+      <div className="max-w-sm text-center animate-scale-in">
+        <div className="mb-8 flex justify-center">
           <BrandLogo size="md" />
         </div>
-        <div className="mx-auto h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6">
+        <div className="mx-auto h-16 w-16 rounded-2xl flex items-center justify-center mb-6 ring-1 ring-inset"
+          style={{
+            background: isSuspended ? 'hsl(var(--destructive) / 0.08)' : 'hsl(38 92% 50% / 0.08)',
+            ringColor: isSuspended ? 'hsl(var(--destructive) / 0.15)' : 'hsl(38 92% 50% / 0.15)',
+          }}
+        >
           {isSuspended ? (
             <ShieldX className="h-8 w-8 text-destructive" />
           ) : (
-            <AlertTriangle className="h-8 w-8 text-amber-500" />
+            <AlertTriangle className="h-8 w-8 text-warning" />
           )}
         </div>
-        <h2 className="font-heading text-2xl font-bold text-foreground">
+        <h2 className="font-heading text-2xl font-bold text-foreground tracking-tight">
           {isSuspended ? "Accesso sospeso" : "Licenza scaduta"}
         </h2>
-        <p className="text-muted-foreground mt-3">
+        <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
           {isSuspended
             ? "Il tuo accesso a EasyProp è stato sospeso. Contatta il supporto per maggiori informazioni."
             : "Il tuo periodo di accesso alla piattaforma EasyProp è scaduto. Contatta il supporto per rinnovare la tua licenza."}
         </p>
-        <div className="mt-6 p-4 rounded-lg bg-secondary/50 border border-border">
-          <p className="text-xs text-muted-foreground">
+        <div className="mt-6 p-4 rounded-xl bg-muted/50 border border-border">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             Per riattivare il tuo accesso, contatta il supporto EasyProp o il tuo amministratore di riferimento.
           </p>
         </div>
