@@ -71,8 +71,10 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
       ? parseInt(customAccount) || 0
       : parseInt(accountPreset);
 
-  const selectedRisk = parseFloat(riskPercent);
-  const riskMonetary = accountSize > 0 ? (accountSize * selectedRisk).toFixed(2) : null;
+  const selectedRisk = isCustomRisk
+    ? Math.min(parseFloat(customRisk) / 100 || 0, MAX_CUSTOM_RISK * 100) / 100
+    : parseFloat(riskPercent);
+  const riskMonetary = accountSize > 0 && selectedRisk > 0 ? (accountSize * selectedRisk).toFixed(2) : null;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
