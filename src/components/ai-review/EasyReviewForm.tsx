@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES } from "./types";
-import { ACCOUNT_PRESETS, RISK_PRESETS } from "./lotSizeCalculator";
+import { ACCOUNT_PRESETS, RISK_PRESETS, MAX_CUSTOM_RISK } from "./lotSizeCalculator";
 import { ReviewLoadingState } from "./ReviewLoadingState";
 
 interface Props {
