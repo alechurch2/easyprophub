@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface NavItem {
   label: string;
@@ -126,6 +127,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
             <Settings className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-foreground transition-colors shrink-0" />
           </Link>
+          <ThemeToggle className="w-full" />
           <button
             onClick={handleSignOut}
             className="flex items-center gap-2 w-full px-2.5 py-1.5 mt-1 rounded-lg text-[12px] text-muted-foreground/60 hover:text-foreground hover:bg-muted/30 transition-all duration-200"
@@ -192,6 +194,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <Settings className="h-4 w-4" />
                 Impostazioni
               </Link>
+              <ThemeToggle className="w-full justify-start px-3 py-2 text-sm" />
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"

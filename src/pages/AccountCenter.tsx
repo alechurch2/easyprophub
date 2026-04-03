@@ -556,16 +556,20 @@ function SyncStatusBadge({ status }: { status: string }) {
 // ---- PnL Display ----
 function PnLValue({ value, prefix = "" }: { value: number; prefix?: string }) {
   return (
-    <span className={cn("font-semibold", value > 0 ? "text-success" : value < 0 ? "text-destructive" : "text-foreground")}>
+    <span className={cn("font-mono-data font-bold", value > 0 ? "text-success" : value < 0 ? "text-destructive" : "text-foreground")}>
       {prefix}{value > 0 ? "+" : ""}{value.toFixed(2)}
     </span>
   );
 }
 
-function MetricCard({ label, value, warn, small }: { label: string; value: React.ReactNode; warn?: boolean; small?: boolean }) {
+function MetricCard({ label, value, warn, small, accent }: { label: string; value: React.ReactNode; warn?: boolean; small?: boolean; accent?: boolean }) {
   return (
-    <div className={cn("rounded-lg bg-secondary/50 p-3", small && "p-2")}>
-      <p className={cn("text-muted-foreground mb-1", small ? "text-[10px]" : "text-xs")}>{label}</p>
+    <div className={cn(
+      "rounded-xl p-3.5 transition-colors",
+      accent ? "card-elevated accent-line-top" : "panel-inset",
+      small && "p-2.5"
+    )}>
+      <p className={cn("text-label font-semibold uppercase text-muted-foreground/50 mb-1.5", small ? "text-[9px]" : "text-[10px]")}>{label}</p>
       <p className={cn("font-semibold text-foreground", small ? "text-sm" : "text-base", warn && "text-destructive")}>
         {value}
       </p>
@@ -681,19 +685,19 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
             </div>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4">
-            <MetricCard label="Balance" value={`$${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} />
-            <MetricCard label="Equity" value={`$${acc.equity.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <MetricCard label="Balance" value={<span className="font-mono-data">${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>} accent />
+            <MetricCard label="Equity" value={<span className="font-mono-data">${acc.equity.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>} accent />
             <MetricCard label="P/L Attuale" value={<PnLValue value={acc.profit_loss} prefix="$" />} />
-            <MetricCard label="Drawdown" value={`${acc.drawdown.toFixed(2)}%`} warn={acc.drawdown > 5} />
-            <MetricCard label="Win Rate" value={`${acc.win_rate.toFixed(1)}%`} />
+            <MetricCard label="Drawdown" value={<span className="font-mono-data">{acc.drawdown.toFixed(2)}%</span>} warn={acc.drawdown > 5} />
+            <MetricCard label="Win Rate" value={<span className="font-mono-data">{acc.win_rate.toFixed(1)}%</span>} />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
             <MetricCard label="P/L Giornaliero" value={<PnLValue value={acc.daily_pnl} prefix="$" />} small />
             <MetricCard label="P/L Settimanale" value={<PnLValue value={acc.weekly_pnl} prefix="$" />} small />
-            <MetricCard label="Posizioni aperte" value={String(acc.open_positions_count)} small />
-            <MetricCard label="Profit Factor" value={acc.profit_factor > 0 ? acc.profit_factor.toFixed(2) : "—"} small />
+            <MetricCard label="Posizioni aperte" value={<span className="font-mono-data">{acc.open_positions_count}</span>} small />
+            <MetricCard label="Profit Factor" value={<span className="font-mono-data">{acc.profit_factor > 0 ? acc.profit_factor.toFixed(2) : "—"}</span>} small />
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mt-3">
@@ -2009,35 +2013,39 @@ export default function AccountCenter() {
 
   return (
     <AppLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Wallet className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground">Account Center</h1>
-              <p className="text-sm text-muted-foreground">Monitora i tuoi conti trading</p>
+      <div className="animate-fade-in">
+        {/* ═══ PAGE HEADER ═══ */}
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-background to-card" />
+          <div className="absolute top-0 right-0 w-[500px] h-[400px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
+          
+          <div className="relative px-6 sm:px-8 lg:px-10 py-6 lg:py-8">
+            <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-2">Trading Intelligence</p>
+                <h1 className="font-heading text-display-sm font-bold text-foreground">Account Center</h1>
+                <p className="text-sm text-muted-foreground mt-1">Monitora i tuoi conti trading in tempo reale</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <LiveStatusIndicator mode={liveMode} lastUpdate={lastRealtimeUpdate} />
+                <Button onClick={() => setShowConnect(true)} size="sm">
+                  <Plus className="h-4 w-4 mr-1" /> Collega conto
+                </Button>
+              </div>
             </div>
           </div>
-          <Button onClick={() => setShowConnect(true)} size="sm">
-            <Plus className="h-4 w-4 mr-1" /> Collega conto
-          </Button>
+          <div className="divider-fade" />
         </div>
 
-        {/* Live Status Indicator */}
-        <div className="flex items-center justify-between mb-6">
-          <LiveStatusIndicator mode={liveMode} lastUpdate={lastRealtimeUpdate} />
-          <p className="text-[10px] text-muted-foreground">Auto-sync: 30s attivo · 90s inattivo</p>
-        </div>
+        {/* ═══ MAIN CONTENT ═══ */}
+        <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
 
         {/* Disclaimer */}
-        <div className="card-premium p-3 mb-6 border-primary/20 bg-primary/5">
+        <div className="panel-inset p-3.5 mb-6">
           <div className="flex items-start gap-2">
             <Shield className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              <strong>Modalità sola lettura.</strong> Conto collegato in sola lettura. Il portale non può aprire, chiudere o modificare operazioni. I dati vengono sincronizzati dal provider esterno.
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              <strong className="text-foreground/60">Modalità sola lettura.</strong> Conto collegato in sola lettura. Il portale non può aprire, chiudere o modificare operazioni. I dati vengono sincronizzati dal provider esterno.
             </p>
           </div>
         </div>
@@ -2070,13 +2078,13 @@ export default function AccountCenter() {
 
         {/* Tabs */}
         <Tabs defaultValue="overview">
-          <TabsList className="mb-6 w-full grid grid-cols-3 sm:grid-cols-6 gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
-            <TabsTrigger value="overview" className="text-xs px-2"><Wallet className="h-3 w-3 mr-1 hidden sm:inline" />Overview</TabsTrigger>
-            <TabsTrigger value="positions" className="text-xs px-2"><Activity className="h-3 w-3 mr-1 hidden sm:inline" />Posizioni</TabsTrigger>
-            <TabsTrigger value="history" className="text-xs px-2"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Storico</TabsTrigger>
-            <TabsTrigger value="journal" className="text-xs px-2"><BookOpen className="h-3 w-3 mr-1 hidden sm:inline" />Journal</TabsTrigger>
-            <TabsTrigger value="metrics" className="text-xs px-2"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Metriche</TabsTrigger>
-            <TabsTrigger value="sync-logs" className="text-xs px-2"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
+          <TabsList className="mb-6 w-full grid grid-cols-3 sm:grid-cols-6 gap-1 h-auto bg-muted/30 p-1 rounded-xl">
+            <TabsTrigger value="overview" className="text-xs px-2 rounded-lg"><Wallet className="h-3 w-3 mr-1 hidden sm:inline" />Overview</TabsTrigger>
+            <TabsTrigger value="positions" className="text-xs px-2 rounded-lg"><Activity className="h-3 w-3 mr-1 hidden sm:inline" />Posizioni</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs px-2 rounded-lg"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Storico</TabsTrigger>
+            <TabsTrigger value="journal" className="text-xs px-2 rounded-lg"><BookOpen className="h-3 w-3 mr-1 hidden sm:inline" />Journal</TabsTrigger>
+            <TabsTrigger value="metrics" className="text-xs px-2 rounded-lg"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Metriche</TabsTrigger>
+            <TabsTrigger value="sync-logs" className="text-xs px-2 rounded-lg"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} onDelete={handleDelete} deleting={deleting} onRecheck={handleRecheck} rechecking={rechecking} /></TabsContent>
@@ -2086,6 +2094,7 @@ export default function AccountCenter() {
           <TabsContent value="metrics"><AccountMetrics trades={trades} /></TabsContent>
           <TabsContent value="sync-logs"><SyncLogs accountIds={accounts.map(a => a.id)} /></TabsContent>
         </Tabs>
+        </div>
       </div>
     </AppLayout>
   );
