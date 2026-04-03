@@ -72,7 +72,6 @@ export default function AIAssistant() {
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  // Load conversations
   useEffect(() => {
     if (!user) return;
     trackEvent("chat_opened", { page: "ai-assistant", section: "ai-assistant" });
@@ -83,7 +82,6 @@ export default function AIAssistant() {
       .then(({ data }) => { if (data) setConversations(data as Conversation[]); });
   }, [user]);
 
-  // Load messages when conversation changes
   useEffect(() => {
     if (!activeConv) { setMessages([]); return; }
     supabase
@@ -126,21 +124,11 @@ export default function AIAssistant() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Solo immagini sono supportate");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("L'immagine deve essere inferiore a 10MB");
-      return;
-    }
-
+    if (!file.type.startsWith("image/")) { toast.error("Solo immagini sono supportate"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("L'immagine deve essere inferiore a 10MB"); return; }
     setPendingImage(file);
     const url = URL.createObjectURL(file);
     setPendingImagePreview(url);
-
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -153,17 +141,9 @@ export default function AIAssistant() {
   const uploadImage = async (file: File, userId: string): Promise<string> => {
     const ext = file.name.split(".").pop() || "png";
     const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from("chat-attachments")
-      .upload(path, file, { contentType: file.type });
-
+    const { error } = await supabase.storage.from("chat-attachments").upload(path, file, { contentType: file.type });
     if (error) throw new Error("Errore upload immagine: " + error.message);
-
-    const { data: urlData } = supabase.storage
-      .from("chat-attachments")
-      .getPublicUrl(path);
-
+    const { data: urlData } = supabase.storage.from("chat-attachments").getPublicUrl(path);
     return urlData.publicUrl;
   };
 
@@ -173,85 +153,44 @@ export default function AIAssistant() {
     setInput("");
 
     let imageUrl: string | undefined;
-
-    // Upload image if present
     if (pendingImage) {
       setIsUploading(true);
-      try {
-        imageUrl = await uploadImage(pendingImage, user.id);
-      } catch (e: any) {
-        toast.error(e.message || "Errore upload immagine");
-        setIsUploading(false);
-        return;
-      }
+      try { imageUrl = await uploadImage(pendingImage, user.id); }
+      catch (e: any) { toast.error(e.message || "Errore upload immagine"); setIsUploading(false); return; }
       setIsUploading(false);
       clearPendingImage();
     }
 
     let convId = activeConv;
-
-    // Create conversation if needed
     if (!convId) {
-      const title = userMsg
-        ? (userMsg.length > 60 ? userMsg.slice(0, 57) + "..." : userMsg)
-        : "Analisi screenshot";
-      const { data: newConv, error } = await supabase
-        .from("ai_chat_conversations")
-        .insert({ user_id: user.id, title, mode })
-        .select()
-        .single();
+      const title = userMsg ? (userMsg.length > 60 ? userMsg.slice(0, 57) + "..." : userMsg) : "Analisi screenshot";
+      const { data: newConv, error } = await supabase.from("ai_chat_conversations").insert({ user_id: user.id, title, mode }).select().single();
       if (error || !newConv) { toast.error("Errore nella creazione della conversazione"); return; }
       convId = newConv.id;
       setActiveConv(convId);
       setConversations((prev) => [newConv as Conversation, ...prev]);
     }
 
-    // Save user message
     await supabase.from("ai_chat_messages").insert({
-      conversation_id: convId,
-      role: "user",
+      conversation_id: convId, role: "user",
       content: userMsg || (imageUrl ? "Analizza questo grafico" : ""),
       image_url: imageUrl || null,
     });
 
-    const userMsgObj: Msg = {
-      role: "user",
-      content: userMsg || (imageUrl ? "Analizza questo grafico" : ""),
-      image_url: imageUrl,
-    };
+    const userMsgObj: Msg = { role: "user", content: userMsg || (imageUrl ? "Analizza questo grafico" : ""), image_url: imageUrl };
     const newMessages: Msg[] = [...messages, userMsgObj];
     setMessages(newMessages);
     setIsLoading(true);
 
     let assistantContent = "";
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-trading-chat`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({
-            messages: newMessages.map(m => ({
-              role: m.role,
-              content: m.content,
-              ...(m.image_url ? { image_url: m.image_url } : {}),
-            })),
-            conversation_id: convId,
-            mode,
-          }),
-        }
+        { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ messages: newMessages.map(m => ({ role: m.role, content: m.content, ...(m.image_url ? { image_url: m.image_url } : {}) })), conversation_id: convId, mode }) }
       );
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: "Errore di rete" }));
-        throw new Error(err.error || `Errore ${resp.status}`);
-      }
-
+      if (!resp.ok) { const err = await resp.json().catch(() => ({ error: "Errore di rete" })); throw new Error(err.error || `Errore ${resp.status}`); }
       if (!resp.body) throw new Error("Nessuna risposta");
 
       const reader = resp.body.getReader();
@@ -263,7 +202,6 @@ export default function AIAssistant() {
         const { done, value } = await reader.read();
         if (done) break;
         textBuffer += decoder.decode(value, { stream: true });
-
         let newlineIndex: number;
         while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
           let line = textBuffer.slice(0, newlineIndex);
@@ -276,18 +214,11 @@ export default function AIAssistant() {
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              assistantContent += content;
-              setMessages([...newMessages, { role: "assistant", content: assistantContent }]);
-            }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
-          }
+            if (content) { assistantContent += content; setMessages([...newMessages, { role: "assistant", content: assistantContent }]); }
+          } catch { textBuffer = line + "\n" + textBuffer; break; }
         }
       }
 
-      // Flush remaining
       if (textBuffer.trim()) {
         for (let raw of textBuffer.split("\n")) {
           if (!raw) continue;
@@ -299,41 +230,24 @@ export default function AIAssistant() {
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              assistantContent += content;
-              setMessages([...newMessages, { role: "assistant", content: assistantContent }]);
-            }
+            if (content) { assistantContent += content; setMessages([...newMessages, { role: "assistant", content: assistantContent }]); }
           } catch { /* ignore */ }
         }
       }
 
-      // Save assistant message
       if (assistantContent) {
-        await supabase.from("ai_chat_messages").insert({
-          conversation_id: convId,
-          role: "assistant",
-          content: assistantContent,
-        });
+        await supabase.from("ai_chat_messages").insert({ conversation_id: convId, role: "assistant", content: assistantContent });
         await supabase.from("ai_chat_conversations").update({ updated_at: new Date().toISOString() }).eq("id", convId);
       }
     } catch (e: any) {
-      const msg = e.message === "Failed to fetch"
-        ? "Impossibile raggiungere il server AI. Verifica la connessione e riprova."
-        : e.message || "Errore nella risposta AI";
+      const msg = e.message === "Failed to fetch" ? "Impossibile raggiungere il server AI. Verifica la connessione e riprova." : e.message || "Errore nella risposta AI";
       toast.error(msg);
-      if (!assistantContent) {
-        setMessages(newMessages);
-      }
-    } finally {
-      setIsLoading(false);
-    }
+      if (!assistantContent) setMessages(newMessages);
+    } finally { setIsLoading(false); }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
   const currentMode = MODES.find((m) => m.value === mode);
@@ -351,32 +265,32 @@ export default function AIAssistant() {
   return (
     <AppLayout>
       <div className="flex h-[calc(100vh-3.5rem)] lg:h-screen">
-        {/* Desktop Sidebar - Conversation History */}
+        {/* Desktop Sidebar */}
         <div className={cn(
-          "border-r border-border bg-card flex-col transition-all duration-200",
+          "border-r border-border/50 bg-card/50 backdrop-blur-sm flex-col transition-all duration-300",
           sidebarOpen ? "w-72" : "w-0 overflow-hidden",
           "hidden md:flex"
         )}>
-          <div className="p-3 border-b border-border">
-            <Button onClick={startNewConversation} className="w-full" size="sm">
+          <div className="p-3 border-b border-border/30">
+            <Button onClick={startNewConversation} className="w-full" size="sm" variant="premium">
               <Plus className="h-4 w-4 mr-2" /> Nuova conversazione
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
             {conversations.map((conv) => (
               <button
                 key={conv.id}
                 onClick={() => openConversation(conv)}
                 className={cn(
-                  "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors group flex items-start justify-between gap-2",
+                  "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-150 group flex items-start justify-between gap-2",
                   activeConv === conv.id
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/20"
                 )}
               >
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-medium text-xs">{conv.title}</p>
-                  <p className="text-[10px] mt-0.5 opacity-60">
+                  <p className="text-[10px] mt-0.5 opacity-50 font-mono">
                     {MODES.find(m => m.value === conv.mode)?.label} · {new Date(conv.updated_at).toLocaleDateString("it-IT")}
                   </p>
                 </div>
@@ -389,7 +303,7 @@ export default function AIAssistant() {
               </button>
             ))}
             {conversations.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center p-4">Nessuna conversazione</p>
+              <p className="text-[10px] text-muted-foreground/40 text-center p-6">Nessuna conversazione</p>
             )}
           </div>
         </div>
@@ -398,46 +312,41 @@ export default function AIAssistant() {
         {mobileSidebarOpen && (
           <div className="md:hidden fixed inset-0 z-50">
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setMobileSidebarOpen(false)} />
-            <aside className="relative w-72 h-full bg-card border-r border-border flex flex-col">
-              <div className="flex h-14 items-center justify-between px-4 border-b border-border">
-                <span className="font-heading font-semibold text-sm text-foreground">Conversazioni</span>
-                <button onClick={() => setMobileSidebarOpen(false)} className="text-muted-foreground p-1">
+            <aside className="relative w-72 h-full bg-card border-r border-border/50 flex flex-col shadow-2xl">
+              <div className="flex h-14 items-center justify-between px-4 border-b border-border/30">
+                <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium">Conversazioni</span>
+                <button onClick={() => setMobileSidebarOpen(false)} className="text-muted-foreground/40 p-1 hover:text-foreground transition-colors">
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <div className="p-3 border-b border-border">
-                <Button onClick={() => { startNewConversation(); setMobileSidebarOpen(false); }} className="w-full" size="sm">
+              <div className="p-3 border-b border-border/30">
+                <Button onClick={() => { startNewConversation(); setMobileSidebarOpen(false); }} className="w-full" size="sm" variant="premium">
                   <Plus className="h-4 w-4 mr-2" /> Nuova conversazione
                 </Button>
               </div>
-              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
                 {conversations.map((conv) => (
                   <button
                     key={conv.id}
                     onClick={() => { openConversation(conv); setMobileSidebarOpen(false); }}
                     className={cn(
-                      "w-full text-left px-3 py-3 rounded-lg text-sm transition-colors flex items-start justify-between gap-2",
-                      activeConv === conv.id
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      "w-full text-left px-3 py-3 rounded-lg text-sm transition-all flex items-start justify-between gap-2",
+                      activeConv === conv.id ? "bg-primary/10 text-primary" : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/20"
                     )}
                   >
                     <div className="flex-1 min-w-0">
                       <p className="truncate font-medium text-xs">{conv.title}</p>
-                      <p className="text-[10px] mt-0.5 opacity-60">
+                      <p className="text-[10px] mt-0.5 opacity-50 font-mono">
                         {MODES.find(m => m.value === conv.mode)?.label} · {new Date(conv.updated_at).toLocaleDateString("it-IT")}
                       </p>
                     </div>
-                    <button
-                      onClick={(e) => deleteConversation(conv.id, e)}
-                      className="p-1 text-muted-foreground hover:text-destructive"
-                    >
+                    <button onClick={(e) => deleteConversation(conv.id, e)} className="p-1 text-muted-foreground/40 hover:text-destructive">
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </button>
                 ))}
                 {conversations.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center p-4">Nessuna conversazione</p>
+                  <p className="text-[10px] text-muted-foreground/40 text-center p-6">Nessuna conversazione</p>
                 )}
               </div>
             </aside>
@@ -447,27 +356,29 @@ export default function AIAssistant() {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <div className="h-14 border-b border-border flex items-center px-4 gap-3 bg-card">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:block text-muted-foreground hover:text-foreground">
-              <ChevronLeft className={cn("h-4 w-4 transition-transform", !sidebarOpen && "rotate-180")} />
+          <div className="h-14 border-b border-border/30 flex items-center px-4 gap-3 bg-card/30 backdrop-blur-sm">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:block text-muted-foreground/40 hover:text-foreground transition-colors">
+              <ChevronLeft className={cn("h-4 w-4 transition-transform duration-200", !sidebarOpen && "rotate-180")} />
             </button>
             <div className="flex items-center gap-2 md:hidden">
-              <button onClick={() => setMobileSidebarOpen(true)} className="text-muted-foreground hover:text-foreground p-1">
+              <button onClick={() => setMobileSidebarOpen(true)} className="text-muted-foreground/40 hover:text-foreground p-1 transition-colors">
                 <MessageSquare className="h-5 w-5" />
               </button>
-              <button onClick={startNewConversation} className="text-muted-foreground hover:text-foreground p-1">
+              <button onClick={startNewConversation} className="text-muted-foreground/40 hover:text-foreground p-1 transition-colors">
                 <Plus className="h-5 w-5" />
               </button>
             </div>
-            <Bot className="h-5 w-5 text-primary" />
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Bot className="h-4 w-4 text-primary" />
+            </div>
             <div className="flex-1 min-w-0">
               <h2 className="font-heading font-semibold text-sm text-foreground">AI Trading Assistant</h2>
               {currentMode && (
-                <p className="text-[10px] text-muted-foreground">{currentMode.label}</p>
+                <p className="text-[10px] font-mono text-muted-foreground/40">{currentMode.label}</p>
               )}
             </div>
             {activeConv && (
-              <Badge variant="secondary" className="text-[10px] hidden sm:inline-flex">{currentMode?.label}</Badge>
+              <Badge variant="secondary" className="text-[10px] font-mono hidden sm:inline-flex">{currentMode?.label}</Badge>
             )}
           </div>
 
@@ -476,25 +387,26 @@ export default function AIAssistant() {
             <div className="max-w-3xl mx-auto space-y-6">
               {/* Mode selection for new chat */}
               {isNewChat && showModeSelect && (
-                <div className="animate-fade-in space-y-4">
-                  <div className="text-center mb-6">
-                    <Bot className="h-10 w-10 text-primary mx-auto mb-3" />
+                <div className="animate-fade-in space-y-6">
+                  <div className="text-center mb-8">
+                    <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                      <Bot className="h-7 w-7 text-primary" />
+                    </div>
                     <h2 className="font-heading text-xl font-bold text-foreground">AI Trading Assistant</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Scegli la modalità per iniziare</p>
+                    <p className="text-sm text-muted-foreground/50 mt-1">Scegli la modalità per iniziare</p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {MODES.map((m) => (
                       <button
                         key={m.value}
                         onClick={() => selectMode(m.value)}
-                        className={cn(
-                          "card-premium p-4 text-left hover:border-primary/40 transition-all",
-                          mode === m.value && !showModeSelect ? "border-primary/40" : ""
-                        )}
+                        className="card-premium p-5 text-left hover:border-primary/30 transition-all duration-200 group"
                       >
-                        <m.icon className="h-6 w-6 text-primary mb-2" />
-                        <p className="font-medium text-sm text-foreground">{m.label}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{m.desc}</p>
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                          <m.icon className="h-5 w-5 text-primary" />
+                        </div>
+                        <p className="font-heading font-semibold text-sm text-foreground">{m.label}</p>
+                        <p className="text-xs text-muted-foreground/50 mt-1 leading-relaxed">{m.desc}</p>
                       </button>
                     ))}
                   </div>
@@ -508,7 +420,7 @@ export default function AIAssistant() {
                     <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
                       <Bot className="h-4 w-4 text-primary" />
                     </div>
-                    <div className="card-premium p-4 flex-1 prose prose-sm max-w-none text-foreground">
+                    <div className="card-premium p-5 flex-1 prose prose-sm max-w-none text-foreground">
                       <ReactMarkdown>{WELCOME_MSG}</ReactMarkdown>
                     </div>
                   </div>
@@ -520,10 +432,10 @@ export default function AIAssistant() {
                 <div key={i} className={cn("flex gap-3 animate-fade-in", msg.role === "user" && "flex-row-reverse")}>
                   <div className={cn(
                     "h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-1",
-                    msg.role === "user" ? "bg-secondary" : "bg-primary/10"
+                    msg.role === "user" ? "bg-muted/30" : "bg-primary/10"
                   )}>
                     {msg.role === "user" ? (
-                      <User className="h-4 w-4 text-secondary-foreground" />
+                      <User className="h-4 w-4 text-muted-foreground" />
                     ) : (
                       <Bot className="h-4 w-4 text-primary" />
                     )}
@@ -534,7 +446,6 @@ export default function AIAssistant() {
                       ? "bg-primary text-primary-foreground"
                       : "card-premium"
                   )}>
-                    {/* Image attachment */}
                     {msg.image_url && (
                       <div className="mb-2">
                         <img
@@ -563,7 +474,7 @@ export default function AIAssistant() {
                     <Bot className="h-4 w-4 text-primary" />
                   </div>
                   <div className="card-premium p-4">
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-muted-foreground/60">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span className="text-sm">Sto elaborando...</span>
                     </div>
@@ -577,7 +488,7 @@ export default function AIAssistant() {
 
           {/* Disclaimer */}
           <div className="px-4 py-1">
-            <div className="max-w-3xl mx-auto flex items-start gap-1.5 text-[10px] text-muted-foreground">
+            <div className="max-w-3xl mx-auto flex items-start gap-1.5 text-[10px] text-muted-foreground/40">
               <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
               <span>{DISCLAIMER}</span>
             </div>
@@ -587,12 +498,9 @@ export default function AIAssistant() {
           {pendingImagePreview && (
             <div className="px-4 pb-1">
               <div className="max-w-3xl mx-auto">
-                <div className="inline-flex items-start gap-2 p-2 rounded-lg bg-secondary border border-border">
-                  <img src={pendingImagePreview} alt="Anteprima" className="h-16 w-auto rounded" />
-                  <button
-                    onClick={clearPendingImage}
-                    className="p-1 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                  >
+                <div className="inline-flex items-start gap-2 p-2 rounded-xl panel-inset">
+                  <img src={pendingImagePreview} alt="Anteprima" className="h-16 w-auto rounded-lg" />
+                  <button onClick={clearPendingImage} className="p-1 rounded-full hover:bg-muted/30 text-muted-foreground/40 hover:text-foreground transition-colors">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -601,21 +509,14 @@ export default function AIAssistant() {
           )}
 
           {/* Input */}
-          <div className="p-4 border-t border-border bg-card">
+          <div className="p-4 border-t border-border/30 bg-card/30 backdrop-blur-sm">
             <div className="max-w-3xl mx-auto">
               <div className="flex gap-2 items-end">
-                {/* Hidden file input */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-11 w-11 flex-shrink-0 text-muted-foreground hover:text-primary"
+                  className="h-11 w-11 flex-shrink-0 text-muted-foreground/40 hover:text-primary"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isLoading || (isNewChat && showModeSelect)}
                   title="Allega screenshot"
@@ -632,12 +533,7 @@ export default function AIAssistant() {
                   className="min-h-[44px] max-h-32 resize-none"
                   rows={1}
                 />
-                <Button
-                  onClick={sendMessage}
-                  disabled={!canSend}
-                  size="icon"
-                  className="h-11 w-11 flex-shrink-0"
-                >
+                <Button onClick={sendMessage} disabled={!canSend} size="icon" className="h-11 w-11 flex-shrink-0">
                   <Send className="h-4 w-4" />
                 </Button>
               </div>

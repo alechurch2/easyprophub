@@ -3,7 +3,7 @@ import { trackEvent } from "@/lib/analytics";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { HeadphonesIcon, Plus, MessageSquare, Loader2, ChevronDown, Send, Paperclip } from "lucide-react";
+import { HeadphonesIcon, Plus, MessageSquare, Loader2, ChevronDown, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -120,9 +120,9 @@ export default function Support() {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case "open": return "bg-info/10 text-info";
-      case "pending": return "bg-warning/10 text-warning";
-      case "resolved": return "bg-success/10 text-success";
+      case "open": return "bg-info/10 text-info border-info/20";
+      case "pending": return "bg-warning/10 text-warning border-warning/20";
+      case "resolved": return "bg-success/10 text-success border-success/20";
       default: return "bg-secondary text-secondary-foreground";
     }
   };
@@ -140,17 +140,20 @@ export default function Support() {
     return (
       <AppLayout>
         <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto animate-fade-in">
-          <button onClick={() => setSelectedTicket(null)} className="text-sm text-primary hover:underline mb-4">
+          <button onClick={() => setSelectedTicket(null)} className="text-[11px] uppercase tracking-widest text-muted-foreground/60 hover:text-primary transition-colors mb-6">
             ← Torna ai ticket
           </button>
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="font-heading text-xl font-bold text-foreground">{selectedTicket.subject}</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                {selectedTicket.category} · {new Date(selectedTicket.created_at).toLocaleDateString("it-IT")}
-              </p>
+
+          <div className="card-elevated p-6 mb-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="font-heading text-xl font-bold text-foreground">{selectedTicket.subject}</h1>
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground/50 mt-2">
+                  {selectedTicket.category} · {new Date(selectedTicket.created_at).toLocaleDateString("it-IT")}
+                </p>
+              </div>
+              <Badge className={cn("border", statusColor(selectedTicket.status))}>{statusLabel(selectedTicket.status)}</Badge>
             </div>
-            <Badge className={statusColor(selectedTicket.status)}>{statusLabel(selectedTicket.status)}</Badge>
           </div>
 
           {loadingMessages ? (
@@ -158,18 +161,21 @@ export default function Support() {
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : (
-            <div className="space-y-4 mb-6">
+            <div className="space-y-3 mb-6">
               {messages.map((msg) => (
-                <div key={msg.id} className={cn("card-premium p-4", msg.is_admin && "border-primary/20")}>
+                <div key={msg.id} className={cn(
+                  "rounded-xl p-4 transition-all",
+                  msg.is_admin ? "card-elevated border-primary/10" : "panel-inset"
+                )}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-foreground">
+                    <span className={cn("text-[10px] uppercase tracking-widest font-medium", msg.is_admin ? "text-primary" : "text-muted-foreground/60")}>
                       {msg.is_admin ? "Supporto" : "Tu"}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] font-mono text-muted-foreground/40">
                       {new Date(msg.created_at).toLocaleString("it-IT")}
                     </span>
                   </div>
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{msg.message}</p>
+                  <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{msg.message}</p>
                 </div>
               ))}
             </div>
@@ -182,8 +188,9 @@ export default function Support() {
                 onChange={(e) => setReply(e.target.value)}
                 placeholder="Scrivi una risposta..."
                 onKeyDown={(e) => e.key === "Enter" && sendReply()}
+                className="flex-1"
               />
-              <Button onClick={sendReply} size="icon">
+              <Button onClick={sendReply} size="icon" className="h-10 w-10">
                 <Send className="h-4 w-4" />
               </Button>
             </div>
@@ -196,37 +203,41 @@ export default function Support() {
   return (
     <AppLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center shrink-0">
-              <HeadphonesIcon className="h-5 w-5 text-info" />
+        {/* Header */}
+        <div className="mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-info/10 flex items-center justify-center shrink-0">
+                <HeadphonesIcon className="h-5 w-5 text-info" />
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium">Help Center</p>
+                <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground">Supporto</h1>
+              </div>
             </div>
-            <div>
-              <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground">Supporto</h1>
-              <p className="text-xs sm:text-sm text-muted-foreground">Assistenza dedicata EasyProp</p>
-            </div>
+            <Button onClick={() => setShowForm(!showForm)} size="sm" variant="premium">
+              <Plus className="h-4 w-4 mr-1.5" />
+              Nuovo ticket
+            </Button>
           </div>
-          <Button onClick={() => setShowForm(!showForm)} size="sm">
-            <Plus className="h-4 w-4 mr-1" />
-            Nuovo ticket
-          </Button>
+          <div className="divider-fade mb-0 mt-4" />
         </div>
 
         {/* FAQ */}
-        <div className="mb-8">
-          <h2 className="font-heading text-lg font-semibold text-foreground mb-4">Domande frequenti</h2>
+        <div className="mb-10">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium mb-4">Domande frequenti</p>
           <div className="space-y-2">
             {FAQ_ITEMS.map((faq, i) => (
-              <div key={i} className="card-premium overflow-hidden">
+              <div key={i} className={cn("card-premium overflow-hidden transition-all duration-200", expandedFaq === i && "ring-1 ring-primary/20")}>
                 <button
                   onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between p-4 text-left"
+                  className="w-full flex items-center justify-between p-4 text-left group"
                 >
-                  <span className="text-sm font-medium text-foreground">{faq.q}</span>
-                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedFaq === i && "rotate-180")} />
+                  <span className="text-sm font-medium text-foreground/90 group-hover:text-foreground transition-colors">{faq.q}</span>
+                  <ChevronDown className={cn("h-4 w-4 text-muted-foreground/40 transition-transform duration-200", expandedFaq === i && "rotate-180 text-primary")} />
                 </button>
                 {expandedFaq === i && (
-                  <div className="px-4 pb-4 text-sm text-muted-foreground">{faq.a}</div>
+                  <div className="px-4 pb-4 text-sm text-muted-foreground/70 leading-relaxed border-t border-border/30 pt-3 mx-4">{faq.a}</div>
                 )}
               </div>
             ))}
@@ -235,29 +246,31 @@ export default function Support() {
 
         {/* New ticket form */}
         {showForm && (
-          <div className="card-premium p-6 mb-8 animate-fade-in">
-            <h2 className="font-heading font-semibold text-foreground mb-4">Apri un nuovo ticket</h2>
-            <form onSubmit={createTicket} className="space-y-4">
+          <div className="card-elevated p-6 sm:p-8 mb-10 animate-fade-in">
+            <div className="accent-line-top" />
+            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium mb-1">Nuovo ticket</p>
+            <h2 className="font-heading font-semibold text-foreground mb-6">Apri una richiesta di supporto</h2>
+            <form onSubmit={createTicket} className="space-y-5">
               <div>
-                <Label className="text-foreground">Oggetto</Label>
-                <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Descrivi brevemente il problema" className="mt-1.5" required />
+                <Label className="text-[11px] uppercase tracking-widest text-muted-foreground/60">Oggetto</Label>
+                <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Descrivi brevemente il problema" className="mt-2" required />
               </div>
               <div>
-                <Label className="text-foreground">Categoria</Label>
+                <Label className="text-[11px] uppercase tracking-widest text-muted-foreground/60">Categoria</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-foreground">Messaggio</Label>
-                <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Descrivi il tuo problema nel dettaglio..." className="mt-1.5 min-h-[100px]" required />
+                <Label className="text-[11px] uppercase tracking-widest text-muted-foreground/60">Messaggio</Label>
+                <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Descrivi il tuo problema nel dettaglio..." className="mt-2 min-h-[120px]" required />
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Annulla</Button>
-                <Button type="submit" disabled={creating}>
+                <Button type="submit" variant="premium" disabled={creating}>
                   {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Invia ticket
                 </Button>
@@ -268,15 +281,15 @@ export default function Support() {
 
         {/* Ticket list */}
         <div>
-          <h2 className="font-heading text-lg font-semibold text-foreground mb-4">I tuoi ticket</h2>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium mb-4">I tuoi ticket</p>
           {loading ? (
             <div className="flex justify-center p-8">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : tickets.length === 0 ? (
-            <div className="card-premium p-8 text-center">
-              <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">Nessun ticket aperto</p>
+            <div className="card-elevated p-12 text-center">
+              <MessageSquare className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground/60">Nessun ticket aperto</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -284,16 +297,16 @@ export default function Support() {
                 <button
                   key={t.id}
                   onClick={() => loadMessages(t)}
-                  className="w-full card-premium p-4 text-left hover:border-primary/30 transition-colors"
+                  className="w-full card-premium p-4 sm:p-5 text-left hover:border-primary/20 transition-all duration-200 group"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-medium text-foreground">{t.subject}</h3>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{t.subject}</h3>
+                      <p className="text-[10px] font-mono text-muted-foreground/40 mt-1.5">
                         {t.category} · {new Date(t.created_at).toLocaleDateString("it-IT")}
                       </p>
                     </div>
-                    <Badge className={statusColor(t.status)}>{statusLabel(t.status)}</Badge>
+                    <Badge className={cn("border", statusColor(t.status))}>{statusLabel(t.status)}</Badge>
                   </div>
                 </button>
               ))}
