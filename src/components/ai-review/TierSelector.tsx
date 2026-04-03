@@ -1,6 +1,5 @@
-import { Crown, Zap } from "lucide-react";
+import { Crown, Zap, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 interface Props {
   tier: "standard" | "premium";
@@ -15,77 +14,101 @@ export function TierSelector({ tier, onChange, premiumUsed, premiumQuota }: Prop
     : undefined;
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="inline-flex items-center justify-center h-6 w-6 rounded-lg bg-primary/10 text-primary text-xs font-bold">1</span>
-        <h3 className="font-heading text-sm font-semibold text-foreground">Scegli il tipo di review</h3>
+    <div>
+      <div className="flex items-center gap-3 mb-4">
+        <span className="inline-flex items-center justify-center h-7 w-7 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-[11px] font-bold font-mono border border-primary/10">01</span>
+        <div>
+          <h3 className="font-heading text-sm font-semibold text-foreground">Scegli il tipo di review</h3>
+          <p className="text-[10px] text-muted-foreground/40 mt-0.5">Seleziona il livello di profondità dell'analisi AI</p>
+        </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Standard */}
         <button
           onClick={() => onChange("standard")}
           className={cn(
-            "relative rounded-xl border-2 p-5 transition-all duration-200 text-left group",
+            "relative rounded-2xl p-6 transition-all duration-300 text-left group overflow-hidden",
             tier === "standard"
-              ? "border-primary bg-primary/5 shadow-md shadow-primary/5"
-              : "border-border/60 hover:border-primary/30 hover:bg-muted/20"
+              ? "bg-gradient-to-br from-success/[0.08] to-success/[0.02] border-2 border-success/30 shadow-lg shadow-success/5"
+              : "border border-border/40 hover:border-success/20 hover:bg-muted/10"
           )}
         >
           {tier === "standard" && (
-            <div className="absolute top-3 right-3 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-              <svg className="h-3 w-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+            <div className="absolute top-4 right-4 h-6 w-6 rounded-full bg-success flex items-center justify-center shadow-lg shadow-success/30">
+              <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
             </div>
           )}
-          <div className="flex items-center gap-2.5 mb-2">
-            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center transition-colors",
-              tier === "standard" ? "bg-primary/15" : "bg-muted/50"
+          <div className="flex items-center gap-3 mb-3">
+            <div className={cn(
+              "h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-300",
+              tier === "standard" ? "bg-success/15 shadow-inner" : "bg-muted/30"
             )}>
-              <Zap className={cn("h-4 w-4", tier === "standard" ? "text-primary" : "text-muted-foreground")} />
+              <Zap className={cn("h-5 w-5 transition-colors", tier === "standard" ? "text-success" : "text-muted-foreground/50")} />
             </div>
-            <span className="font-heading font-semibold text-foreground">Standard Review</span>
+            <div>
+              <span className="font-heading font-bold text-foreground block text-[15px]">Standard</span>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground/40 font-medium">Review</span>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-xs text-muted-foreground/60 leading-relaxed">
             Analisi bilanciata e veloce. Ideale per controlli rapidi e conferme operative quotidiane.
           </p>
+          <div className="mt-4 flex gap-2">
+            {["Veloce", "Precisa", "Quotidiana"].map(tag => (
+              <span key={tag} className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-md bg-muted/20 text-muted-foreground/40 font-medium">{tag}</span>
+            ))}
+          </div>
         </button>
 
         {/* Premium */}
         <button
           onClick={() => onChange("premium")}
           className={cn(
-            "relative rounded-xl border-2 p-5 transition-all duration-200 text-left group",
+            "relative rounded-2xl p-6 transition-all duration-300 text-left group overflow-hidden",
             tier === "premium"
-              ? "border-amber-500 bg-amber-500/5 shadow-md shadow-amber-500/10"
-              : "border-border/60 hover:border-amber-500/30 hover:bg-muted/20"
+              ? "bg-gradient-to-br from-primary/[0.08] to-amber-500/[0.04] border-2 border-primary/30 shadow-lg shadow-primary/5"
+              : "border border-border/40 hover:border-primary/20 hover:bg-muted/10"
           )}
         >
-          {tier === "premium" && (
-            <div className="absolute top-3 right-3 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center">
-              <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          {tier === "premium" ? (
+            <div className="absolute top-4 right-4 h-6 w-6 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
+              <Check className="h-3.5 w-3.5 text-primary-foreground" strokeWidth={3} />
+            </div>
+          ) : (
+            <div className="absolute top-4 right-4">
+              <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold">PRO AI</span>
             </div>
           )}
-          <div className="flex items-center gap-2.5 mb-2">
-            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center transition-colors",
-              tier === "premium" ? "bg-amber-500/15" : "bg-muted/50"
+          <div className="flex items-center gap-3 mb-3">
+            <div className={cn(
+              "h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-300",
+              tier === "premium" ? "bg-primary/15 shadow-inner" : "bg-muted/30"
             )}>
-              <Crown className={cn("h-4 w-4", tier === "premium" ? "text-amber-500" : "text-muted-foreground")} />
+              <Crown className={cn("h-5 w-5 transition-colors", tier === "premium" ? "text-primary" : "text-muted-foreground/50")} />
             </div>
-            <span className="font-heading font-semibold text-foreground">Premium Review</span>
-            <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">PRO AI</Badge>
+            <div>
+              <span className="font-heading font-bold text-foreground block text-[15px]">Premium</span>
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground/40 font-medium">Review</span>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-xs text-muted-foreground/60 leading-relaxed">
             Analisi approfondita con modello AI avanzato. Più dettaglio, ragionamento multi-livello e scenari elaborati.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {["Avanzata", "Multi-livello", "Dettagliata"].map(tag => (
+              <span key={tag} className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-md bg-primary/5 text-primary/50 font-medium">{tag}</span>
+            ))}
+          </div>
           {premiumRemaining !== undefined && (
             <div className={cn(
-              "mt-3 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium",
+              "mt-4 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-[10px] font-mono font-semibold",
               premiumRemaining === 0
                 ? "bg-destructive/10 text-destructive border border-destructive/15"
-                : "bg-amber-500/10 text-amber-600 border border-amber-500/15"
+                : "bg-primary/8 text-primary border border-primary/15"
             )}>
               {premiumRemaining === 0
                 ? "⚠ Quota esaurita questo mese"
-                : `${premiumRemaining}/${premiumQuota} disponibili questo mese`}
+                : `${premiumRemaining}/${premiumQuota} disponibili`}
             </div>
           )}
         </button>
