@@ -2078,13 +2078,13 @@ export default function AccountCenter() {
 
         {/* Tabs */}
         <Tabs defaultValue="overview">
-          <TabsList className="mb-6 w-full grid grid-cols-3 sm:grid-cols-6 gap-1 h-auto bg-secondary/50 p-1 rounded-lg">
-            <TabsTrigger value="overview" className="text-xs px-2"><Wallet className="h-3 w-3 mr-1 hidden sm:inline" />Overview</TabsTrigger>
-            <TabsTrigger value="positions" className="text-xs px-2"><Activity className="h-3 w-3 mr-1 hidden sm:inline" />Posizioni</TabsTrigger>
-            <TabsTrigger value="history" className="text-xs px-2"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Storico</TabsTrigger>
-            <TabsTrigger value="journal" className="text-xs px-2"><BookOpen className="h-3 w-3 mr-1 hidden sm:inline" />Journal</TabsTrigger>
-            <TabsTrigger value="metrics" className="text-xs px-2"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Metriche</TabsTrigger>
-            <TabsTrigger value="sync-logs" className="text-xs px-2"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
+          <TabsList className="mb-6 w-full grid grid-cols-3 sm:grid-cols-6 gap-1 h-auto bg-muted/30 p-1 rounded-xl">
+            <TabsTrigger value="overview" className="text-xs px-2 rounded-lg"><Wallet className="h-3 w-3 mr-1 hidden sm:inline" />Overview</TabsTrigger>
+            <TabsTrigger value="positions" className="text-xs px-2 rounded-lg"><Activity className="h-3 w-3 mr-1 hidden sm:inline" />Posizioni</TabsTrigger>
+            <TabsTrigger value="history" className="text-xs px-2 rounded-lg"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Storico</TabsTrigger>
+            <TabsTrigger value="journal" className="text-xs px-2 rounded-lg"><BookOpen className="h-3 w-3 mr-1 hidden sm:inline" />Journal</TabsTrigger>
+            <TabsTrigger value="metrics" className="text-xs px-2 rounded-lg"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Metriche</TabsTrigger>
+            <TabsTrigger value="sync-logs" className="text-xs px-2 rounded-lg"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} onDelete={handleDelete} deleting={deleting} onRecheck={handleRecheck} rechecking={rechecking} /></TabsContent>
@@ -2094,6 +2094,7 @@ export default function AccountCenter() {
           <TabsContent value="metrics"><AccountMetrics trades={trades} /></TabsContent>
           <TabsContent value="sync-logs"><SyncLogs accountIds={accounts.map(a => a.id)} /></TabsContent>
         </Tabs>
+        </div>
       </div>
     </AppLayout>
   );
