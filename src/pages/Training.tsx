@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { trackEvent } from "@/lib/analytics";
-import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,7 +35,6 @@ interface Lesson {
 
 export default function Training() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -106,15 +104,19 @@ export default function Training() {
     return (
       <AppLayout>
         <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
-          <button onClick={() => setSelectedLesson(null)} className="text-sm text-primary hover:underline mb-4 flex items-center gap-1">
+          <button onClick={() => setSelectedLesson(null)} className="text-[11px] uppercase tracking-widest text-muted-foreground/60 hover:text-primary transition-colors mb-6 flex items-center gap-1.5">
             ← Torna al modulo
           </button>
-          <h1 className="font-heading text-2xl font-bold text-foreground mb-2">{selectedLesson.title}</h1>
-          {selectedLesson.description && (
-            <p className="text-muted-foreground mb-6">{selectedLesson.description}</p>
-          )}
+
+          <div className="card-elevated p-6 sm:p-8 mb-6">
+            <h1 className="font-heading text-2xl font-bold text-foreground mb-2">{selectedLesson.title}</h1>
+            {selectedLesson.description && (
+              <p className="text-sm text-muted-foreground leading-relaxed">{selectedLesson.description}</p>
+            )}
+          </div>
+
           {selectedLesson.video_url && (
-            <div className="aspect-video bg-card border border-border rounded-xl overflow-hidden mb-6">
+            <div className="aspect-video bg-black/40 border border-border/50 rounded-2xl overflow-hidden mb-6 shadow-2xl">
               <iframe
                 src={selectedLesson.video_url}
                 className="w-full h-full"
@@ -123,19 +125,21 @@ export default function Training() {
               />
             </div>
           )}
+
           {selectedLesson.attachment_url && (
-            <a href={selectedLesson.attachment_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline mb-6">
+            <a href={selectedLesson.attachment_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors mb-6 panel-inset px-4 py-2.5 rounded-xl">
               📎 {selectedLesson.attachment_name || "Allegato"}
             </a>
           )}
-          <div className="flex items-center gap-3 mt-4">
+
+          <div className="flex items-center gap-3 mt-6">
             <button
               onClick={() => toggleProgress(selectedLesson.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                 progress[selectedLesson.id]
-                  ? "bg-success/10 text-success"
-                  : "bg-secondary text-muted-foreground hover:text-foreground"
+                  ? "bg-success/10 text-success border border-success/20"
+                  : "panel-inset text-muted-foreground hover:text-foreground hover:border-primary/30"
               )}
             >
               <CheckCircle2 className="h-4 w-4" />
@@ -150,65 +154,75 @@ export default function Training() {
   return (
     <AppLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <BookOpen className="h-5 w-5 text-primary" />
+        {/* Header */}
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <BookOpen className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium">Academy</p>
+              <h1 className="font-heading text-2xl font-bold text-foreground">Formazione</h1>
+            </div>
           </div>
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground">Formazione</h1>
-            <p className="text-sm text-muted-foreground">Percorsi formativi e moduli dedicati EasyProp</p>
-          </div>
+          <div className="divider-fade mb-0 mt-4" />
         </div>
 
         {categories.length === 0 ? (
-          <div className="card-premium p-8 text-center">
-            <BookOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+          <div className="card-elevated p-12 text-center">
+            <BookOpen className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
             <p className="text-muted-foreground">Nessun corso disponibile al momento.</p>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-10">
             {categories.map((cat) => (
               <div key={cat.id}>
-                <h2 className="font-heading text-lg font-semibold text-foreground mb-1">{cat.title}</h2>
-                {cat.description && <p className="text-sm text-muted-foreground mb-4">{cat.description}</p>}
+                <div className="mb-4">
+                  <h2 className="font-heading text-lg font-semibold text-foreground">{cat.title}</h2>
+                  {cat.description && <p className="text-sm text-muted-foreground/70 mt-1">{cat.description}</p>}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {getCategoryModules(cat.id).map((mod) => {
                     const prog = getModuleProgress(mod.id);
                     const modLessons = getModuleLessons(mod.id);
                     const isOpen = selectedModule === mod.id;
+                    const completedCount = modLessons.filter(l => progress[l.id]).length;
                     return (
-                      <div key={mod.id} className="card-premium overflow-hidden">
+                      <div key={mod.id} className={cn("card-premium overflow-hidden transition-all duration-300", isOpen && "ring-1 ring-primary/20")}>
                         <button
                           onClick={() => setSelectedModule(isOpen ? null : mod.id)}
-                          className="w-full p-4 text-left flex items-center justify-between"
+                          className="w-full p-5 text-left flex items-center justify-between group"
                         >
                           <div className="flex-1">
-                            <h3 className="font-medium text-foreground">{mod.title}</h3>
-                            <div className="flex items-center gap-3 mt-2">
+                            <h3 className="font-heading font-semibold text-foreground text-sm group-hover:text-primary transition-colors">{mod.title}</h3>
+                            <div className="flex items-center gap-3 mt-3">
                               <Progress value={prog} className="flex-1 h-1.5" />
-                              <span className="text-xs text-muted-foreground">{prog}%</span>
+                              <span className="text-[10px] font-mono text-muted-foreground/60">{completedCount}/{modLessons.length}</span>
                             </div>
                           </div>
-                          <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
+                          <ChevronRight className={cn("h-4 w-4 text-muted-foreground/40 transition-transform duration-200 ml-3", isOpen && "rotate-90")} />
                         </button>
                         {isOpen && (
-                          <div className="border-t border-border">
+                          <div className="border-t border-border/50 bg-muted/5">
                             {modLessons.length === 0 ? (
-                              <p className="p-4 text-sm text-muted-foreground">Nessuna lezione disponibile.</p>
+                              <p className="p-4 text-sm text-muted-foreground/60">Nessuna lezione disponibile.</p>
                             ) : (
                               modLessons.map((lesson, i) => (
                                 <button
                                   key={lesson.id}
                                   onClick={() => setSelectedLesson(lesson)}
-                                  className="w-full flex items-center gap-3 p-3 px-4 text-left hover:bg-secondary/50 transition-colors border-b border-border last:border-b-0"
+                                  className="w-full flex items-center gap-3 p-3.5 px-5 text-left hover:bg-primary/5 transition-all duration-150 border-b border-border/30 last:border-b-0 group/lesson"
                                 >
                                   {progress[lesson.id] ? (
                                     <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                                   ) : (
-                                    <PlayCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+                                    <PlayCircle className="h-4 w-4 text-muted-foreground/40 group-hover/lesson:text-primary shrink-0 transition-colors" />
                                   )}
                                   <div className="flex-1 min-w-0">
-                                    <span className="text-sm text-foreground">{i + 1}. {lesson.title}</span>
+                                    <span className="text-sm text-foreground/80 group-hover/lesson:text-foreground transition-colors">
+                                      <span className="font-mono text-[10px] text-muted-foreground/40 mr-2">{String(i + 1).padStart(2, '0')}</span>
+                                      {lesson.title}
+                                    </span>
                                   </div>
                                 </button>
                               ))
