@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Clock, LogOut, ShieldX, AlertTriangle } from "lucide-react";
+import { LogOut, ShieldX, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import BrandLogo from "@/components/BrandLogo";
 
@@ -16,19 +16,19 @@ export default function Expired() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="max-w-sm text-center animate-scale-in">
+      <div className="max-w-sm text-center animate-fade-in">
         <div className="mb-8 flex justify-center">
           <BrandLogo size="md" />
         </div>
-        <div className={`mx-auto h-16 w-16 rounded-2xl flex items-center justify-center mb-6 ${isSuspended ? 'bg-destructive/10 ring-1 ring-destructive/15' : 'bg-warning/10 ring-1 ring-warning/15'}`}>
-
+        <div className={`mx-auto h-16 w-16 rounded-2xl flex items-center justify-center mb-6 ${isSuspended ? 'bg-destructive/8 ring-1 ring-destructive/15' : 'bg-warning/8 ring-1 ring-warning/15'}`}>
           {isSuspended ? (
             <ShieldX className="h-8 w-8 text-destructive" />
           ) : (
             <AlertTriangle className="h-8 w-8 text-warning" />
           )}
         </div>
-        <h2 className="font-heading text-2xl font-bold text-foreground tracking-tight">
+        <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-2">Accesso</p>
+        <h2 className="font-heading text-display-sm font-bold text-foreground">
           {isSuspended ? "Accesso sospeso" : "Licenza scaduta"}
         </h2>
         <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
@@ -36,7 +36,7 @@ export default function Expired() {
             ? "Il tuo accesso a EasyProp è stato sospeso. Contatta il supporto per maggiori informazioni."
             : "Il tuo periodo di accesso alla piattaforma EasyProp è scaduto. Contatta il supporto per rinnovare la tua licenza."}
         </p>
-        <div className="mt-6 p-4 rounded-xl bg-muted/50 border border-border">
+        <div className="panel-inset p-4 mt-6">
           <p className="text-xs text-muted-foreground leading-relaxed">
             Per riattivare il tuo accesso, contatta il supporto EasyProp o il tuo amministratore di riferimento.
           </p>

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, AlertTriangle } from "lucide-react";
+import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
@@ -95,216 +95,196 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  const cards = [
-    {
-      title: "Formazione",
-      description: "Percorsi formativi e moduli dedicati",
-      icon: BookOpen,
-      path: "/training",
-      color: "text-primary",
-      bg: "bg-primary/8",
-    },
-    {
-      title: "Libreria Didattica",
-      description: "Esempi selezionati di analisi AI",
-      icon: GraduationCap,
-      path: "/case-studies",
-      color: "text-info",
-      bg: "bg-info/8",
-    },
-    {
-      title: "AI Chart Review",
-      description: "Analisi strutturata dei tuoi grafici",
-      icon: BarChart3,
-      path: "/ai-review",
-      color: "text-success",
-      bg: "bg-success/8",
-    },
-    {
-      title: "AI Assistant",
-      description: "Chat AI per trading e supporto operativo",
-      icon: Bot,
-      path: "/ai-assistant",
-      color: "text-primary",
-      bg: "bg-primary/8",
-    },
-    {
-      title: "Account Center",
-      description: "Monitora i tuoi conti trading",
-      icon: Wallet,
-      path: "/account-center",
-      color: "text-success",
-      bg: "bg-success/8",
-    },
-    {
-      title: "Supporto",
-      description: "Assistenza dedicata e FAQ",
-      icon: HeadphonesIcon,
-      path: "/support",
-      color: "text-info",
-      bg: "bg-info/8",
-    },
+  const quickLinks = [
+    { title: "Formazione", desc: "Percorsi e moduli dedicati", icon: BookOpen, path: "/training", accent: "primary" },
+    { title: "Libreria Didattica", desc: "Esempi selezionati di analisi AI", icon: GraduationCap, path: "/case-studies", accent: "info" },
+    { title: "AI Chart Review", desc: "Analisi strutturata dei grafici", icon: BarChart3, path: "/ai-review", accent: "success" },
+    { title: "AI Assistant", desc: "Chat AI per supporto operativo", icon: Bot, path: "/ai-assistant", accent: "primary" },
+    { title: "Account Center", desc: "Monitora i tuoi conti", icon: Wallet, path: "/account-center", accent: "success" },
+    { title: "Supporto", desc: "Assistenza dedicata", icon: HeadphonesIcon, path: "/support", accent: "info" },
   ];
+
+  const totalReviews = stats.totalPro + stats.totalEasy;
 
   return (
     <AppLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
-        {/* Welcome */}
-        <div className="mb-10">
-          <h1 className="font-heading text-2xl lg:text-3xl font-bold text-foreground tracking-tight">
-            Bentornato, {profile?.full_name?.split(" ")[0] || "Utente"}
-          </h1>
-          <p className="text-muted-foreground mt-1.5 text-sm">{BRAND.description}</p>
-        </div>
-
-        {/* Onboarding */}
-        <OnboardingChecklist />
-
-        {/* License & Status */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-          <div className="card-premium p-4 flex items-center gap-3 min-w-0">
-            <div className="h-2.5 w-2.5 rounded-full bg-success shrink-0 animate-pulse-soft" />
-            <span className="text-sm text-foreground font-medium">Stato:</span>
-            <Badge variant="secondary" className="text-xs">
-              {isAdmin ? "Amministratore" : "Attivo"}
-            </Badge>
-          </div>
-          <div className="card-premium p-4 flex flex-wrap items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-xs text-muted-foreground">Licenza:</span>
-            <Badge className={cn("text-xs",
-              licenseStatus === "lifetime" ? "bg-primary/10 text-primary border-primary/20" :
-              daysRemaining !== null && daysRemaining <= 7 ? "bg-warning/10 text-warning border-warning/20" :
-              "bg-success/10 text-success border-success/20"
-            )}>
-              {licenseStatus === "lifetime" ? "♾️ Lifetime" :
-               daysRemaining !== null ? `${daysRemaining}g rimanenti` : "Attiva"}
-            </Badge>
-            {accessExpiresAt && licenseStatus !== "lifetime" && (
-              <span className="text-[10px] text-muted-foreground/70">
-                Scade: {new Date(accessExpiresAt).toLocaleDateString("it-IT")}
-              </span>
-            )}
-          </div>
-          <div className="card-premium p-4 flex flex-wrap items-center gap-2">
-            <Crown className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-xs text-muted-foreground">Premium:</span>
-            {premiumUsage ? (
-              <Badge variant="outline" className="text-xs">
-                {Math.max(0, premiumUsage.limit - premiumUsage.used)}/{premiumUsage.limit} disponibili
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-xs">3/3 disponibili</Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Shared Signals */}
-        <SharedSignals />
-
-        {/* Review Stats */}
-        {(stats.totalPro > 0 || stats.totalEasy > 0) && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-            <div className="card-premium p-5">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="h-9 w-9 rounded-xl bg-primary/8 flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                </div>
-                <span className="text-sm font-medium text-foreground">Le tue Review</span>
-              </div>
-              <div className="flex items-end gap-4">
+      <div className="animate-fade-in">
+        {/* ═══ HERO SECTION ═══ */}
+        <div className="relative overflow-hidden">
+          {/* Background texture */}
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-background to-card" />
+          <div className="absolute top-0 right-0 w-[600px] h-[400px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[300px] bg-primary/[0.02] rounded-full blur-[80px] translate-y-1/2" />
+          
+          <div className="relative px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
+            <div className="max-w-5xl mx-auto">
+              {/* Greeting + Status row */}
+              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-2">
                 <div>
-                  <p className="text-2xl font-bold text-foreground tracking-tight">{stats.totalPro + stats.totalEasy}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">totali completate</p>
+                  <p className="text-label uppercase text-muted-foreground/60 font-semibold mb-2">Dashboard</p>
+                  <h1 className="font-heading text-display-sm sm:text-display font-bold text-foreground">
+                    Bentornato, <span className="text-gradient-gold">{profile?.full_name?.split(" ")[0] || "Utente"}</span>
+                  </h1>
+                  <p className="text-muted-foreground mt-2 text-sm max-w-md">{BRAND.description}</p>
                 </div>
-                <div className="flex gap-1.5 mb-1">
-                  <Badge variant="outline" className="text-[10px]">{stats.totalPro} Pro</Badge>
-                  <Badge variant="secondary" className="text-[10px]">{stats.totalEasy} Easy</Badge>
-                </div>
-              </div>
-            </div>
 
-            <div className="card-premium p-5">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="h-9 w-9 rounded-xl bg-success/8 flex items-center justify-center">
-                  <Zap className="h-4 w-4 text-success" />
-                </div>
-                <span className="text-sm font-medium text-foreground">Qualità Media</span>
-              </div>
-              <p className="text-2xl font-bold text-foreground tracking-tight">
-                {stats.avgQuality != null ? `${stats.avgQuality}/10` : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">su tutte le review</p>
-            </div>
-
-            <div className="card-premium p-5">
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="h-9 w-9 rounded-xl bg-info/8 flex items-center justify-center">
-                  <Target className="h-4 w-4 text-info" />
-                </div>
-                <span className="text-sm font-medium text-foreground">Asset più analizzati</span>
-              </div>
-              {stats.topAssets.length > 0 ? (
-                <div className="space-y-2">
-                  {stats.topAssets.map((a) => (
-                    <div key={a.asset} className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">{a.asset}</span>
-                      <span className="text-xs text-muted-foreground">{a.count} review</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">—</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Quick cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-          {cards.map((card, i) => (
-            <Link
-              key={card.path}
-              to={card.path}
-              className="card-premium p-5 hover:border-primary/25 hover:shadow-md transition-all duration-300 group"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <div className={`h-10 w-10 rounded-xl ${card.bg} flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-105`}>
-                <card.icon className={`h-5 w-5 ${card.color}`} />
-              </div>
-              <h3 className="font-heading font-semibold text-foreground text-[15px]">{card.title}</h3>
-              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{card.description}</p>
-              <div className="flex items-center gap-1 mt-3 text-xs text-primary font-semibold opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-0 group-hover:translate-x-0.5">
-                Accedi <ArrowRight className="h-3 w-3" />
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {/* Announcements */}
-        {announcements.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2.5 mb-5">
-              <div className="h-8 w-8 rounded-lg bg-primary/8 flex items-center justify-center">
-                <Megaphone className="h-4 w-4 text-primary" />
-              </div>
-              <h2 className="font-heading font-semibold text-foreground">Aggiornamenti</h2>
-            </div>
-            <div className="space-y-3">
-              {announcements.map((a) => (
-                <div key={a.id} className="card-premium p-5">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <h3 className="font-medium text-sm text-foreground">{a.title}</h3>
-                    <span className="text-[11px] text-muted-foreground/70">
-                      {new Date(a.created_at).toLocaleDateString("it-IT")}
+                {/* Status badges — floating right on desktop */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/5 border border-success/15">
+                    <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse-soft" />
+                    <span className="text-[11px] font-medium text-success">
+                      {isAdmin ? "Admin" : "Attivo"}
                     </span>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{a.content}</p>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border/60">
+                    <Clock className="h-3 w-3 text-muted-foreground" />
+                    <span className={cn("text-[11px] font-medium",
+                      licenseStatus === "lifetime" ? "text-primary" :
+                      daysRemaining !== null && daysRemaining <= 7 ? "text-warning" : "text-foreground"
+                    )}>
+                      {licenseStatus === "lifetime" ? "♾️ Lifetime" :
+                       daysRemaining !== null ? `${daysRemaining}g rimasti` : "Attiva"}
+                    </span>
+                  </div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border/60">
+                    <Crown className="h-3 w-3 text-primary" />
+                    <span className="text-[11px] font-medium text-foreground">
+                      Premium: {premiumUsage ? `${Math.max(0, premiumUsage.limit - premiumUsage.used)}/${premiumUsage.limit}` : "3/3"}
+                    </span>
+                  </div>
                 </div>
+              </div>
+            </div>
+          </div>
+          <div className="divider-fade" />
+        </div>
+
+        {/* ═══ MAIN CONTENT ═══ */}
+        <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
+          
+          {/* Onboarding */}
+          <OnboardingChecklist />
+
+          {/* ── Signals section ── */}
+          <SharedSignals />
+
+          {/* ── Stats row — asymmetric layout ── */}
+          {totalReviews > 0 && (
+            <div className="mb-10">
+              <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-4">Le tue statistiche</p>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                {/* Main stat — large */}
+                <div className="md:col-span-5 card-elevated p-6 relative overflow-hidden accent-line-top">
+                  <div className="flex items-center gap-2 mb-4">
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    <span className="text-label-lg text-muted-foreground font-medium">Review completate</span>
+                  </div>
+                  <p className="font-heading text-display font-bold text-foreground tracking-tight">{totalReviews}</p>
+                  <div className="flex gap-2 mt-3">
+                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-primary/8 text-primary font-medium">{stats.totalPro} Pro</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-medium">{stats.totalEasy} Easy</span>
+                  </div>
+                </div>
+
+                {/* Quality */}
+                <div className="md:col-span-3 card-premium p-5 flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Zap className="h-4 w-4 text-success" />
+                    <span className="text-label-lg text-muted-foreground font-medium">Qualità media</span>
+                  </div>
+                  <div>
+                    <p className="font-heading text-data text-foreground">
+                      {stats.avgQuality != null ? `${stats.avgQuality}` : "—"}
+                      <span className="text-muted-foreground text-sm font-normal">/10</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Top assets */}
+                <div className="md:col-span-4 card-premium p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Target className="h-4 w-4 text-info" />
+                    <span className="text-label-lg text-muted-foreground font-medium">Top asset</span>
+                  </div>
+                  {stats.topAssets.length > 0 ? (
+                    <div className="space-y-2.5">
+                      {stats.topAssets.map((a, i) => (
+                        <div key={a.asset} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground/50 font-mono-data w-3">{i + 1}</span>
+                            <span className="text-sm font-semibold text-foreground">{a.asset}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground font-mono-data">{a.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">—</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Quick links — editorial grid ── */}
+          <div className="mb-10">
+            <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-4">Accesso rapido</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {quickLinks.map((item, i) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className="card-premium p-4 group hover:border-primary/20 transition-all duration-300"
+                  style={{ animationDelay: `${i * 40}ms` }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105",
+                      item.accent === "primary" ? "bg-primary/8" :
+                      item.accent === "success" ? "bg-success/8" :
+                      "bg-info/8"
+                    )}>
+                      <item.icon className={cn(
+                        "h-4 w-4",
+                        item.accent === "primary" ? "text-primary" :
+                        item.accent === "success" ? "text-success" :
+                        "text-info"
+                      )} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-heading font-semibold text-foreground text-sm leading-tight">{item.title}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.desc}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/60 transition-all duration-300 shrink-0 mt-0.5 group-hover:translate-x-0.5" />
+                  </div>
+                </Link>
               ))}
             </div>
           </div>
-        )}
+
+          {/* ── Announcements ── */}
+          {announcements.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <Megaphone className="h-4 w-4 text-primary" />
+                <p className="text-label uppercase text-muted-foreground/50 font-semibold">Aggiornamenti</p>
+              </div>
+              <div className="space-y-2">
+                {announcements.map((a) => (
+                  <div key={a.id} className="card-premium p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="font-medium text-sm text-foreground">{a.title}</h3>
+                      <span className="text-[10px] text-muted-foreground/50 font-mono-data">
+                        {new Date(a.created_at).toLocaleDateString("it-IT")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{a.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </AppLayout>
   );
