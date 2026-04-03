@@ -194,6 +194,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <Settings className="h-4 w-4" />
                 Impostazioni
               </Link>
+              <ThemeToggle className="w-full justify-start px-3 py-2 text-sm" />
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
