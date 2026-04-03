@@ -2013,35 +2013,39 @@ export default function AccountCenter() {
 
   return (
     <AppLayout>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto animate-fade-in">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Wallet className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="font-heading text-xl sm:text-2xl font-bold text-foreground">Account Center</h1>
-              <p className="text-sm text-muted-foreground">Monitora i tuoi conti trading</p>
+      <div className="animate-fade-in">
+        {/* ═══ PAGE HEADER ═══ */}
+        <div className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-card via-background to-card" />
+          <div className="absolute top-0 right-0 w-[500px] h-[400px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
+          
+          <div className="relative px-6 sm:px-8 lg:px-10 py-6 lg:py-8">
+            <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-2">Trading Intelligence</p>
+                <h1 className="font-heading text-display-sm font-bold text-foreground">Account Center</h1>
+                <p className="text-sm text-muted-foreground mt-1">Monitora i tuoi conti trading in tempo reale</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <LiveStatusIndicator mode={liveMode} lastUpdate={lastRealtimeUpdate} />
+                <Button onClick={() => setShowConnect(true)} size="sm">
+                  <Plus className="h-4 w-4 mr-1" /> Collega conto
+                </Button>
+              </div>
             </div>
           </div>
-          <Button onClick={() => setShowConnect(true)} size="sm">
-            <Plus className="h-4 w-4 mr-1" /> Collega conto
-          </Button>
+          <div className="divider-fade" />
         </div>
 
-        {/* Live Status Indicator */}
-        <div className="flex items-center justify-between mb-6">
-          <LiveStatusIndicator mode={liveMode} lastUpdate={lastRealtimeUpdate} />
-          <p className="text-[10px] text-muted-foreground">Auto-sync: 30s attivo · 90s inattivo</p>
-        </div>
+        {/* ═══ MAIN CONTENT ═══ */}
+        <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
 
         {/* Disclaimer */}
-        <div className="card-premium p-3 mb-6 border-primary/20 bg-primary/5">
+        <div className="panel-inset p-3.5 mb-6">
           <div className="flex items-start gap-2">
             <Shield className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              <strong>Modalità sola lettura.</strong> Conto collegato in sola lettura. Il portale non può aprire, chiudere o modificare operazioni. I dati vengono sincronizzati dal provider esterno.
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              <strong className="text-foreground/60">Modalità sola lettura.</strong> Conto collegato in sola lettura. Il portale non può aprire, chiudere o modificare operazioni. I dati vengono sincronizzati dal provider esterno.
             </p>
           </div>
         </div>
