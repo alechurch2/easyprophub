@@ -55,10 +55,11 @@ export default function Register() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="max-w-sm text-center animate-scale-in">
-          <div className="mx-auto h-16 w-16 rounded-2xl bg-success/10 flex items-center justify-center mb-6 ring-1 ring-success/20">
+          <div className="mx-auto h-16 w-16 rounded-2xl bg-success/8 flex items-center justify-center mb-6 ring-1 ring-success/15">
             <CheckCircle2 className="h-8 w-8 text-success" />
           </div>
-          <h2 className="font-heading text-2xl font-bold text-foreground tracking-tight">Richiesta ricevuta</h2>
+          <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-2">Richiesta inviata</p>
+          <h2 className="font-heading text-display-sm font-bold text-foreground">Richiesta ricevuta</h2>
           <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
             Grazie per la tua richiesta. Riceverai una conferma via email e il tuo accesso sarà attivato dopo la verifica del team EasyProp.
           </p>
@@ -78,32 +79,37 @@ export default function Register() {
           <BrandLogo size="md" />
         </div>
 
-        <h2 className="font-heading text-2xl font-bold text-foreground text-center tracking-tight">Richiedi accesso</h2>
-        <p className="text-muted-foreground mt-1.5 mb-8 text-center text-sm">
-          Compila il form per richiedere l'accesso all'area riservata EasyProp
+        <p className="text-label uppercase text-muted-foreground/50 font-semibold text-center mb-2">Registrazione</p>
+        <h2 className="font-heading text-display-sm font-bold text-foreground text-center">Richiedi accesso</h2>
+        <p className="text-muted-foreground mt-1 mb-8 text-center text-sm">
+          Compila il form per accedere all'area riservata EasyProp
         </p>
 
-        <form onSubmit={handleRegister} className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="fullName" className="text-foreground text-sm font-medium">Nome completo</Label>
-            <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Mario Rossi" required />
+        <form onSubmit={handleRegister} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nome completo</Label>
+            <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Mario Rossi" required className="h-11" />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-foreground text-sm font-medium">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@email.com" required />
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@email.com" required className="h-11" />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-foreground text-sm font-medium">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 6 caratteri" required />
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</Label>
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 6 caratteri" required className="h-11" />
           </div>
-          <Button type="submit" className="w-full h-11" disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            Invia richiesta
-            {!loading && <ArrowRight className="h-4 w-4 ml-1" />}
-          </Button>
+          <div className="pt-2">
+            <Button type="submit" className="w-full h-11" disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Invia richiesta
+              {!loading && <ArrowRight className="h-4 w-4 ml-1" />}
+            </Button>
+          </div>
         </form>
 
-        <p className="mt-8 text-center text-sm text-muted-foreground">
+        <div className="divider-fade my-8" />
+
+        <p className="text-center text-sm text-muted-foreground">
           Hai già un account?{" "}
           <Link to="/login" className="text-primary hover:text-primary/80 font-semibold transition-colors">Accedi</Link>
         </p>
