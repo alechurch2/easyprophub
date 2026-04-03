@@ -556,16 +556,20 @@ function SyncStatusBadge({ status }: { status: string }) {
 // ---- PnL Display ----
 function PnLValue({ value, prefix = "" }: { value: number; prefix?: string }) {
   return (
-    <span className={cn("font-semibold", value > 0 ? "text-success" : value < 0 ? "text-destructive" : "text-foreground")}>
+    <span className={cn("font-mono-data font-bold", value > 0 ? "text-success" : value < 0 ? "text-destructive" : "text-foreground")}>
       {prefix}{value > 0 ? "+" : ""}{value.toFixed(2)}
     </span>
   );
 }
 
-function MetricCard({ label, value, warn, small }: { label: string; value: React.ReactNode; warn?: boolean; small?: boolean }) {
+function MetricCard({ label, value, warn, small, accent }: { label: string; value: React.ReactNode; warn?: boolean; small?: boolean; accent?: boolean }) {
   return (
-    <div className={cn("rounded-lg bg-secondary/50 p-3", small && "p-2")}>
-      <p className={cn("text-muted-foreground mb-1", small ? "text-[10px]" : "text-xs")}>{label}</p>
+    <div className={cn(
+      "rounded-xl p-3.5 transition-colors",
+      accent ? "card-elevated accent-line-top" : "panel-inset",
+      small && "p-2.5"
+    )}>
+      <p className={cn("text-label font-semibold uppercase text-muted-foreground/50 mb-1.5", small ? "text-[9px]" : "text-[10px]")}>{label}</p>
       <p className={cn("font-semibold text-foreground", small ? "text-sm" : "text-base", warn && "text-destructive")}>
         {value}
       </p>
