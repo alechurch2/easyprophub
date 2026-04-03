@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator } from "lucide-react";
+import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { TradeExecutionModal } from "@/components/ai-review/TradeExecutionModal";
 import { fullLotCalculationFromPrices } from "@/components/ai-review/lotSizeCalculator";
 
@@ -82,162 +82,157 @@ export function SharedSignals() {
   };
 
   const strengthLabel = (n: number) => {
-    if (n >= 4) return { label: "Forte", color: "bg-success/10 text-success border-success/20", emoji: "🟢" };
-    if (n === 3) return { label: "Discreto", color: "bg-warning/10 text-warning border-warning/20", emoji: "🟡" };
-    return { label: "Debole", color: "bg-destructive/10 text-destructive border-destructive/20", emoji: "🔴" };
+    if (n >= 4) return { label: "Forte", color: "bg-success/8 text-success border-success/15", dot: "bg-success" };
+    if (n === 3) return { label: "Discreto", color: "bg-warning/8 text-warning border-warning/15", dot: "bg-warning" };
+    return { label: "Debole", color: "bg-destructive/8 text-destructive border-destructive/15", dot: "bg-destructive" };
   };
 
   const isBuy = (d: string) => d.toLowerCase().includes("buy");
-
-  // Default risk for shared signals user-side calculation
   const USER_DEFAULT_RISK = 0.002;
 
   return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-        <Radio className="h-4 w-4 text-primary" />
-        <h2 className="font-heading font-semibold text-foreground">Segnali condivisi</h2>
-        <Badge variant="outline" className="text-[10px] ml-1">Admin</Badge>
+    <div className="mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-success animate-pulse-soft" />
+          <p className="text-label uppercase text-muted-foreground/50 font-semibold">Segnali condivisi</p>
+          <Badge variant="outline" className="text-[9px] ml-0.5 px-1.5">LIVE</Badge>
+        </div>
       </div>
 
       <div className="space-y-3">
         {signals.map((sig) => {
           const sInfo = strengthLabel(sig.signal_strength);
           const buy = isBuy(sig.direction);
-
-          // Always recalculate lot based on user's account
           const userEquity = tradingAccount?.equity || null;
           const lotCalc = userEquity
             ? fullLotCalculationFromPrices(userEquity, sig.entry_price, sig.stop_loss, sig.take_profit, sig.asset, USER_DEFAULT_RISK)
             : null;
 
           console.log("[SharedSignals] Lot calc for user", {
-            signalId: sig.id,
-            asset: sig.asset,
-            userEquity,
-            riskUsed: USER_DEFAULT_RISK,
-            entry: sig.entry_price,
-            sl: sig.stop_loss,
-            tp: sig.take_profit,
-            calculatedLot: lotCalc?.lotSize ?? "N/A",
-            adminLotSuggestion: sig.lot_size_suggestion,
+            signalId: sig.id, asset: sig.asset, userEquity, riskUsed: USER_DEFAULT_RISK,
+            entry: sig.entry_price, sl: sig.stop_loss, tp: sig.take_profit,
+            calculatedLot: lotCalc?.lotSize ?? "N/A", adminLotSuggestion: sig.lot_size_suggestion,
           });
 
           return (
             <div
               key={sig.id}
-              className={cn(
-                "card-premium p-4 border-l-4 transition-all hover:shadow-md",
-                buy ? "border-l-success" : "border-l-destructive"
-              )}
+              className="card-elevated p-0 overflow-hidden transition-all hover:shadow-lg"
             >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {buy
-                    ? <TrendingUp className="h-5 w-5 text-success" />
-                    : <TrendingDown className="h-5 w-5 text-destructive" />
-                  }
-                  <span className="font-heading font-bold text-foreground text-lg">{sig.asset}</span>
-                  <Badge className={cn("text-xs", buy ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-                    {sig.direction} {sig.order_type}
-                  </Badge>
+              {/* Signal header bar */}
+              <div className={cn(
+                "px-4 py-3 flex items-center justify-between gap-3",
+                buy ? "bg-success/[0.04]" : "bg-destructive/[0.04]"
+              )}>
+                <div className="flex items-center gap-2.5">
+                  <div className={cn(
+                    "h-8 w-8 rounded-lg flex items-center justify-center",
+                    buy ? "bg-success/10" : "bg-destructive/10"
+                  )}>
+                    {buy ? <ArrowUpRight className="h-4 w-4 text-success" /> : <ArrowDownRight className="h-4 w-4 text-destructive" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-heading font-bold text-foreground text-base">{sig.asset}</span>
+                      <Badge className={cn("text-[10px]", buy ? "bg-success/8 text-success border-success/15" : "bg-destructive/8 text-destructive border-destructive/15")}>
+                        {sig.direction} {sig.order_type}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className={cn("text-xs", sInfo.color)}>
-                    <Zap className="h-3 w-3 mr-1" />
-                    {sInfo.emoji} {sig.signal_strength}/5
-                  </Badge>
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Clock className="h-3 w-3" />
+                  {/* Strength indicator */}
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map(i => (
+                      <div key={i} className={cn(
+                        "h-1.5 w-3 rounded-full transition-colors",
+                        i <= sig.signal_strength ? sInfo.dot : "bg-muted-foreground/10"
+                      )} />
+                    ))}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/50 font-mono-data">
                     {new Date(sig.published_at).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                  </div>
+                  </span>
                 </div>
               </div>
 
-              {/* Price levels */}
-              <div className="grid grid-cols-3 gap-3 mb-3">
-                <div className="bg-background/50 rounded-lg p-2.5 text-center">
-                  <p className="text-[10px] uppercase text-muted-foreground mb-0.5">Entry</p>
-                  <p className="text-sm font-semibold text-foreground">{sig.entry_price}</p>
+              <div className="px-4 py-3 space-y-3">
+                {/* Price levels — terminal style */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "Entry", value: sig.entry_price, color: "text-foreground" },
+                    { label: "Stop Loss", value: sig.stop_loss, color: "text-destructive" },
+                    { label: "Take Profit", value: sig.take_profit, color: "text-success" },
+                  ].map(p => (
+                    <div key={p.label} className="panel-inset p-2.5 text-center">
+                      <p className="text-[9px] uppercase text-muted-foreground/50 font-semibold tracking-wider mb-0.5">{p.label}</p>
+                      <p className={cn("text-sm font-mono-data font-bold", p.color)}>{p.value}</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="bg-background/50 rounded-lg p-2.5 text-center">
-                  <p className="text-[10px] uppercase text-muted-foreground mb-0.5">Stop Loss</p>
-                  <p className="text-sm font-semibold text-destructive">{sig.stop_loss}</p>
-                </div>
-                <div className="bg-background/50 rounded-lg p-2.5 text-center">
-                  <p className="text-[10px] uppercase text-muted-foreground mb-0.5">Take Profit</p>
-                  <p className="text-sm font-semibold text-success">{sig.take_profit}</p>
-                </div>
+
+                {sig.explanation && (
+                  <p className="text-xs text-muted-foreground leading-relaxed">{sig.explanation}</p>
+                )}
+
+                {/* Lot calc */}
+                {lotCalc && (
+                  <div className="panel-inset p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Calculator className="h-3 w-3 text-primary/60" />
+                      <p className="text-[10px] text-primary/80 font-medium">Sul tuo conto • Rischio {(USER_DEFAULT_RISK * 100).toFixed(1)}%</p>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      {[
+                        { label: "Lotto", value: lotCalc.lotSize, color: "text-foreground" },
+                        { label: "Rischio", value: `$${lotCalc.riskAmount.toFixed(0)}`, color: "text-destructive" },
+                        { label: "Profitto", value: lotCalc.theoreticalProfit ? `$${lotCalc.theoreticalProfit.toFixed(0)}` : "—", color: "text-success" },
+                        { label: "R:R", value: lotCalc.rrRatio ? `1:${lotCalc.rrRatio}` : "—", color: "text-primary" },
+                      ].map(d => (
+                        <div key={d.label}>
+                          <p className="text-[9px] text-muted-foreground/50 uppercase font-semibold">{d.label}</p>
+                          <p className={cn("text-sm font-mono-data font-bold", d.color)}>{d.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {!lotCalc && tradingAccount && (
+                  <div className="panel-inset p-2.5">
+                    <p className="text-[10px] text-muted-foreground/50 text-center">
+                      Asset non supportato per il calcolo automatico del lotto
+                    </p>
+                  </div>
+                )}
+
+                {/* Action */}
+                {canExecute && sig.signal_strength >= 3 && lotCalc ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-primary/20 text-primary hover:bg-primary/8"
+                    onClick={() => handleCopy(sig, lotCalc.lotSize)}
+                  >
+                    <Send className="h-3.5 w-3.5 mr-2" />
+                    Copia sul conto
+                  </Button>
+                ) : tradingAccount && !canExecute ? (
+                  <div className="flex items-center gap-2 justify-center py-1">
+                    <Shield className="h-3 w-3 text-muted-foreground/40" />
+                    <p className="text-[10px] text-muted-foreground/50">
+                      {tradingAccount.credential_mode !== "master" ? "Conto investor — sola lettura" :
+                       !tradingAccount.trading_execution_enabled ? "Trading non abilitato" : "Conto non connesso"}
+                    </p>
+                  </div>
+                ) : null}
               </div>
-
-              {sig.explanation && (
-                <p className="text-xs text-muted-foreground mb-3">{sig.explanation}</p>
-              )}
-
-              {/* Lot calc from user account — always per-user */}
-              {lotCalc && (
-                <div className="bg-background/50 rounded-lg p-3 border border-border/50 mb-3">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Calculator className="h-3 w-3 text-primary" />
-                    <p className="text-[10px] text-primary font-medium">Calcolato sul tuo conto • Rischio {(USER_DEFAULT_RISK * 100).toFixed(1)}%</p>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 text-center">
-                    <div>
-                      <p className="text-[10px] text-muted-foreground">Lotto</p>
-                      <p className="text-sm font-bold text-foreground">{lotCalc.lotSize}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground">Rischio</p>
-                      <p className="text-sm font-bold text-destructive">${lotCalc.riskAmount.toFixed(0)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground">Profitto</p>
-                      <p className="text-sm font-bold text-success">${lotCalc.theoreticalProfit?.toFixed(0) ?? "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground">R:R</p>
-                      <p className="text-sm font-bold text-primary">1:{lotCalc.rrRatio ?? "—"}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* No account — show signal without lot */}
-              {!lotCalc && tradingAccount && (
-                <div className="bg-background/50 rounded-lg p-2.5 border border-border/50 mb-3">
-                  <p className="text-[10px] text-muted-foreground text-center">
-                    Asset non supportato per il calcolo automatico del lotto
-                  </p>
-                </div>
-              )}
-
-              {/* Copy to account */}
-              {canExecute && sig.signal_strength >= 3 && lotCalc ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full border-primary/30 text-primary hover:bg-primary/10"
-                  onClick={() => handleCopy(sig, lotCalc.lotSize)}
-                >
-                  <Send className="h-3.5 w-3.5 mr-2" />
-                  Copia sul conto
-                </Button>
-              ) : tradingAccount && !canExecute ? (
-                <div className="flex items-center gap-2 justify-center">
-                  <Shield className="h-3 w-3 text-muted-foreground" />
-                  <p className="text-[10px] text-muted-foreground">
-                    {tradingAccount.credential_mode !== "master" ? "Conto investor — sola lettura" :
-                     !tradingAccount.trading_execution_enabled ? "Trading non abilitato" : "Conto non connesso"}
-                  </p>
-                </div>
-              ) : null}
             </div>
           );
         })}
       </div>
 
-      {/* Trade execution modal */}
       {selectedSignal && tradingAccount && (
         <TradeExecutionModal
           open={tradeModalOpen}
