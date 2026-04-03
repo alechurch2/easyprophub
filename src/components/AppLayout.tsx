@@ -127,6 +127,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             </div>
             <Settings className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-foreground transition-colors shrink-0" />
           </Link>
+          <ThemeToggle className="w-full" />
           <button
             onClick={handleSignOut}
             className="flex items-center gap-2 w-full px-2.5 py-1.5 mt-1 rounded-lg text-[12px] text-muted-foreground/60 hover:text-foreground hover:bg-muted/30 transition-all duration-200"
