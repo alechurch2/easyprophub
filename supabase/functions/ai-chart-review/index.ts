@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.100.0";
+import { OVERLAY_PROMPT_ADDON } from "../_shared/overlay-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -787,6 +788,7 @@ serve(async (req) => {
       account_size,
       review_tier,
       risk_percent,
+      uses_ai_overlay,
     } = body;
 
     if (!asset || !timeframe || !request_type) {
@@ -875,6 +877,7 @@ serve(async (req) => {
       review_mode: isEasy ? "easy" : "pro",
       review_tier: isPremium ? "premium" : "standard",
       ai_model_used: model,
+      uses_ai_overlay: !!uses_ai_overlay,
     };
     if (isEasy && account_size) {
       insertData.account_size = account_size;
@@ -899,8 +902,9 @@ serve(async (req) => {
 
     // Build user prompt
     const tierLabel = isPremium ? " (ANALISI PREMIUM — massimo dettaglio e approfondimento)" : "";
+    const overlayLabel = uses_ai_overlay ? "\n\n⚠️ OVERLAY AI ATTIVO: Lo screenshot è stato realizzato con l'indicatore AI Overlay proprietario. Usa le istruzioni overlay nel system prompt per interpretare correttamente pannello, colori e livelli." : "";
     const userText = isEasy
-      ? `Analizza questo grafico in modalità Easy.${tierLabel}
+      ? `Analizza questo grafico in modalità Easy.${tierLabel}${overlayLabel}
 
 METADATI:
 - Asset: ${asset}
@@ -916,7 +920,7 @@ ISTRUZIONI CRITICHE:
 4. Fornisci anche contesto_mercato per dare valore informativo.
 
 Usa ESCLUSIVAMENTE la funzione "easy_chart_analysis" per restituire l'output.`
-      : `Analizza questo grafico secondo la strategia predefinita.${tierLabel}
+      : `Analizza questo grafico secondo la strategia predefinita.${tierLabel}${overlayLabel}
 
 METADATI:
 - Asset: ${asset}
@@ -968,11 +972,17 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
     } else {
       systemPrompt = isPremium ? SYSTEM_PROMPT_PRO_PREMIUM : SYSTEM_PROMPT_PRO;
     }
+
+    // Append overlay instructions if uses_ai_overlay is true
+    if (uses_ai_overlay) {
+      systemPrompt += OVERLAY_PROMPT_ADDON;
+    }
+
     const analysisTool = isEasy ? ANALYSIS_TOOL_EASY : ANALYSIS_TOOL_PRO;
     const toolName = isEasy ? "easy_chart_analysis" : "chart_analysis";
 
     console.log(
-      `[AI Chart Review] Mode: ${isEasy ? "easy" : "pro"}, Tier: ${isPremium ? "premium" : "standard"}, Model: ${model}`,
+      `[AI Chart Review] Mode: ${isEasy ? "easy" : "pro"}, Tier: ${isPremium ? "premium" : "standard"}, Model: ${model}, Overlay: ${!!uses_ai_overlay}`,
     );
 
     // Call AI

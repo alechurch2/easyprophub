@@ -20,6 +20,7 @@ export interface Review {
   custom_account_size: number | null;
   review_tier: string;
   ai_model_used: string | null;
+  uses_ai_overlay: boolean;
 }
 
 export interface ReviewRating {

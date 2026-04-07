@@ -228,6 +228,7 @@ export type Database = {
           updated_at: string
           user_id: string
           user_note: string | null
+          uses_ai_overlay: boolean
         }
         Insert: {
           account_size?: number | null
@@ -253,6 +254,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           user_note?: string | null
+          uses_ai_overlay?: boolean
         }
         Update: {
           account_size?: number | null
@@ -278,6 +280,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           user_note?: string | null
+          uses_ai_overlay?: boolean
         }
         Relationships: [
           {

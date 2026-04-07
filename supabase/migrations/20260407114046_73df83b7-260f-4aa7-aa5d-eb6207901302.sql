@@ -1,0 +1,1 @@
+ALTER TABLE public.ai_chart_reviews ADD COLUMN IF NOT EXISTS uses_ai_overlay boolean NOT NULL DEFAULT false;

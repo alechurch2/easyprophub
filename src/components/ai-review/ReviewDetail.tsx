@@ -7,7 +7,7 @@ import { ReviewRatingWidget } from "./ReviewRatingWidget";
 import { ReviewForm } from "./ReviewForm";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw, MessageSquare, Link2, Zap, BarChart3, Crown, Clock, Image } from "lucide-react";
+import { ArrowLeft, RefreshCw, MessageSquare, Link2, Zap, BarChart3, Crown, Clock, Image, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -61,7 +61,10 @@ export function ReviewDetail({ review, onBack, onRefresh, onSelectReview }: Prop
             </div>
             <div className="flex flex-wrap items-center gap-2 mb-3">
               {review.review_tier === "premium" && (
-                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs"><Crown className="h-3 w-3 mr-0.5" />Premium</Badge>
+              <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs"><Crown className="h-3 w-3 mr-0.5" />Premium</Badge>
+              )}
+              {(review as any).uses_ai_overlay && (
+                <Badge className="bg-violet-500/10 text-violet-500 border-violet-500/20 text-xs"><Layers className="h-3 w-3 mr-0.5" />AI Overlay</Badge>
               )}
               {isEasy ? (
                 <Badge variant="outline" className="border-primary/30 text-primary text-xs"><Zap className="h-3 w-3 mr-0.5" />Easy</Badge>

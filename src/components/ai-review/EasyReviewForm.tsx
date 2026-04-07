@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Link2, ShieldCheck, Upload, Camera, ChevronRight } from "lucide-react";
+import { Loader2, Link2, ShieldCheck, Upload, Camera, ChevronRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +35,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
   const [customRisk, setCustomRisk] = useState("");
   const isCustomRisk = riskPercent === "custom";
   const [submitting, setSubmitting] = useState(false);
+  const [usesAiOverlay, setUsesAiOverlay] = useState(false);
 
   const [connectedEquity, setConnectedEquity] = useState<number | null>(null);
   const [connectedAccountName, setConnectedAccountName] = useState<string | null>(null);
@@ -126,6 +128,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
             account_size: accountSize,
             review_tier: reviewTier,
             risk_percent: selectedRisk,
+            uses_ai_overlay: usesAiOverlay,
           }),
         }
       );
@@ -370,6 +373,32 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
               <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
             </label>
           )}
+
+          {/* ── AI Overlay toggle ── */}
+          <div className={cn(
+            "mt-4 rounded-xl border p-4 transition-all duration-200",
+            usesAiOverlay
+              ? "border-primary/30 bg-primary/[0.04]"
+              : "border-border/40 bg-muted/10"
+          )}>
+            <div className="flex items-start gap-3">
+              <div className={cn(
+                "mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                usesAiOverlay ? "bg-primary/15 text-primary" : "bg-muted/30 text-muted-foreground"
+              )}>
+                <Layers className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">Screenshot con indicatore AI Overlay</p>
+                  <Switch checked={usesAiOverlay} onCheckedChange={setUsesAiOverlay} />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  Se attivo, l'AI interpreterà colori, livelli, pannello e segnali visivi del grafico secondo la legenda dell'indicatore proprietario.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ─── SECTION: NOTE ─── */}

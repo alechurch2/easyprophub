@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap, Crown, Lock } from "lucide-react";
+import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap, Crown, Lock, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -340,6 +340,11 @@ export default function AIReview() {
                           {r.review_mode === "easy" && (
                             <Badge variant="outline" className="text-[10px] border-primary/15 text-primary">
                               <Zap className="h-2.5 w-2.5 mr-0.5" />Easy
+                            </Badge>
+                          )}
+                          {(r as any).uses_ai_overlay && (
+                            <Badge className="bg-violet-500/10 text-violet-500 border-violet-500/20 text-[10px]">
+                              <Layers className="h-2.5 w-2.5 mr-0.5" />Overlay
                             </Badge>
                           )}
                           {r.user_note && <MessageSquare className="h-3 w-3 text-muted-foreground/40" />}

@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Upload, BarChart3, ChevronRight } from "lucide-react";
+import { Loader2, Upload, BarChart3, ChevronRight, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES, REQUEST_TYPES } from "./types";
+import { cn } from "@/lib/utils";
 import { ReviewLoadingState } from "./ReviewLoadingState";
 
 interface Props {
@@ -30,6 +32,7 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
   const [preview, setPreview] = useState<string | null>(null);
   const [userNote, setUserNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [usesAiOverlay, setUsesAiOverlay] = useState(false);
 
   useEffect(() => {
     if (!file) { setPreview(null); return; }
@@ -73,6 +76,7 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
             user_note: userNote.trim() || null,
             parent_review_id: parentReviewId || null,
             review_tier: reviewTier,
+            uses_ai_overlay: usesAiOverlay,
           }),
         }
       );
@@ -180,6 +184,32 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
               <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
             </label>
           )}
+
+          {/* ── AI Overlay toggle ── */}
+          <div className={cn(
+            "mt-4 rounded-xl border p-4 transition-all duration-200",
+            usesAiOverlay
+              ? "border-primary/30 bg-primary/[0.04]"
+              : "border-border/40 bg-muted/10"
+          )}>
+            <div className="flex items-start gap-3">
+              <div className={cn(
+                "mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                usesAiOverlay ? "bg-primary/15 text-primary" : "bg-muted/30 text-muted-foreground"
+              )}>
+                <Layers className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">Screenshot con indicatore AI Overlay</p>
+                  <Switch checked={usesAiOverlay} onCheckedChange={setUsesAiOverlay} />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  Se attivo, l'AI interpreterà colori, livelli, pannello e segnali visivi del grafico secondo la legenda dell'indicatore proprietario.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ─── SECTION: NOTE ─── */}
