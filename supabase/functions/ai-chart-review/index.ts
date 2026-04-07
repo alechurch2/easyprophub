@@ -788,6 +788,7 @@ serve(async (req) => {
       account_size,
       review_tier,
       risk_percent,
+      uses_ai_overlay,
     } = body;
 
     if (!asset || !timeframe || !request_type) {
