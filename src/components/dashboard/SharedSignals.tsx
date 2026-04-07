@@ -4,9 +4,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator, ArrowUpRight, ArrowDownRight, Info } from "lucide-react";
 import { TradeExecutionModal } from "@/components/ai-review/TradeExecutionModal";
 import { fullLotCalculationFromPrices } from "@/components/ai-review/lotSizeCalculator";
+import { SignalStatusBadge, isSignalCopyable, getUncopyableMessage } from "./SignalStatusBadge";
 
 interface SharedSignal {
   id: string;
@@ -22,6 +23,7 @@ interface SharedSignal {
   explanation: string | null;
   published_at: string;
   review_id: string | null;
+  signal_status: string;
 }
 
 interface TradingAccount {
@@ -54,8 +56,9 @@ export function SharedSignals() {
       .select("*")
       .eq("is_published", true)
       .eq("is_archived", false)
+      .in("signal_status", ["active", "triggered"])
       .order("published_at", { ascending: false })
-      .limit(5);
+      .limit(10);
     if (data) setSignals(data as any);
   };
 
@@ -108,12 +111,7 @@ export function SharedSignals() {
           const lotCalc = userEquity
             ? fullLotCalculationFromPrices(userEquity, sig.entry_price, sig.stop_loss, sig.take_profit, sig.asset, USER_DEFAULT_RISK)
             : null;
-
-          console.log("[SharedSignals] Lot calc for user", {
-            signalId: sig.id, asset: sig.asset, userEquity, riskUsed: USER_DEFAULT_RISK,
-            entry: sig.entry_price, sl: sig.stop_loss, tp: sig.take_profit,
-            calculatedLot: lotCalc?.lotSize ?? "N/A", adminLotSuggestion: sig.lot_size_suggestion,
-          });
+          const copyable = isSignalCopyable(sig.signal_status);
 
           return (
             <div
@@ -138,11 +136,11 @@ export function SharedSignals() {
                       <Badge className={cn("text-[10px]", buy ? "bg-success/8 text-success border-success/15" : "bg-destructive/8 text-destructive border-destructive/15")}>
                         {sig.direction} {sig.order_type}
                       </Badge>
+                      <SignalStatusBadge status={sig.signal_status} />
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Strength indicator */}
                   <div className="flex items-center gap-1">
                     {[1,2,3,4,5].map(i => (
                       <div key={i} className={cn(
@@ -158,7 +156,7 @@ export function SharedSignals() {
               </div>
 
               <div className="px-4 py-3 space-y-3">
-                {/* Price levels — terminal style */}
+                {/* Price levels */}
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { label: "Entry", value: sig.entry_price, color: "text-foreground" },
@@ -177,7 +175,7 @@ export function SharedSignals() {
                 )}
 
                 {/* Lot calc */}
-                {lotCalc && (
+                {lotCalc && copyable && (
                   <div className="panel-inset p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Calculator className="h-3 w-3 text-primary/60" />
@@ -199,7 +197,7 @@ export function SharedSignals() {
                   </div>
                 )}
 
-                {!lotCalc && tradingAccount && (
+                {!lotCalc && tradingAccount && copyable && (
                   <div className="panel-inset p-2.5">
                     <p className="text-[10px] text-muted-foreground/50 text-center">
                       Asset non supportato per il calcolo automatico del lotto
@@ -207,8 +205,18 @@ export function SharedSignals() {
                   </div>
                 )}
 
+                {/* Non-copyable message */}
+                {!copyable && (
+                  <div className="panel-inset p-2.5 flex items-center gap-2 justify-center">
+                    <Info className="h-3 w-3 text-muted-foreground/50" />
+                    <p className="text-[10px] text-muted-foreground/60 font-medium">
+                      {getUncopyableMessage(sig.signal_status)}
+                    </p>
+                  </div>
+                )}
+
                 {/* Action */}
-                {canExecute && sig.signal_strength >= 3 && lotCalc ? (
+                {copyable && canExecute && sig.signal_strength >= 3 && lotCalc ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -218,7 +226,7 @@ export function SharedSignals() {
                     <Send className="h-3.5 w-3.5 mr-2" />
                     Copia sul conto
                   </Button>
-                ) : tradingAccount && !canExecute ? (
+                ) : copyable && tradingAccount && !canExecute ? (
                   <div className="flex items-center gap-2 justify-center py-1">
                     <Shield className="h-3 w-3 text-muted-foreground/40" />
                     <p className="text-[10px] text-muted-foreground/50">
@@ -247,7 +255,7 @@ export function SharedSignals() {
             lotSize: selectedSignal.lot_size_suggestion || 0.01,
             signalQuality: selectedSignal.signal_quality || "N/A",
             signalStrength: selectedSignal.signal_strength,
-            riskPercent: 0.002,
+            riskPercent: USER_DEFAULT_RISK,
           }}
           account={{
             id: tradingAccount.id,
