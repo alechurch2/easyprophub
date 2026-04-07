@@ -21,6 +21,7 @@ interface Props {
   defaultAsset?: string;
   defaultTimeframe?: string;
   reviewTier?: "standard" | "premium";
+  licenseLevel?: string;
 }
 
 export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, defaultTimeframe, reviewTier = "standard" }: Props) {

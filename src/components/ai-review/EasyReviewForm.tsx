@@ -20,6 +20,7 @@ interface Props {
   onClose: () => void;
   onSuccess: () => void;
   reviewTier?: "standard" | "premium";
+  licenseLevel?: string;
 }
 
 export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: Props) {
