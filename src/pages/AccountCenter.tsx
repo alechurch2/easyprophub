@@ -1583,9 +1583,9 @@ export default function AccountCenter() {
   const loadData = useCallback(async () => {
     if (!user) return;
     const [accRes, tradeRes, journalRes] = await Promise.all([
-      supabase.from("trading_accounts").select("*").order("created_at", { ascending: false }),
-      supabase.from("account_trade_history").select("*").order("opened_at", { ascending: false }),
-      supabase.from("trade_journal_entries").select("*").order("created_at", { ascending: false }),
+      supabase.from("trading_accounts").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("account_trade_history").select("*").eq("user_id", user.id).order("opened_at", { ascending: false }),
+      supabase.from("trade_journal_entries").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     ]);
     if (accRes.data) setAccounts(accRes.data as any);
     if (tradeRes.data) setTrades(tradeRes.data as any);
