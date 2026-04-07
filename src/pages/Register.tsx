@@ -45,7 +45,11 @@ export default function Register() {
           idempotencyKey: `reg-confirm-${email.trim()}-${Date.now()}`,
           templateData: { name: fullName.trim() },
         },
-      }).catch(() => {});
+      }).then(({ error: fnError }) => {
+        if (fnError) console.error("Registration email failed:", fnError);
+      }).catch((err) => {
+        console.error("Registration email error:", err);
+      });
       setSuccess(true);
     }
     setLoading(false);

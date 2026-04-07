@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Mail, Lock, User, Shield } from "lucide-react";
+import { Mail, Lock, User, Shield, Loader2 } from "lucide-react";
+const NotificationSettings = lazy(() => import("@/components/NotificationSettings"));
 
 export default function AccountSettings() {
   const { user, profile } = useAuth();

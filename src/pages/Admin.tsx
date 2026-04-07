@@ -2251,6 +2251,7 @@ export default function Admin() {
             <TabsTrigger value="announcements" className="flex-1 min-w-[80px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
             <TabsTrigger value="analytics" className="flex-1 min-w-[80px]"><Activity className="h-3 w-3 mr-1" />Analytics</TabsTrigger>
             <TabsTrigger value="signals" className="flex-1 min-w-[80px]"><Radio className="h-3 w-3 mr-1" />Segnali</TabsTrigger>
+            <TabsTrigger value="email-log" className="flex-1 min-w-[80px]"><Mail className="h-3 w-3 mr-1" />Email</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><AdminUsers /></TabsContent>
@@ -2264,6 +2265,7 @@ export default function Admin() {
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
           <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
           <TabsContent value="signals"><AdminSignals /></TabsContent>
+          <TabsContent value="email-log"><AdminEmailLog /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>
