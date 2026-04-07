@@ -225,9 +225,9 @@ export default function NotificationSettings() {
         {/* Status: Connected */}
         {linkStatus === "connected" && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-              <div className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="h-2 w-2 rounded-full bg-primary" />
+              <span className="text-sm font-medium text-primary">
                 Telegram collegato
               </span>
             </div>
