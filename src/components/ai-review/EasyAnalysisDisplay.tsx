@@ -555,6 +555,8 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
             takeProfit: parsePrice(selectedTrade.signal.take_profit),
             lotSize: selectedTrade.lotCalc.lotSize,
             signalQuality: raw.signal_quality,
+            signalStrength: strength,
+            riskPercent: effectiveRisk,
           }}
           account={{
             id: tradingAccount.id,
