@@ -24,7 +24,7 @@ interface Props {
   licenseLevel?: string;
 }
 
-export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, defaultTimeframe, reviewTier = "standard" }: Props) {
+export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, defaultTimeframe, reviewTier = "standard", licenseLevel = "free" }: Props) {
   const { user } = useAuth();
   const [asset, setAsset] = useState(defaultAsset || ASSETS[0]);
   const [timeframe, setTimeframe] = useState(defaultTimeframe || TIMEFRAMES[4]);

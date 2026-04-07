@@ -23,7 +23,7 @@ interface Props {
   licenseLevel?: string;
 }
 
-export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: Props) {
+export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", licenseLevel = "free" }: Props) {
   const { user } = useAuth();
   const [asset, setAsset] = useState(ASSETS[0]);
   const [timeframe, setTimeframe] = useState(TIMEFRAMES[4]);
