@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.100.0";
+import { OVERLAY_PROMPT_ADDON } from "../_shared/overlay-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
