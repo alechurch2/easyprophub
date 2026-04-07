@@ -277,7 +277,7 @@ export default function NotificationSettings() {
             <div className="space-y-2 p-3 rounded-lg bg-muted/50 border border-border">
               <p className="text-xs font-medium text-foreground">Istruzioni:</p>
               <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                <li>Apri <a href="https://t.me/EasyPropBot" target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">@EasyPropBot</a> su Telegram</li>
+                <li>Apri <a href="https://t.me/EasyPropHubBot" target="_blank" rel="noopener noreferrer" className="text-primary underline font-medium">@EasyPropHubBot</a> su Telegram</li>
                 <li>Invia questo comando al bot:</li>
               </ol>
 
