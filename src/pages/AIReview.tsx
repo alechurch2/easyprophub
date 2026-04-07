@@ -342,6 +342,11 @@ export default function AIReview() {
                               <Zap className="h-2.5 w-2.5 mr-0.5" />Easy
                             </Badge>
                           )}
+                          {(r as any).uses_ai_overlay && (
+                            <Badge className="bg-violet-500/10 text-violet-500 border-violet-500/20 text-[10px]">
+                              <Layers className="h-2.5 w-2.5 mr-0.5" />Overlay
+                            </Badge>
+                          )}
                           {r.user_note && <MessageSquare className="h-3 w-3 text-muted-foreground/40" />}
                           {r.analysis?.qualita_setup != null && (
                             <Badge variant="secondary" className="text-[10px]">
