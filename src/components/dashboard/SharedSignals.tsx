@@ -45,11 +45,6 @@ export function SharedSignals() {
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
   const [selectedSignal, setSelectedSignal] = useState<SharedSignal | null>(null);
 
-  useEffect(() => {
-    loadSignals();
-    if (user) loadAccount();
-  }, [user]);
-
   const loadSignals = async () => {
     const { data } = await supabase
       .from("shared_signals")
@@ -61,6 +56,20 @@ export function SharedSignals() {
       .limit(10);
     if (data) setSignals(data as any);
   };
+
+  useEffect(() => {
+    loadSignals();
+    if (user) loadAccount();
+
+    const channel = supabase
+      .channel("shared-signals-active")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shared_signals" }, () => {
+        loadSignals();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const loadAccount = async () => {
     const { data } = await supabase

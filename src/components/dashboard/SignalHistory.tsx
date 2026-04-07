@@ -23,19 +23,29 @@ export function SignalHistory() {
   const [signals, setSignals] = useState<HistorySignal[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const load = async () => {
+    const { data } = await supabase
+      .from("shared_signals")
+      .select("id, asset, direction, order_type, entry_price, stop_loss, take_profit, signal_strength, signal_status, published_at, explanation")
+      .eq("is_published", true)
+      .neq("signal_status", "active")
+      .order("published_at", { ascending: false })
+      .limit(20);
+    if (data) setSignals(data as any);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase
-        .from("shared_signals")
-        .select("id, asset, direction, order_type, entry_price, stop_loss, take_profit, signal_strength, signal_status, published_at, explanation")
-        .eq("is_published", true)
-        .neq("signal_status", "active")
-        .order("published_at", { ascending: false })
-        .limit(20);
-      if (data) setSignals(data as any);
-      setLoading(false);
-    };
     load();
+
+    const channel = supabase
+      .channel("shared-signals-history")
+      .on("postgres_changes", { event: "*", schema: "public", table: "shared_signals" }, () => {
+        load();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   if (loading || signals.length === 0) return null;
