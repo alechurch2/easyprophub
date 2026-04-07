@@ -1512,6 +1512,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_notification_preferences: {
+        Row: {
+          created_at: string
+          email_signals_enabled: boolean
+          id: string
+          telegram_chat_id: string | null
+          telegram_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_signals_enabled?: boolean
+          id?: string
+          telegram_chat_id?: string | null
+          telegram_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_signals_enabled?: boolean
+          id?: string
+          telegram_chat_id?: string | null
+          telegram_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_onboarding_progress: {
         Row: {
           completed_at: string | null
