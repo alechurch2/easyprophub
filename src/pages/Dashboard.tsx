@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { trackEvent } from "@/lib/analytics";
 import { SharedSignals } from "@/components/dashboard/SharedSignals";
+import { SignalHistory } from "@/components/dashboard/SignalHistory";
 
 interface Announcement {
   id: string;
