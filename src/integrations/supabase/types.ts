@@ -974,7 +974,9 @@ export type Database = {
           review_mode: string | null
           review_tier: string | null
           signal_quality: string | null
+          signal_status: string
           signal_strength: number | null
+          status_updated_at: string | null
           stop_loss: number
           take_profit: number
           updated_at: string | null
@@ -997,7 +999,9 @@ export type Database = {
           review_mode?: string | null
           review_tier?: string | null
           signal_quality?: string | null
+          signal_status?: string
           signal_strength?: number | null
+          status_updated_at?: string | null
           stop_loss: number
           take_profit: number
           updated_at?: string | null
@@ -1020,7 +1024,9 @@ export type Database = {
           review_mode?: string | null
           review_tier?: string | null
           signal_quality?: string | null
+          signal_status?: string
           signal_strength?: number | null
+          status_updated_at?: string | null
           stop_loss?: number
           take_profit?: number
           updated_at?: string | null
