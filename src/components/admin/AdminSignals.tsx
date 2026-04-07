@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Loader2, Radio, Archive, Eye, EyeOff, TrendingUp, TrendingDown, Zap, Trash2, ChevronDown, History, Filter } from "lucide-react";
+import { Loader2, Radio, Archive, Eye, EyeOff, TrendingUp, TrendingDown, Zap, Trash2, ChevronDown, Filter } from "lucide-react";
 import { toast } from "sonner";
+import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import {
   DropdownMenu,
   DropdownMenuContent,
