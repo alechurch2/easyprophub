@@ -267,9 +267,9 @@ export default function NotificationSettings() {
         {/* Status: Pending */}
         {linkStatus === "pending" && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              {polling && <RefreshCw className="h-3 w-3 animate-spin text-amber-500" />}
-              <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-accent/50 border border-accent">
+              {polling && <RefreshCw className="h-3 w-3 animate-spin text-accent-foreground" />}
+              <span className="text-sm font-medium text-accent-foreground">
                 In attesa di collegamento…
               </span>
             </div>
