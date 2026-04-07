@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Link2, ShieldCheck, Upload, Camera, ChevronRight, Layers } from "lucide-react";
+import { Loader2, Link2, ShieldCheck, Upload, Camera, ChevronRight, Layers, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -20,9 +20,10 @@ interface Props {
   onClose: () => void;
   onSuccess: () => void;
   reviewTier?: "standard" | "premium";
+  licenseLevel?: string;
 }
 
-export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: Props) {
+export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", licenseLevel = "free" }: Props) {
   const { user } = useAuth();
   const [asset, setAsset] = useState(ASSETS[0]);
   const [timeframe, setTimeframe] = useState(TIMEFRAMES[4]);
@@ -375,30 +376,55 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
           )}
 
           {/* ── AI Overlay toggle ── */}
-          <div className={cn(
-            "mt-4 rounded-xl border p-4 transition-all duration-200",
-            usesAiOverlay
-              ? "border-primary/30 bg-primary/[0.04]"
-              : "border-border/40 bg-muted/10"
-          )}>
-            <div className="flex items-start gap-3">
+          {(() => {
+            const isOverlayLocked = licenseLevel === "free";
+            return (
               <div className={cn(
-                "mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                usesAiOverlay ? "bg-primary/15 text-primary" : "bg-muted/30 text-muted-foreground"
+                "mt-4 rounded-xl border p-4 transition-all duration-200",
+                isOverlayLocked
+                  ? "border-border/30 bg-muted/5 opacity-70"
+                  : usesAiOverlay
+                    ? "border-primary/30 bg-primary/[0.04]"
+                    : "border-border/40 bg-muted/10"
               )}>
-                <Layers className="h-4 w-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-foreground">Screenshot con indicatore AI Overlay</p>
-                  <Switch checked={usesAiOverlay} onCheckedChange={setUsesAiOverlay} />
+                <div className="flex items-start gap-3">
+                  <div className={cn(
+                    "mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                    isOverlayLocked
+                      ? "bg-muted/20 text-muted-foreground/50"
+                      : usesAiOverlay ? "bg-primary/15 text-primary" : "bg-muted/30 text-muted-foreground"
+                  )}>
+                    <Layers className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <p className={cn("text-sm font-semibold", isOverlayLocked ? "text-muted-foreground/60" : "text-foreground")}>
+                          Screenshot con indicatore AI Overlay
+                        </p>
+                        {isOverlayLocked && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-500 uppercase tracking-wide">
+                            <Crown className="h-2.5 w-2.5" />
+                            Pro / Live
+                          </span>
+                        )}
+                      </div>
+                      <Switch
+                        checked={isOverlayLocked ? false : usesAiOverlay}
+                        onCheckedChange={isOverlayLocked ? undefined : setUsesAiOverlay}
+                        disabled={isOverlayLocked}
+                      />
+                    </div>
+                    <p className={cn("text-[11px] mt-1 leading-relaxed", isOverlayLocked ? "text-muted-foreground/40" : "text-muted-foreground")}>
+                      {isOverlayLocked
+                        ? "Overlay AI disponibile solo nei piani a pagamento. Passa a Pro o Live per sbloccare questa funzione."
+                        : "Se attivo, l'AI interpreterà colori, livelli, pannello e segnali visivi del grafico secondo la legenda dell'indicatore proprietario."}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                  Se attivo, l'AI interpreterà colori, livelli, pannello e segnali visivi del grafico secondo la legenda dell'indicatore proprietario.
-                </p>
               </div>
-            </div>
-          </div>
+            );
+          })()}
         </div>
 
         {/* ─── SECTION: NOTE ─── */}

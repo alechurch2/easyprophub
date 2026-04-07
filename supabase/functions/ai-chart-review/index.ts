@@ -788,8 +788,12 @@ serve(async (req) => {
       account_size,
       review_tier,
       risk_percent,
-      uses_ai_overlay,
+      uses_ai_overlay: rawUsesAiOverlay,
     } = body;
+
+    // Enforce: AI Overlay is only available for paid plans (pro/live)
+    const userLicenseLevel = licenseSettings.license_level || "free";
+    const uses_ai_overlay = userLicenseLevel === "free" ? false : !!rawUsesAiOverlay;
 
     if (!asset || !timeframe || !request_type) {
       return new Response(JSON.stringify({ error: "Parametri mancanti: asset, timeframe, request_type" }), {
