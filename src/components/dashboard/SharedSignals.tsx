@@ -246,6 +246,8 @@ export function SharedSignals() {
             takeProfit: selectedSignal.take_profit,
             lotSize: selectedSignal.lot_size_suggestion || 0.01,
             signalQuality: selectedSignal.signal_quality || "N/A",
+            signalStrength: selectedSignal.signal_strength,
+            riskPercent: 0.002,
           }}
           account={{
             id: tradingAccount.id,
