@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES, REQUEST_TYPES } from "./types";
-import { ReviewLoadingState } from "./ReviewLoadingState";
+import { cn } from "@/lib/utils";
 
 interface Props {
   onClose: () => void;
