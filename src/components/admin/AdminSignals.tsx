@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Loader2, Radio, Archive, Eye, EyeOff, TrendingUp, TrendingDown, Zap, Trash2, ChevronDown, Filter } from "lucide-react";
 import { toast } from "sonner";
-import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
+import { formatSignalNotificationToast, invokeSignalNotification } from "@/lib/signalNotifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -65,43 +65,77 @@ export default function AdminSignals() {
   useEffect(() => { load(); }, [load]);
 
   const togglePublish = async (id: string, current: boolean) => {
-    const { data: signalData } = await supabase.from("shared_signals").select("*").eq("id", id).single();
-    await supabase.from("shared_signals").update({ is_published: !current } as any).eq("id", id);
-    toast.success(current ? "Segnale ritirato" : "Segnale pubblicato");
+    const { data: signalData, error: fetchError } = await supabase
+      .from("shared_signals")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    // Send notifications when publishing a signal
-    if (!current && signalData) {
-      console.log("[AdminSignals] Signal published, triggering notifications for:", signalData.id);
-      const { token, error: tokenError } = await getValidFunctionAuthToken();
-      if (tokenError || !token) {
-        console.error("[AdminSignals] Failed to get auth token:", tokenError);
-        toast.error("Errore autenticazione per le notifiche");
-      } else {
-        console.log("[AdminSignals] Invoking notify-signal with token");
-        try {
-          const { data: notifyResult, error: notifyError } = await supabase.functions.invoke("notify-signal", {
-            body: { signal: signalData },
-          });
-
-          if (notifyError) {
-            console.error("[AdminSignals] notify-signal error:", notifyError);
-            toast.error("Errore invio notifiche: " + (notifyError.message || "sconosciuto"));
-          } else {
-            console.log("[AdminSignals] notify-signal result:", notifyResult);
-            const tg = notifyResult?.telegram;
-            const em = notifyResult?.email;
-            toast.success(
-              `Notifiche: Telegram ${tg?.sent || 0} inviate, Email ${em?.enqueued || 0} in coda`
-            );
-          }
-        } catch (err) {
-          console.error("[AdminSignals] notify-signal exception:", err);
-          toast.error("Errore critico invio notifiche");
-        }
-      }
+    if (fetchError || !signalData) {
+      console.error("[AdminSignals] Failed to load signal before publish action", { signal_id: id, error: fetchError });
+      toast.error("Errore nel caricamento del segnale");
+      return;
     }
 
-    load();
+    const currentPublished = Boolean(signalData.is_published);
+    const nextPublished = !currentPublished;
+    const publishReason = nextPublished ? "publication transition" : "signal withdrawn";
+
+    console.log("[AdminSignals] Publish action", {
+      signal_id: id,
+      ui_current_value: current,
+      db_current_value: currentPublished,
+      new_value: nextPublished,
+      signal_status: signalData.signal_status,
+      trigger_notifications: nextPublished ? "yes" : "no",
+      reason: publishReason,
+    });
+
+    const updatePayload = nextPublished
+      ? { is_published: true, published_at: new Date().toISOString() }
+      : { is_published: false };
+
+    const { data: updatedSignal, error: updateError } = await supabase
+      .from("shared_signals")
+      .update(updatePayload as any)
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (updateError || !updatedSignal) {
+      console.error("[AdminSignals] Failed to update publish state", { signal_id: id, error: updateError });
+      toast.error("Errore nell'aggiornamento del segnale");
+      return;
+    }
+
+    if (!nextPublished) {
+      console.log("[AdminSignals] Trigger notifications: no", {
+        signal_id: id,
+        current_value: currentPublished,
+        new_value: nextPublished,
+        reason: "signal withdrawn",
+      });
+      toast.success("Segnale ritirato");
+      await load();
+      return;
+    }
+
+    const notifyOutcome = await invokeSignalNotification({
+      signal: updatedSignal as Signal,
+      currentPublished,
+      nextPublished,
+      source: "admin-signals-toggle",
+    });
+
+    if (notifyOutcome.error) {
+      toast.error(`Segnale pubblicato ma notifiche fallite: ${notifyOutcome.error}`);
+    } else if (!notifyOutcome.triggerNotifications) {
+      toast(`Segnale pubblicato senza notifiche: ${notifyOutcome.reason}`);
+    } else {
+      toast.success(`Segnale pubblicato. ${formatSignalNotificationToast(notifyOutcome.result)}`);
+    }
+
+    await load();
   };
 
   const toggleArchive = async (id: string, current: boolean) => {

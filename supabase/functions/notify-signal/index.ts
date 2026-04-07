@@ -1,11 +1,20 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/telegram'
+const APP_URL = 'https://easyprophub.lovable.app/dashboard'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
+}
+
+function buildSignalEmailIdempotencyKey(
+  signalId: string | undefined,
+  publishEventAt: string,
+  userId: string
+) {
+  return `signal-${signalId || 'unknown'}-${publishEventAt}-${userId}`
 }
 
 Deno.serve(async (req) => {
@@ -76,11 +85,21 @@ Deno.serve(async (req) => {
     entry_price: number
     stop_loss: number
     take_profit: number
+    signal_status?: string
+    is_published?: boolean
+    published_at?: string
+    created_at?: string
   }
+  let meta: {
+    source?: string
+    current_published?: boolean
+    new_published?: boolean
+  } = {}
 
   try {
     const body = await req.json()
     signal = body.signal
+    meta = body.meta || {}
     if (!signal?.asset) throw new Error('Missing signal data')
   } catch (err) {
     console.error('[notify-signal] Invalid request body:', String(err))
@@ -96,6 +115,13 @@ Deno.serve(async (req) => {
     direction: signal.direction,
     order_type: signal.order_type,
     signal_strength: signal.signal_strength,
+    signal_status: signal.signal_status,
+    is_published: signal.is_published,
+    published_at: signal.published_at,
+    source: meta.source,
+    current_value: meta.current_published,
+    new_value: meta.new_published,
+    trigger_notifications: 'yes',
   })
 
   // ============================================
@@ -104,6 +130,7 @@ Deno.serve(async (req) => {
   let telegramSent = 0
   let telegramFailed = 0
   let telegramSkipped = 0
+  let telegramTargeted = 0
 
   if (!LOVABLE_API_KEY) {
     console.error('[notify-signal] LOVABLE_API_KEY not configured - skipping Telegram')
@@ -120,7 +147,8 @@ Deno.serve(async (req) => {
     if (telegramPrefsErr) {
       console.error('[notify-signal] Failed to fetch Telegram preferences:', telegramPrefsErr)
     } else {
-      console.log('[notify-signal] Telegram recipients found:', telegramPrefs?.length || 0)
+      telegramTargeted = telegramPrefs?.length || 0
+      console.log('[notify-signal] Telegram recipients found:', telegramTargeted)
 
       const dirEmoji = signal.direction.toLowerCase().includes('buy') ? '🟢' : '🔴'
       const strengthStars = '⭐'.repeat(Math.min(signal.signal_strength || 0, 5))
@@ -167,6 +195,12 @@ Deno.serve(async (req) => {
           })
 
           const data = await response.json()
+          console.log('[notify-signal] Telegram provider response:', {
+            signal_id: signal.id,
+            chat_id: pref.telegram_chat_id,
+            status: response.status,
+            response: data,
+          })
           if (response.ok && data.ok) {
             console.log('[notify-signal] Telegram sent OK to:', pref.telegram_chat_id)
             telegramSent++
@@ -195,6 +229,10 @@ Deno.serve(async (req) => {
   let emailSent = 0
   let emailFailed = 0
   let emailSkipped = 0
+  let emailTargeted = 0
+  let duplicateSuppressionDetected = false
+  const publishEventAt = signal.published_at || signal.created_at || new Date().toISOString()
+  const sendTransactionalEmailUrl = `${supabaseUrl}/functions/v1/send-transactional-email`
 
   // Get users with email signals enabled
   const { data: emailPrefs, error: emailPrefsErr } = await supabase
@@ -205,13 +243,29 @@ Deno.serve(async (req) => {
   if (emailPrefsErr) {
     console.error('[notify-signal] Failed to fetch email preferences:', emailPrefsErr)
   } else {
-    console.log('[notify-signal] Email-enabled users found:', emailPrefs?.length || 0)
+    emailTargeted = emailPrefs?.length || 0
+    console.log('[notify-signal] signal email trigger started', {
+      signal_id: signal.id,
+      recipient_count: emailTargeted,
+      template: 'signal-notification',
+      publish_event_at: publishEventAt,
+    })
 
     for (const pref of emailPrefs || []) {
       // Get user email
-      const { data: userEmail } = await supabase.rpc('get_user_email_for_notification', {
+      const { data: userEmail, error: userEmailErr } = await supabase.rpc('get_user_email_for_notification', {
         _user_id: pref.user_id,
       })
+
+      if (userEmailErr) {
+        console.error('[notify-signal] Failed to fetch user email:', {
+          signal_id: signal.id,
+          user_id: pref.user_id,
+          error: userEmailErr,
+        })
+        emailSkipped++
+        continue
+      }
 
       if (!userEmail) {
         console.log('[notify-signal] No email for user:', pref.user_id)
@@ -220,9 +274,19 @@ Deno.serve(async (req) => {
       }
 
       // Check user is approved
-      const { data: userStatus } = await supabase.rpc('get_user_status', {
+      const { data: userStatus, error: userStatusErr } = await supabase.rpc('get_user_status', {
         _user_id: pref.user_id,
       })
+
+      if (userStatusErr) {
+        console.error('[notify-signal] Failed to fetch user status:', {
+          signal_id: signal.id,
+          user_id: pref.user_id,
+          error: userStatusErr,
+        })
+        emailSkipped++
+        continue
+      }
 
       if (userStatus !== 'approved') {
         console.log('[notify-signal] User not approved, skipping email:', pref.user_id, 'status:', userStatus)
@@ -231,63 +295,67 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const dirLabel = signal.direction.toLowerCase().includes('buy') ? '🟢 BUY' : '🔴 SELL'
-        
-        // Enqueue email via pgmq
-        const emailPayload = {
-          to: userEmail,
-          subject: `Nuovo Segnale: ${signal.asset} ${signal.direction}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h2 style="color: #1a1a2e; margin-bottom: 16px;">📊 Nuovo Segnale EasyProp</h2>
-              <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                <p style="margin: 4px 0;"><strong>Asset:</strong> ${signal.asset}</p>
-                <p style="margin: 4px 0;"><strong>Direzione:</strong> ${dirLabel}</p>
-                <p style="margin: 4px 0;"><strong>Tipo:</strong> ${signal.order_type}</p>
-                <p style="margin: 4px 0;"><strong>Forza:</strong> ${signal.signal_strength}/5</p>
-              </div>
-              <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                <p style="margin: 4px 0;"><strong>🎯 Entry:</strong> ${signal.entry_price}</p>
-                <p style="margin: 4px 0;"><strong>🛑 Stop Loss:</strong> ${signal.stop_loss}</p>
-                <p style="margin: 4px 0;"><strong>✅ Take Profit:</strong> ${signal.take_profit}</p>
-              </div>
-              <a href="https://easyprophub.lovable.app/dashboard" 
-                 style="display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
-                Vai alla Dashboard
-              </a>
-            </div>
-          `,
-          idempotency_key: `signal-${signal.id || Date.now()}-${pref.user_id}`,
+        const idempotencyKey = buildSignalEmailIdempotencyKey(
+          signal.id,
+          publishEventAt,
+          pref.user_id
+        )
+
+        console.log('[notify-signal] Enqueueing signal email', {
+          signal_id: signal.id,
+          recipient: userEmail,
+          template: 'signal-notification',
+          idempotency_key: idempotencyKey,
+        })
+
+        const response = await fetch(sendTransactionalEmailUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${supabaseServiceKey}`,
+            apikey: supabaseServiceKey,
+          },
+          body: JSON.stringify({
+            templateName: 'signal-notification',
+            recipientEmail: userEmail,
+            idempotencyKey,
+            templateData: {
+              asset: signal.asset,
+              direction: signal.direction,
+              orderType: signal.order_type,
+              signalStrength: signal.signal_strength || 0,
+              entryPrice: signal.entry_price,
+              stopLoss: signal.stop_loss,
+              takeProfit: signal.take_profit,
+              dashboardUrl: APP_URL,
+            },
+          }),
+        })
+
+        const rawResponse = await response.text()
+        let providerResponse: unknown = rawResponse
+
+        try {
+          providerResponse = rawResponse ? JSON.parse(rawResponse) : null
+        } catch {
+          providerResponse = rawResponse
         }
 
-        // Log the email attempt
-        await supabase.from('email_send_log').insert({
-          template_name: 'signal-notification',
-          recipient_email: userEmail,
-          status: 'pending',
-          message_id: emailPayload.idempotency_key,
-          metadata: { signal_asset: signal.asset, signal_direction: signal.direction },
+        console.log('[notify-signal] Signal email provider response', {
+          signal_id: signal.id,
+          recipient: userEmail,
+          status: response.status,
+          provider_response: providerResponse,
         })
 
-        // Enqueue to transactional_emails queue
-        const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
-          queue_name: 'transactional_emails',
-          payload: emailPayload,
-        })
-
-        if (enqueueErr) {
-          console.error('[notify-signal] Email enqueue failed for:', userEmail, enqueueErr)
+        if (!response.ok) {
+          console.error('[notify-signal] Email enqueue failed for:', userEmail, providerResponse)
           emailFailed++
-          // Update log
-          await supabase.from('email_send_log').insert({
-            template_name: 'signal-notification',
-            recipient_email: userEmail,
-            status: 'failed',
-            message_id: emailPayload.idempotency_key,
-            error_message: enqueueErr.message,
-          })
+          continue
         } else {
           console.log('[notify-signal] Email enqueued for:', userEmail)
+          duplicateSuppressionDetected =
+            duplicateSuppressionDetected || Boolean((providerResponse as { duplicate_suppression_detected?: boolean })?.duplicate_suppression_detected)
           emailSent++
         }
       } catch (err) {
@@ -299,8 +367,12 @@ Deno.serve(async (req) => {
 
   const summary = {
     success: true,
-    telegram: { sent: telegramSent, failed: telegramFailed, skipped: telegramSkipped },
-    email: { enqueued: emailSent, failed: emailFailed, skipped: emailSkipped },
+    signal_id: signal.id || null,
+    trigger_notifications: true,
+    trigger_reason: 'signal publication',
+    duplicate_suppression_detected: duplicateSuppressionDetected,
+    telegram: { targeted: telegramTargeted, sent: telegramSent, failed: telegramFailed, skipped: telegramSkipped },
+    email: { targeted: emailTargeted, enqueued: emailSent, failed: emailFailed, skipped: emailSkipped },
   }
 
   console.log('[notify-signal] FINAL SUMMARY:', JSON.stringify(summary))
