@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Mail, Lock, User, Shield } from "lucide-react";
+import { Mail, Lock, User, Shield, Loader2 } from "lucide-react";
+const NotificationSettings = lazy(() => import("@/components/NotificationSettings"));
 
 export default function AccountSettings() {
   const { user, profile } = useAuth();
@@ -201,6 +202,15 @@ export default function AccountSettings() {
             >
               {passwordLoading ? "Aggiornamento…" : "Aggiorna password"}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Notification Settings */}
+        <Card>
+          <CardContent className="pt-6">
+            <Suspense fallback={<div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>}>
+              <NotificationSettings />
+            </Suspense>
           </CardContent>
         </Card>
 

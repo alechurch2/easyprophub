@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Loader2, Radio, Archive, Eye, EyeOff, TrendingUp, TrendingDown, Zap, Trash2, ChevronDown, History, Filter } from "lucide-react";
+import { Loader2, Radio, Archive, Eye, EyeOff, TrendingUp, TrendingDown, Zap, Trash2, ChevronDown, Filter } from "lucide-react";
 import { toast } from "sonner";
+import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,8 +65,24 @@ export default function AdminSignals() {
   useEffect(() => { load(); }, [load]);
 
   const togglePublish = async (id: string, current: boolean) => {
+    const { data: signalData } = await supabase.from("shared_signals").select("*").eq("id", id).single();
     await supabase.from("shared_signals").update({ is_published: !current } as any).eq("id", id);
     toast.success(current ? "Segnale ritirato" : "Segnale pubblicato");
+
+    // Send notifications when publishing a signal
+    if (!current && signalData) {
+      const { token } = await getValidFunctionAuthToken();
+      if (token) {
+        supabase.functions.invoke("notify-signal", {
+          body: { signal: signalData },
+          headers: { Authorization: `Bearer ${token}` },
+        } as any).then(({ error }) => {
+          if (error) console.error("Notify signal error:", error);
+          else toast.success("Notifiche inviate");
+        }).catch(err => console.error("Notify signal failed:", err));
+      }
+    }
+
     load();
   };
 

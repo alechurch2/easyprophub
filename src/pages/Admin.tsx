@@ -7,8 +7,9 @@ import {
   Shield, Users, BookOpen, HeadphonesIcon, BarChart3, Megaphone, Bot,
   Loader2, Check, X, Pause, Plus, Trash2, Edit2, Save, ChevronLeft,
   ThumbsUp, ThumbsDown, Star, MessageSquare, Link2, GraduationCap, Search, ArrowUpDown, Wallet,
-  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity, Radio, Layers
+  Crown, Clock, Calendar, RefreshCw, Infinity, AlertTriangle, Activity, Radio, Layers, Mail
 } from "lucide-react";
+import AdminEmailLog from "@/components/admin/AdminEmailLog";
 import AdminAnalytics from "@/components/admin/AdminAnalytics";
 import AdminSignals from "@/components/admin/AdminSignals";
 import { Button } from "@/components/ui/button";
@@ -2250,6 +2251,7 @@ export default function Admin() {
             <TabsTrigger value="announcements" className="flex-1 min-w-[80px]"><Megaphone className="h-3 w-3 mr-1" />Annunci</TabsTrigger>
             <TabsTrigger value="analytics" className="flex-1 min-w-[80px]"><Activity className="h-3 w-3 mr-1" />Analytics</TabsTrigger>
             <TabsTrigger value="signals" className="flex-1 min-w-[80px]"><Radio className="h-3 w-3 mr-1" />Segnali</TabsTrigger>
+            <TabsTrigger value="email-log" className="flex-1 min-w-[80px]"><Mail className="h-3 w-3 mr-1" />Email</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users"><AdminUsers /></TabsContent>
@@ -2263,6 +2265,7 @@ export default function Admin() {
           <TabsContent value="announcements"><AdminAnnouncements /></TabsContent>
           <TabsContent value="analytics"><AdminAnalytics /></TabsContent>
           <TabsContent value="signals"><AdminSignals /></TabsContent>
+          <TabsContent value="email-log"><AdminEmailLog /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>
