@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
 
     console.log(`[TradeReview] Analyzing trade ${trade_id} for user ${user.id}`);
 
-    const aiRes = await fetch("https://ai.lovable.dev/api/v1/chat/completions", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
