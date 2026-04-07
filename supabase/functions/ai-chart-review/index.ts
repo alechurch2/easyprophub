@@ -982,7 +982,7 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
     const toolName = isEasy ? "easy_chart_analysis" : "chart_analysis";
 
     console.log(
-      `[AI Chart Review] Mode: ${isEasy ? "easy" : "pro"}, Tier: ${isPremium ? "premium" : "standard"}, Model: ${model}`,
+      `[AI Chart Review] Mode: ${isEasy ? "easy" : "pro"}, Tier: ${isPremium ? "premium" : "standard"}, Model: ${model}, Overlay: ${!!uses_ai_overlay}`,
     );
 
     // Call AI
