@@ -71,15 +71,33 @@ export default function AdminSignals() {
 
     // Send notifications when publishing a signal
     if (!current && signalData) {
-      const { token } = await getValidFunctionAuthToken();
-      if (token) {
-        supabase.functions.invoke("notify-signal", {
-          body: { signal: signalData },
-          headers: { Authorization: `Bearer ${token}` },
-        } as any).then(({ error }) => {
-          if (error) console.error("Notify signal error:", error);
-          else toast.success("Notifiche inviate");
-        }).catch(err => console.error("Notify signal failed:", err));
+      console.log("[AdminSignals] Signal published, triggering notifications for:", signalData.id);
+      const { token, error: tokenError } = await getValidFunctionAuthToken();
+      if (tokenError || !token) {
+        console.error("[AdminSignals] Failed to get auth token:", tokenError);
+        toast.error("Errore autenticazione per le notifiche");
+      } else {
+        console.log("[AdminSignals] Invoking notify-signal with token");
+        try {
+          const { data: notifyResult, error: notifyError } = await supabase.functions.invoke("notify-signal", {
+            body: { signal: signalData },
+          });
+
+          if (notifyError) {
+            console.error("[AdminSignals] notify-signal error:", notifyError);
+            toast.error("Errore invio notifiche: " + (notifyError.message || "sconosciuto"));
+          } else {
+            console.log("[AdminSignals] notify-signal result:", notifyResult);
+            const tg = notifyResult?.telegram;
+            const em = notifyResult?.email;
+            toast.success(
+              `Notifiche: Telegram ${tg?.sent || 0} inviate, Email ${em?.enqueued || 0} in coda`
+            );
+          }
+        } catch (err) {
+          console.error("[AdminSignals] notify-signal exception:", err);
+          toast.error("Errore critico invio notifiche");
+        }
       }
     }
 
