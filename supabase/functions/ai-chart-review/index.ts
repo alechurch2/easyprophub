@@ -1024,7 +1024,13 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: "Errore nella generazione dell'analisi AI" }), {
+      if (aiResponse.status === 502 || aiResponse.status === 503 || aiResponse.status === 504) {
+        return new Response(JSON.stringify({ error: "Il servizio AI è temporaneamente non disponibile. Riprova tra qualche secondo." }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ error: `Errore nella generazione dell'analisi AI (codice: ${aiResponse.status})` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
