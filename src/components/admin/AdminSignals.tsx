@@ -65,8 +65,24 @@ export default function AdminSignals() {
   useEffect(() => { load(); }, [load]);
 
   const togglePublish = async (id: string, current: boolean) => {
+    const { data: signalData } = await supabase.from("shared_signals").select("*").eq("id", id).single();
     await supabase.from("shared_signals").update({ is_published: !current } as any).eq("id", id);
     toast.success(current ? "Segnale ritirato" : "Segnale pubblicato");
+
+    // Send notifications when publishing a signal
+    if (!current && signalData) {
+      const { token } = await getValidFunctionAuthToken();
+      if (token) {
+        supabase.functions.invoke("notify-signal", {
+          body: { signal: signalData },
+          headers: { Authorization: `Bearer ${token}` },
+        } as any).then(({ error }) => {
+          if (error) console.error("Notify signal error:", error);
+          else toast.success("Notifiche inviate");
+        }).catch(err => console.error("Notify signal failed:", err));
+      }
+    }
+
     load();
   };
 

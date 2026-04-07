@@ -205,6 +205,15 @@ export default function AccountSettings() {
           </CardContent>
         </Card>
 
+        {/* Notification Settings */}
+        <Card>
+          <CardContent className="pt-6">
+            <Suspense fallback={<div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>}>
+              <NotificationSettings />
+            </Suspense>
+          </CardContent>
+        </Card>
+
         {/* Security note */}
         <div className="flex items-start gap-3 p-4 rounded-lg border border-border bg-muted/30">
           <Shield className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
