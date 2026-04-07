@@ -902,8 +902,9 @@ serve(async (req) => {
 
     // Build user prompt
     const tierLabel = isPremium ? " (ANALISI PREMIUM — massimo dettaglio e approfondimento)" : "";
+    const overlayLabel = uses_ai_overlay ? "\n\n⚠️ OVERLAY AI ATTIVO: Lo screenshot è stato realizzato con l'indicatore AI Overlay proprietario. Usa le istruzioni overlay nel system prompt per interpretare correttamente pannello, colori e livelli." : "";
     const userText = isEasy
-      ? `Analizza questo grafico in modalità Easy.${tierLabel}
+      ? `Analizza questo grafico in modalità Easy.${tierLabel}${overlayLabel}
 
 METADATI:
 - Asset: ${asset}
@@ -919,7 +920,7 @@ ISTRUZIONI CRITICHE:
 4. Fornisci anche contesto_mercato per dare valore informativo.
 
 Usa ESCLUSIVAMENTE la funzione "easy_chart_analysis" per restituire l'output.`
-      : `Analizza questo grafico secondo la strategia predefinita.${tierLabel}
+      : `Analizza questo grafico secondo la strategia predefinita.${tierLabel}${overlayLabel}
 
 METADATI:
 - Asset: ${asset}
