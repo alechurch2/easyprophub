@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Loader2, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, XCircle } from "lucide-react";
+import { Loader2, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, XCircle, ShieldCheck, ShieldAlert, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,9 @@ interface TradeDetails {
   takeProfit: number;
   lotSize: number;
   signalQuality: string;
+  signalStrength?: number;
+  riskPercent?: number;
+  accountType?: string; // 'live' | 'demo' | 'prop'
 }
 
 interface TradingAccount {
@@ -35,12 +38,92 @@ interface Props {
   reviewId?: string;
 }
 
+// ---- Pre-Trade Checklist Logic ----
+interface ChecklistItem {
+  label: string;
+  value: string;
+  status: "ok" | "warning" | "danger";
+}
+
+type Verdict = "recommended" | "caution" | "discouraged";
+
+function evaluateChecklist(trade: TradeDetails): { items: ChecklistItem[]; verdict: Verdict; verdictLabel: string } {
+  const items: ChecklistItem[] = [];
+  const strength = trade.signalStrength ?? 3;
+  const risk = trade.riskPercent ?? 0.2;
+  const isProp = trade.accountType === "prop";
+  const quality = (trade.signalQuality || "").toLowerCase();
+
+  // Signal strength
+  if (strength >= 4) items.push({ label: "Forza segnale", value: "Forte", status: "ok" });
+  else if (strength >= 3) items.push({ label: "Forza segnale", value: "Buona", status: "ok" });
+  else if (strength >= 2) items.push({ label: "Forza segnale", value: "Moderata", status: "warning" });
+  else items.push({ label: "Forza segnale", value: "Debole", status: "danger" });
+
+  // Context / quality
+  if (["strong", "ottimo", "buono", "good"].some(q => quality.includes(q))) {
+    items.push({ label: "Contesto", value: "Favorevole", status: "ok" });
+  } else if (["moderate", "accettabile", "medio", "fair"].some(q => quality.includes(q))) {
+    items.push({ label: "Contesto", value: "Accettabile", status: "warning" });
+  } else if (quality) {
+    items.push({ label: "Contesto", value: "Fragile", status: "danger" });
+  } else {
+    items.push({ label: "Contesto", value: "Non disponibile", status: "warning" });
+  }
+
+  // Risk
+  if (risk <= 0.15) items.push({ label: "Rischio scelto", value: `${(risk * 100).toFixed(1)}% — Conservativo`, status: "ok" });
+  else if (risk <= 0.25) items.push({ label: "Rischio scelto", value: `${(risk * 100).toFixed(1)}% — Coerente`, status: "ok" });
+  else if (risk <= 0.5) items.push({ label: "Rischio scelto", value: `${(risk * 100).toFixed(1)}% — Moderato`, status: "warning" });
+  else items.push({ label: "Rischio scelto", value: `${(risk * 100).toFixed(1)}% — Aggressivo`, status: "danger" });
+
+  // Prop firm compatibility
+  if (isProp) {
+    if (risk > 0.25) items.push({ label: "Compatibilità prop firm", value: "Rischio elevato per prop", status: "danger" });
+    else items.push({ label: "Compatibilità prop firm", value: "Prudenza rispettata", status: "ok" });
+  }
+
+  // Order type
+  const ot = trade.orderType.toLowerCase();
+  if (ot === "market") items.push({ label: "Tipo ordine", value: "Market — esecuzione immediata", status: "ok" });
+  else items.push({ label: "Tipo ordine", value: `${trade.orderType} — esecuzione condizionata`, status: "ok" });
+
+  // Verdict
+  const dangers = items.filter(i => i.status === "danger").length;
+  const warnings = items.filter(i => i.status === "warning").length;
+
+  let verdict: Verdict = "recommended";
+  let verdictLabel = "Copia consigliata";
+  if (dangers >= 2 || (dangers >= 1 && warnings >= 2) || strength < 2) {
+    verdict = "discouraged";
+    verdictLabel = "Copia sconsigliata";
+  } else if (dangers >= 1 || warnings >= 2) {
+    verdict = "caution";
+    verdictLabel = "Copia possibile, con prudenza";
+  }
+
+  return { items, verdict, verdictLabel };
+}
+
+const verdictConfig = {
+  recommended: { color: "text-success", bg: "bg-success/10 border-success/30", icon: ShieldCheck },
+  caution: { color: "text-warning", bg: "bg-warning/10 border-warning/30", icon: Shield },
+  discouraged: { color: "text-destructive", bg: "bg-destructive/10 border-destructive/30", icon: ShieldAlert },
+};
+
+const statusDot = { ok: "bg-success", warning: "bg-warning", danger: "bg-destructive" };
+
 export function TradeExecutionModal({ open, onClose, trade, account, reviewId }: Props) {
+  const [step, setStep] = useState<"checklist" | "confirm">("checklist");
   const [confirmed, setConfirmed] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
   const isBuy = trade.direction.toLowerCase().includes("buy");
+
+  const checklist = useMemo(() => evaluateChecklist(trade), [trade]);
+  const vc = verdictConfig[checklist.verdict];
+  const VerdictIcon = vc.icon;
 
   const handleExecute = async () => {
     if (!confirmed) return;
@@ -89,6 +172,7 @@ export function TradeExecutionModal({ open, onClose, trade, account, reviewId }:
   };
 
   const handleClose = () => {
+    setStep("checklist");
     setConfirmed(false);
     setResult(null);
     onClose();
@@ -100,10 +184,12 @@ export function TradeExecutionModal({ open, onClose, trade, account, reviewId }:
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isBuy ? <TrendingUp className="h-5 w-5 text-success" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
-            Conferma ordine
+            {step === "checklist" ? "Pre-Trade Check" : "Conferma ordine"}
           </DialogTitle>
           <DialogDescription>
-            Verifica i dettagli prima di inviare l'ordine al conto collegato.
+            {step === "checklist"
+              ? "Valutazione automatica del segnale prima dell'esecuzione."
+              : "Verifica i dettagli prima di inviare l'ordine al conto collegato."}
           </DialogDescription>
         </DialogHeader>
 
@@ -122,7 +208,45 @@ export function TradeExecutionModal({ open, onClose, trade, account, reviewId }:
             </div>
             <Button onClick={handleClose} className="w-full">Chiudi</Button>
           </div>
+        ) : step === "checklist" ? (
+          /* ---- PRE-TRADE CHECKLIST ---- */
+          <div className="space-y-4 py-2">
+            {/* Checklist rows */}
+            <div className="space-y-2">
+              {checklist.items.map((item, i) => (
+                <div key={i} className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2.5">
+                  <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground">{item.value}</span>
+                    <div className={cn("h-2 w-2 rounded-full shrink-0", statusDot[item.status])} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Verdict */}
+            <div className={cn("rounded-xl border p-4 flex items-center gap-3", vc.bg)}>
+              <VerdictIcon className={cn("h-6 w-6 shrink-0", vc.color)} />
+              <div>
+                <p className={cn("text-sm font-bold", vc.color)}>{checklist.verdictLabel}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {checklist.verdict === "recommended" && "Il segnale presenta condizioni favorevoli per il copy."}
+                  {checklist.verdict === "caution" && "Alcune condizioni richiedono attenzione. Valuta con prudenza."}
+                  {checklist.verdict === "discouraged" && "Condizioni sfavorevoli. Considera di saltare questo trade."}
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleClose} className="flex-1">Annulla</Button>
+              <Button onClick={() => setStep("confirm")} className="flex-1">
+                Procedi all'ordine
+              </Button>
+            </div>
+          </div>
         ) : (
+          /* ---- CONFIRMATION STEP (original) ---- */
           <div className="space-y-4 py-2">
             {/* Account info */}
             <div className="rounded-lg bg-secondary/50 p-3">
@@ -193,7 +317,7 @@ export function TradeExecutionModal({ open, onClose, trade, account, reviewId }:
 
             {/* Actions */}
             <div className="flex gap-2">
-              <Button variant="outline" onClick={handleClose} className="flex-1">Annulla</Button>
+              <Button variant="outline" onClick={() => setStep("checklist")} className="flex-1">Indietro</Button>
               <Button
                 onClick={handleExecute}
                 disabled={!confirmed || executing}
