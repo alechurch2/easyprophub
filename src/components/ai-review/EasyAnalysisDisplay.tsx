@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { fullLotCalculationFromPrices } from "./lotSizeCalculator";
 import { TradeExecutionModal } from "./TradeExecutionModal";
+import { formatSignalNotificationToast, invokeSignalNotification } from "@/lib/signalNotifications";
 import { toast } from "sonner";
 
 // ── Types ──
@@ -444,7 +445,7 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
                         const slPrice = parsePrice(setup.stop_loss);
                         const tpPrice = parsePrice(setup.take_profit);
                         console.log("[AdminPublish] Pending order", { reviewId, orderType: setup.tipo, asset, entryPrice, slPrice, tpPrice, strength: pStrength });
-                        const { error } = await supabase.from("shared_signals").insert({
+                        const { data: insertedSignal, error } = await supabase.from("shared_signals").insert({
                           review_id: reviewId || null,
                           created_by: user!.id,
                           asset: asset || "N/A",
@@ -457,11 +458,23 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
                           signal_strength: pStrength,
                           signal_quality: raw.signal_quality,
                           explanation: setup.spiegazione || raw.conclusione,
-                        } as any);
-                        if (error) {
+                          is_published: true,
+                        } as any).select("*").single();
+                        if (error || !insertedSignal) {
                           toast.error("Errore nella pubblicazione del segnale");
                         } else {
-                          toast.success("Segnale pending pubblicato!");
+                          const notifyOutcome = await invokeSignalNotification({
+                            signal: insertedSignal as any,
+                            currentPublished: false,
+                            nextPublished: true,
+                            source: "easy-analysis-pending",
+                          });
+
+                          if (notifyOutcome.error) {
+                            toast.error(`Segnale pending pubblicato ma notifiche fallite: ${notifyOutcome.error}`);
+                          } else {
+                            toast.success(`Segnale pending pubblicato. ${formatSignalNotificationToast(notifyOutcome.result || undefined)}`);
+                          }
                         }
                       }}
                     >
@@ -511,7 +524,7 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
               const slPrice = parsePrice(primarySignal!.stop_loss);
               const tpPrice = parsePrice(primarySignal!.take_profit);
               console.log("[AdminPublish] Market order", { reviewId, asset, entryPrice, slPrice, tpPrice, adminLot: primaryLotCalc?.lotSize, strength, risk: effectiveRisk });
-              const { error } = await supabase.from("shared_signals").insert({
+              const { data: insertedSignal, error } = await supabase.from("shared_signals").insert({
                 review_id: reviewId || null,
                 created_by: user!.id,
                 asset: asset || "N/A",
@@ -524,11 +537,23 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
                 signal_strength: strength,
                 signal_quality: raw.signal_quality,
                 explanation: primarySignal!.spiegazione || raw.conclusione,
-              } as any);
-              if (error) {
+                is_published: true,
+              } as any).select("*").single();
+              if (error || !insertedSignal) {
                 toast.error("Errore nella pubblicazione del segnale");
               } else {
-                toast.success("Segnale pubblicato in dashboard!");
+                const notifyOutcome = await invokeSignalNotification({
+                  signal: insertedSignal as any,
+                  currentPublished: false,
+                  nextPublished: true,
+                  source: "easy-analysis-market",
+                });
+
+                if (notifyOutcome.error) {
+                  toast.error(`Segnale pubblicato ma notifiche fallite: ${notifyOutcome.error}`);
+                } else {
+                  toast.success(`Segnale pubblicato. ${formatSignalNotificationToast(notifyOutcome.result || undefined)}`);
+                }
               }
             }}
           >

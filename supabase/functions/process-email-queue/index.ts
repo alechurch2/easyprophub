@@ -52,6 +52,52 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
   }
 }
 
+function validateQueuedEmailPayload(
+  queue: string,
+  payload: Record<string, unknown>
+): string | null {
+  const issues: string[] = []
+
+  if (typeof payload.to !== 'string' || payload.to.length === 0) {
+    issues.push('missing to')
+  }
+
+  if (typeof payload.subject !== 'string' || payload.subject.length === 0) {
+    issues.push('missing subject')
+  }
+
+  const hasHtml = typeof payload.html === 'string' && payload.html.length > 0
+  const hasText = typeof payload.text === 'string' && payload.text.length > 0
+  if (!hasHtml && !hasText) {
+    issues.push('missing html/text content')
+  }
+
+  if (typeof payload.message_id !== 'string' || payload.message_id.length === 0) {
+    issues.push('missing message_id')
+  }
+
+  if (queue === 'transactional_emails') {
+    if (payload.purpose !== 'transactional') {
+      issues.push('missing purpose=transactional')
+    }
+
+    if (
+      typeof payload.idempotency_key !== 'string' ||
+      payload.idempotency_key.length === 0
+    ) {
+      issues.push('missing idempotency_key')
+    }
+  }
+
+  if (queue === 'auth_emails') {
+    if (typeof payload.run_id !== 'string' || payload.run_id.length === 0) {
+      issues.push('missing run_id')
+    }
+  }
+
+  return issues.length > 0 ? issues.join(', ') : null
+}
+
 // Move a message to the dead letter queue and log the reason.
 async function moveToDlq(
   supabase: ReturnType<typeof createClient>,
@@ -196,6 +242,18 @@ Deno.serve(async (req) => {
         payload?.message_id && typeof payload.message_id === 'string'
           ? (failedAttemptsByMessageId.get(payload.message_id) ?? 0)
           : 0
+
+      const invalidPayloadReason = validateQueuedEmailPayload(queue, payload)
+      if (invalidPayloadReason) {
+        console.error('Invalid email payload detected', {
+          queue,
+          msg_id: msg.msg_id,
+          reason: invalidPayloadReason,
+          payload,
+        })
+        await moveToDlq(supabase, queue, msg, `Invalid payload: ${invalidPayloadReason}`)
+        continue
+      }
 
       // Drop expired messages (TTL exceeded)
       if (payload.queued_at) {
