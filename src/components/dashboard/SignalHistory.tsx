@@ -29,7 +29,7 @@ export function SignalHistory() {
         .from("shared_signals")
         .select("id, asset, direction, order_type, entry_price, stop_loss, take_profit, signal_strength, signal_status, published_at, explanation")
         .eq("is_published", true)
-        .in("signal_status", ["won", "lost", "expired", "withdrawn", "triggered"])
+        .neq("signal_status", "active")
         .order("published_at", { ascending: false })
         .limit(20);
       if (data) setSignals(data as any);

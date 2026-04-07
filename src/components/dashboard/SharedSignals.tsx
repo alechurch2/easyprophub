@@ -56,7 +56,7 @@ export function SharedSignals() {
       .select("*")
       .eq("is_published", true)
       .eq("is_archived", false)
-      .in("signal_status", ["active", "triggered"])
+      .eq("signal_status", "active")
       .order("published_at", { ascending: false })
       .limit(10);
     if (data) setSignals(data as any);

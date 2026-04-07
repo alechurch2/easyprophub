@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Loader2, Radio, Archive, Eye, EyeOff, TrendingUp, TrendingDown, Zap, Trash2, ChevronDown, History } from "lucide-react";
+import { Loader2, Radio, Archive, Eye, EyeOff, TrendingUp, TrendingDown, Zap, Trash2, ChevronDown, History, Filter } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -19,6 +19,12 @@ const SIGNAL_STATUSES = [
   { value: "lost", label: "Perso", color: "bg-destructive/10 text-destructive border-destructive/20" },
   { value: "expired", label: "Scaduto", color: "bg-muted text-muted-foreground border-border" },
   { value: "withdrawn", label: "Ritirato", color: "bg-warning/10 text-warning border-warning/20" },
+] as const;
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "Tutti" },
+  { value: "operative", label: "Operativi" },
+  ...SIGNAL_STATUSES.map(s => ({ value: s.value, label: s.label })),
 ] as const;
 
 interface Signal {
@@ -43,18 +49,19 @@ interface Signal {
 export default function AdminSignals() {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showHistory, setShowHistory] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
     const { data } = await supabase
       .from("shared_signals")
       .select("*")
       .order("created_at", { ascending: false });
     if (data) setSignals(data as any);
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const togglePublish = async (id: string, current: boolean) => {
     await supabase.from("shared_signals").update({ is_published: !current } as any).eq("id", id);
@@ -86,104 +93,58 @@ export default function AdminSignals() {
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
 
-  const active = signals.filter(s => !s.is_archived && s.signal_status === "active");
-  const openSignals = signals.filter(s => !s.is_archived && s.signal_status !== "active");
-  const archived = signals.filter(s => s.is_archived);
-  const closedStatuses = ["won", "lost", "expired", "withdrawn"];
-  const history = signals.filter(s => closedStatuses.includes(s.signal_status));
+  // Apply filter
+  const filtered = signals.filter(sig => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "operative") return ["active", "triggered"].includes(sig.signal_status);
+    return sig.signal_status === statusFilter;
+  });
+
+  const activeCount = signals.filter(s => s.signal_status === "active").length;
+  const currentFilterLabel = STATUS_FILTER_OPTIONS.find(f => f.value === statusFilter)?.label || "Tutti";
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Radio className="h-4 w-4 text-primary" />
           <h3 className="font-heading font-semibold text-foreground">Segnali globali</h3>
-          <Badge variant="outline" className="text-xs">{active.length} attivi</Badge>
+          <Badge variant="outline" className="text-xs">{activeCount} attivi</Badge>
+          <Badge variant="outline" className="text-xs">{signals.length} totali</Badge>
         </div>
-        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowHistory(!showHistory)}>
-          <History className="h-3 w-3 mr-1" />{showHistory ? "Nascondi storico" : "Mostra storico"}
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="h-7 text-xs">
+              <Filter className="h-3 w-3 mr-1" />{currentFilterLabel} <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {STATUS_FILTER_OPTIONS.map((f) => (
+              <DropdownMenuItem
+                key={f.value}
+                onClick={() => setStatusFilter(f.value)}
+                className={cn("text-xs", statusFilter === f.value && "font-bold")}
+              >
+                {f.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {signals.length === 0 && (
         <p className="text-sm text-muted-foreground">Nessun segnale pubblicato. Puoi pubblicare segnali dalla AI Chart Review Easy Mode.</p>
       )}
 
-      {/* Active signals */}
-      {active.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase">Attivi</p>
-          {active.map((sig) => (
-            <SignalRow key={sig.id} signal={sig} onTogglePublish={togglePublish} onToggleArchive={toggleArchive} onDelete={deleteSignal} onChangeStatus={changeStatus} />
-          ))}
-        </div>
+      {filtered.length === 0 && signals.length > 0 && (
+        <p className="text-sm text-muted-foreground">Nessun segnale con filtro "{currentFilterLabel}".</p>
       )}
 
-      {/* Open / non-active non-archived */}
-      {openSignals.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase">In corso / Chiusi</p>
-          {openSignals.map((sig) => (
-            <SignalRow key={sig.id} signal={sig} onTogglePublish={togglePublish} onToggleArchive={toggleArchive} onDelete={deleteSignal} onChangeStatus={changeStatus} />
-          ))}
-        </div>
-      )}
-
-      {/* History */}
-      {showHistory && history.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase">Storico segnali</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="py-2 px-2 text-left font-medium">Asset</th>
-                  <th className="py-2 px-2 text-left font-medium">Direzione</th>
-                  <th className="py-2 px-2 text-left font-medium">Entry</th>
-                  <th className="py-2 px-2 text-left font-medium">SL</th>
-                  <th className="py-2 px-2 text-left font-medium">TP</th>
-                  <th className="py-2 px-2 text-left font-medium">Stato</th>
-                  <th className="py-2 px-2 text-left font-medium">Pubblicato</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((sig) => {
-                  const statusInfo = SIGNAL_STATUSES.find(s => s.value === sig.signal_status);
-                  return (
-                    <tr key={sig.id} className="border-b border-border/50">
-                      <td className="py-2 px-2 font-medium text-foreground">{sig.asset}</td>
-                      <td className="py-2 px-2">
-                        <Badge className={cn("text-[10px]", sig.direction.toLowerCase().includes("buy") ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
-                          {sig.direction} {sig.order_type}
-                        </Badge>
-                      </td>
-                      <td className="py-2 px-2 font-mono text-foreground">{sig.entry_price}</td>
-                      <td className="py-2 px-2 font-mono text-destructive">{sig.stop_loss}</td>
-                      <td className="py-2 px-2 font-mono text-success">{sig.take_profit}</td>
-                      <td className="py-2 px-2">
-                        <Badge className={cn("text-[10px]", statusInfo?.color)}>{statusInfo?.label}</Badge>
-                      </td>
-                      <td className="py-2 px-2 text-muted-foreground">
-                        {new Date(sig.published_at).toLocaleDateString("it-IT")}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Archived */}
-      {archived.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase">Archiviati</p>
-          {archived.map((sig) => (
-            <SignalRow key={sig.id} signal={sig} onTogglePublish={togglePublish} onToggleArchive={toggleArchive} onDelete={deleteSignal} onChangeStatus={changeStatus} />
-          ))}
-        </div>
-      )}
+      <div className="space-y-3">
+        {filtered.map((sig) => (
+          <SignalRow key={sig.id} signal={sig} onTogglePublish={togglePublish} onToggleArchive={toggleArchive} onDelete={deleteSignal} onChangeStatus={changeStatus} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -218,6 +179,9 @@ function SignalRow({ signal: sig, onTogglePublish, onToggleArchive, onDelete, on
           )}
           {!sig.is_published && (
             <Badge className="text-[10px] bg-warning/10 text-warning">Non pubblicato</Badge>
+          )}
+          {sig.is_archived && (
+            <Badge className="text-[10px] bg-muted text-muted-foreground">Archiviato</Badge>
           )}
         </div>
         <span className="text-[10px] text-muted-foreground">
