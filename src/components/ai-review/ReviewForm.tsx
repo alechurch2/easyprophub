@@ -31,6 +31,7 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
   const [preview, setPreview] = useState<string | null>(null);
   const [userNote, setUserNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [usesAiOverlay, setUsesAiOverlay] = useState(false);
 
   useEffect(() => {
     if (!file) { setPreview(null); return; }
