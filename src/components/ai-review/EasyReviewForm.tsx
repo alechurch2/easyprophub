@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, Link2, ShieldCheck, Upload, Camera, ChevronRight, Layers } from "lucide-react";
+import { Loader2, Link2, ShieldCheck, Upload, Camera, ChevronRight, Layers, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
