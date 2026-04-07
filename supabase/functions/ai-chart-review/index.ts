@@ -971,6 +971,12 @@ Usa ESCLUSIVAMENTE la funzione "chart_analysis" per restituire l'output struttur
     } else {
       systemPrompt = isPremium ? SYSTEM_PROMPT_PRO_PREMIUM : SYSTEM_PROMPT_PRO;
     }
+
+    // Append overlay instructions if uses_ai_overlay is true
+    if (uses_ai_overlay) {
+      systemPrompt += OVERLAY_PROMPT_ADDON;
+    }
+
     const analysisTool = isEasy ? ANALYSIS_TOOL_EASY : ANALYSIS_TOOL_PRO;
     const toolName = isEasy ? "easy_chart_analysis" : "chart_analysis";
 
