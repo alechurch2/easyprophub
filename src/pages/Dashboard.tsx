@@ -168,6 +168,7 @@ export default function Dashboard() {
 
           {/* ── Signals section ── */}
           <SharedSignals />
+          <SignalHistory />
 
           {/* ── Stats row — asymmetric layout ── */}
           {totalReviews > 0 && (
