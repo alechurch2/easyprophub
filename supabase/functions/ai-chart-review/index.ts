@@ -877,6 +877,7 @@ serve(async (req) => {
       review_mode: isEasy ? "easy" : "pro",
       review_tier: isPremium ? "premium" : "standard",
       ai_model_used: model,
+      uses_ai_overlay: !!uses_ai_overlay,
     };
     if (isEasy && account_size) {
       insertData.account_size = account_size;
