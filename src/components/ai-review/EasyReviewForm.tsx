@@ -128,6 +128,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
             account_size: accountSize,
             review_tier: reviewTier,
             risk_percent: selectedRisk,
+            uses_ai_overlay: usesAiOverlay,
           }),
         }
       );
