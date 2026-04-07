@@ -373,6 +373,32 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard" }: 
               <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
             </label>
           )}
+
+          {/* ── AI Overlay toggle ── */}
+          <div className={cn(
+            "mt-4 rounded-xl border p-4 transition-all duration-200",
+            usesAiOverlay
+              ? "border-primary/30 bg-primary/[0.04]"
+              : "border-border/40 bg-muted/10"
+          )}>
+            <div className="flex items-start gap-3">
+              <div className={cn(
+                "mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                usesAiOverlay ? "bg-primary/15 text-primary" : "bg-muted/30 text-muted-foreground"
+              )}>
+                <Layers className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-foreground">Screenshot con indicatore AI Overlay</p>
+                  <Switch checked={usesAiOverlay} onCheckedChange={setUsesAiOverlay} />
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  Se attivo, l'AI interpreterà colori, livelli, pannello e segnali visivi del grafico secondo la legenda dell'indicatore proprietario.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ─── SECTION: NOTE ─── */}

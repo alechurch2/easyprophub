@@ -75,6 +75,7 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
             user_note: userNote.trim() || null,
             parent_review_id: parentReviewId || null,
             review_tier: reviewTier,
+            uses_ai_overlay: usesAiOverlay,
           }),
         }
       );
