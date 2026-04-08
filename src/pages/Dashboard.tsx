@@ -245,28 +245,50 @@ export default function Dashboard() {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className="card-premium p-4 group hover:border-primary/20 transition-all duration-300"
+                  className={cn(
+                    "card-premium p-4 group transition-all duration-300 relative overflow-hidden",
+                    item.locked
+                      ? "hover:border-primary/10 opacity-80"
+                      : "hover:border-primary/20"
+                  )}
                   style={{ animationDelay: `${i * 40}ms` }}
                 >
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105",
+                      item.locked ? "bg-muted/60" :
                       item.accent === "primary" ? "bg-primary/8" :
                       item.accent === "success" ? "bg-success/8" :
                       "bg-info/8"
                     )}>
                       <item.icon className={cn(
                         "h-4 w-4",
+                        item.locked ? "text-muted-foreground/50" :
                         item.accent === "primary" ? "text-primary" :
                         item.accent === "success" ? "text-success" :
                         "text-info"
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-heading font-semibold text-foreground text-sm leading-tight">{item.title}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.desc}</p>
+                      <div className="flex items-center gap-2">
+                        <h3 className={cn(
+                          "font-heading font-semibold text-sm leading-tight",
+                          item.locked ? "text-foreground/70" : "text-foreground"
+                        )}>{item.title}</h3>
+                        {item.locked && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 border border-primary/10">
+                            <Crown className="h-2.5 w-2.5 text-primary/70" />
+                            <span className="text-[9px] font-semibold text-primary/70 uppercase tracking-wider">Premium</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className={cn("text-xs mt-0.5 leading-relaxed", item.locked ? "text-muted-foreground/50" : "text-muted-foreground")}>{item.desc}</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/60 transition-all duration-300 shrink-0 mt-0.5 group-hover:translate-x-0.5" />
+                    {item.locked ? (
+                      <Lock className="h-4 w-4 text-muted-foreground/30 shrink-0 mt-0.5" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/60 transition-all duration-300 shrink-0 mt-0.5 group-hover:translate-x-0.5" />
+                    )}
                   </div>
                 </Link>
               ))}
