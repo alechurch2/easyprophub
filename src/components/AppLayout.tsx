@@ -92,6 +92,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <p className="text-label uppercase text-muted-foreground/60 font-semibold px-3 mb-2 mt-1">Navigazione</p>
           {filteredItems.map((item) => {
             const active = location.pathname.startsWith(item.path);
+            const locked = isItemLocked(item);
             return (
               <Link
                 key={item.path}
@@ -100,6 +101,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 group relative",
                   active
                     ? "bg-primary/10 text-primary"
+                    : locked
+                    ? "text-muted-foreground/50 hover:text-muted-foreground/70 hover:bg-muted/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                 )}
               >
@@ -108,10 +111,16 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 )}
                 <item.icon className={cn(
                   "h-4 w-4 transition-colors shrink-0",
-                  active ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground"
+                  active ? "text-primary" : locked ? "text-muted-foreground/40" : "text-muted-foreground/70 group-hover:text-foreground"
                 )} />
-                <span>{item.label}</span>
-                {active && <ChevronRight className="h-3 w-3 ml-auto text-primary/50" />}
+                <span className={locked ? "opacity-70" : ""}>{item.label}</span>
+                {locked && (
+                  <span className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 border border-primary/10">
+                    <Crown className="h-2.5 w-2.5 text-primary/70" />
+                    <span className="text-[9px] font-semibold text-primary/70 uppercase tracking-wider">Pro</span>
+                  </span>
+                )}
+                {active && !locked && <ChevronRight className="h-3 w-3 ml-auto text-primary/50" />}
               </Link>
             );
           })}
