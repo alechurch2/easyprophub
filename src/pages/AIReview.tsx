@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap, Crown, Lock, Layers } from "lucide-react";
+import { ReviewLoadingState } from "@/components/ai-review/ReviewLoadingState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
