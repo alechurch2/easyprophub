@@ -25,6 +25,7 @@ interface HistorySignal {
   take_profit: number;
   signal_strength: number;
   signal_status: string;
+  signal_source?: string;
   published_at: string;
   explanation: string | null;
 }
