@@ -119,9 +119,8 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
         {signals.map((sig) => {
           const sInfo = strengthLabel(sig.signal_strength);
           const buy = isBuy(sig.direction);
-          const userEquity = tradingAccount?.equity || null;
-          const lotCalc = userEquity
-            ? fullLotCalculationFromPrices(userEquity, sig.entry_price, sig.stop_loss, sig.take_profit, sig.asset, USER_DEFAULT_RISK)
+          const lotCalc = riskCtx.isConfigured
+            ? fullLotCalculationFromPrices(riskCtx.effectiveAccountSize, sig.entry_price, sig.stop_loss, sig.take_profit, sig.asset, riskCtx.riskPercent)
             : null;
           const copyable = isSignalCopyable(sig.signal_status);
 
