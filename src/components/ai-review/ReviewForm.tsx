@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2, Upload, BarChart3, ChevronRight, Layers, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,11 +11,11 @@ import { toast } from "sonner";
 import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES, REQUEST_TYPES } from "./types";
 import { cn } from "@/lib/utils";
-import { ReviewLoadingState } from "./ReviewLoadingState";
 
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
+  onAnalyzing?: () => void;
   parentReviewId?: string | null;
   defaultAsset?: string;
   defaultTimeframe?: string;
@@ -24,7 +23,7 @@ interface Props {
   licenseLevel?: string;
 }
 
-export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, defaultTimeframe, reviewTier = "standard", licenseLevel = "free" }: Props) {
+export function ReviewForm({ onClose, onSuccess, onAnalyzing, parentReviewId, defaultAsset, defaultTimeframe, reviewTier = "standard", licenseLevel = "free" }: Props) {
   const { user } = useAuth();
   const [asset, setAsset] = useState(defaultAsset || ASSETS[0]);
   const [timeframe, setTimeframe] = useState(defaultTimeframe || TIMEFRAMES[4]);
@@ -34,6 +33,8 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
   const [userNote, setUserNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [usesAiOverlay, setUsesAiOverlay] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const dropRef = useRef<HTMLLabelElement>(null);
 
   useEffect(() => {
     if (!file) { setPreview(null); return; }
@@ -42,10 +43,28 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
+  const handleFile = (f: File | null) => {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { toast.error("Solo file immagine (PNG, JPG)"); return; }
+    if (f.size > 10 * 1024 * 1024) { toast.error("File troppo grande (max 10MB)"); return; }
+    setFile(f);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    handleFile(f || null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) { toast.error("Carica uno screenshot del grafico"); return; }
     setSubmitting(true);
+    onAnalyzing?.();
 
     try {
       const filePath = `${user!.id}/${Date.now()}_${file.name}`;
@@ -95,7 +114,6 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
       }
 
       toast.success(parentReviewId ? "Riesame completato!" : `Review ${reviewTier === "premium" ? "premium " : ""}completata!`);
-      onClose();
       onSuccess();
     } catch (err) {
       console.error(err);
@@ -104,9 +122,7 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
     setSubmitting(false);
   };
 
-  if (submitting) {
-    return <ReviewLoadingState mode="pro" />;
-  }
+  if (submitting) return null;
 
   return (
     <div className="animate-fade-in">
@@ -177,13 +193,29 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
               </button>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/60 hover:border-primary/30 bg-muted/20 p-8 cursor-pointer transition-all duration-200 group">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+            <label
+              ref={dropRef}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className={cn(
+                "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed bg-muted/20 p-8 cursor-pointer transition-all duration-200 group",
+                isDragging
+                  ? "border-primary/60 bg-primary/[0.06] scale-[1.01]"
+                  : "border-border/60 hover:border-primary/30"
+              )}
+            >
+              <div className={cn(
+                "h-10 w-10 rounded-xl flex items-center justify-center transition-colors",
+                isDragging ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/15"
+              )}>
                 <Upload className="h-5 w-5 text-primary" />
               </div>
-              <p className="text-sm text-muted-foreground">Carica screenshot del grafico</p>
+              <p className="text-sm text-muted-foreground">
+                {isDragging ? "Rilascia il file qui" : "Carica o trascina screenshot"}
+              </p>
               <p className="text-[10px] text-muted-foreground/60">PNG, JPG — max 10MB</p>
-              <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
+              <input type="file" accept="image/*" onChange={(e) => handleFile(e.target.files?.[0] || null)} className="hidden" />
             </label>
           )}
 
@@ -259,7 +291,7 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
             Annulla
           </Button>
           <Button type="submit" disabled={submitting} size="lg" className="px-8 gap-2">
-            {submitting ? (<><Loader2 className="h-4 w-4 animate-spin" />Analisi in corso...</>) : (<>Invia richiesta <ChevronRight className="h-4 w-4" /></>)}
+            Invia richiesta <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </form>

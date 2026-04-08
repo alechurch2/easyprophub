@@ -14,17 +14,17 @@ import { cn } from "@/lib/utils";
 import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES } from "./types";
 import { ACCOUNT_PRESETS, RISK_PRESETS, MAX_CUSTOM_RISK } from "./lotSizeCalculator";
-import { ReviewLoadingState } from "./ReviewLoadingState";
 import { useRiskPreferences } from "@/hooks/useRiskPreferences";
 
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
+  onAnalyzing?: () => void;
   reviewTier?: "standard" | "premium";
   licenseLevel?: string;
 }
 
-export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", licenseLevel = "free" }: Props) {
+export function EasyReviewForm({ onClose, onSuccess, onAnalyzing, reviewTier = "standard", licenseLevel = "free" }: Props) {
   const { user } = useAuth();
   const { prefs: riskPrefs, linkedAccount, loading: riskPrefsLoading, getRiskContext } = useRiskPreferences();
   const [asset, setAsset] = useState(ASSETS[0]);
@@ -39,6 +39,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
   const isCustomRisk = riskPercent === "custom";
   const [submitting, setSubmitting] = useState(false);
   const [usesAiOverlay, setUsesAiOverlay] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const [connectedEquity, setConnectedEquity] = useState<number | null>(null);
   const [connectedAccountName, setConnectedAccountName] = useState<string | null>(null);
@@ -77,6 +78,17 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  const handleFile = (f: File | null) => {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { toast.error("Solo file immagine (PNG, JPG)"); return; }
+    if (f.size > 10 * 1024 * 1024) { toast.error("File troppo grande (max 10MB)"); return; }
+    setFile(f);
+  };
+
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); handleFile(e.dataTransfer.files?.[0] || null); };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
 
   const loadConnectedAccount = async () => {
     setLoadingAccount(true);
@@ -121,6 +133,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
       return;
     }
     setSubmitting(true);
+    onAnalyzing?.();
 
     try {
       const filePath = `${user!.id}/${Date.now()}_${file.name}`;
@@ -173,7 +186,6 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
       trackEvent(reviewTier === "premium" ? "review_premium_used" : "review_standard_used", { section: "ai-review" });
       trackEvent("review_easy_used", { section: "ai-review" });
       toast.success(`Analisi ${reviewTier === "premium" ? "premium " : ""}completata!`);
-      onClose();
       onSuccess();
     } catch {
       toast.error("Errore di connessione");
@@ -181,9 +193,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
     setSubmitting(false);
   };
 
-  if (submitting) {
-    return <ReviewLoadingState mode="easy" />;
-  }
+  if (submitting) return null;
 
   return (
     <div className="animate-fade-in">
@@ -390,13 +400,28 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
               </button>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-xl border-2 border-dashed border-border/60 hover:border-primary/30 bg-muted/20 p-5 sm:p-8 cursor-pointer transition-all duration-200 group">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+            <label
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-xl border-2 border-dashed bg-muted/20 p-5 sm:p-8 cursor-pointer transition-all duration-200 group",
+                isDragging
+                  ? "border-primary/60 bg-primary/[0.06] scale-[1.01]"
+                  : "border-border/60 hover:border-primary/30"
+              )}
+            >
+              <div className={cn(
+                "h-8 w-8 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center transition-colors",
+                isDragging ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/15"
+              )}>
                 <Upload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Carica screenshot</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {isDragging ? "Rilascia il file qui" : "Carica o trascina screenshot"}
+              </p>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground/60">PNG, JPG — max 10MB</p>
-              <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
+              <input type="file" accept="image/*" onChange={(e) => handleFile(e.target.files?.[0] || null)} className="hidden" />
             </label>
           )}
 

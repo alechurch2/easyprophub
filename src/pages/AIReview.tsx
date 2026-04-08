@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, Upload, Loader2, GitCompare, MessageSquare, Star, Zap, Crown, Lock, Layers } from "lucide-react";
+import { ReviewLoadingState } from "@/components/ai-review/ReviewLoadingState";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,6 +30,8 @@ export default function AIReview() {
   const [reviewMode, setReviewMode] = useState<"pro" | "easy">("easy");
   const [reviewTier, setReviewTier] = useState<"standard" | "premium">("standard");
   const [premiumUsage, setPremiumUsage] = useState<PremiumUsage | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzingMode, setAnalyzingMode] = useState<"easy" | "pro">("easy");
 
   // Filters
   const [search, setSearch] = useState("");
@@ -214,8 +217,15 @@ export default function AIReview() {
             </div>
           )}
 
+          {/* ── Loading state (persists at parent level) ── */}
+          {isAnalyzing && (
+            <div className="mb-8 sm:mb-10">
+              <ReviewLoadingState mode={analyzingMode} />
+            </div>
+          )}
+
           {/* ── New review form ── */}
-          {showForm && (
+          {showForm && !isAnalyzing && (
             <div className="flex flex-col gap-6 sm:gap-10 mb-8 sm:mb-10">
               <div className="space-y-5 sm:space-y-8">
                 <TierSelector
@@ -263,9 +273,21 @@ export default function AIReview() {
 
               <div>
                 {reviewMode === "pro" ? (
-                  <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); refreshLicense(); }} reviewTier={reviewTier} licenseLevel={licenseSettings.license_level} />
+                  <ReviewForm
+                    onClose={() => setShowForm(false)}
+                    onSuccess={() => { setIsAnalyzing(false); setShowForm(false); loadReviews(); loadPremiumUsage(); refreshLicense(); }}
+                    onAnalyzing={() => { setAnalyzingMode("pro"); setIsAnalyzing(true); }}
+                    reviewTier={reviewTier}
+                    licenseLevel={licenseSettings.license_level}
+                  />
                 ) : (
-                  <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); refreshLicense(); }} reviewTier={reviewTier} licenseLevel={licenseSettings.license_level} />
+                  <EasyReviewForm
+                    onClose={() => setShowForm(false)}
+                    onSuccess={() => { setIsAnalyzing(false); setShowForm(false); loadReviews(); loadPremiumUsage(); refreshLicense(); }}
+                    onAnalyzing={() => { setAnalyzingMode("easy"); setIsAnalyzing(true); }}
+                    reviewTier={reviewTier}
+                    licenseLevel={licenseSettings.license_level}
+                  />
                 )}
               </div>
             </div>
