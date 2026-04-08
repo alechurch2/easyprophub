@@ -401,13 +401,28 @@ export function EasyReviewForm({ onClose, onSuccess, onAnalyzing, reviewTier = "
               </button>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-xl border-2 border-dashed border-border/60 hover:border-primary/30 bg-muted/20 p-5 sm:p-8 cursor-pointer transition-all duration-200 group">
-              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+            <label
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-xl border-2 border-dashed bg-muted/20 p-5 sm:p-8 cursor-pointer transition-all duration-200 group",
+                isDragging
+                  ? "border-primary/60 bg-primary/[0.06] scale-[1.01]"
+                  : "border-border/60 hover:border-primary/30"
+              )}
+            >
+              <div className={cn(
+                "h-8 w-8 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center transition-colors",
+                isDragging ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/15"
+              )}>
                 <Upload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground">Carica screenshot</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                {isDragging ? "Rilascia il file qui" : "Carica o trascina screenshot"}
+              </p>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground/60">PNG, JPG — max 10MB</p>
-              <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
+              <input type="file" accept="image/*" onChange={(e) => handleFile(e.target.files?.[0] || null)} className="hidden" />
             </label>
           )}
 
