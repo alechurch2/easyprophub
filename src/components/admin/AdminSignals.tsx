@@ -505,17 +505,17 @@ function SignalRow({ signal: sig, onTogglePublish, onToggleArchive, onDelete, on
           </Badge>
           <SourceBadge source={sig.signal_source || "ai"} />
           {sig.is_published && !sig.is_archived && (
-            <Badge className="text-[10px] bg-success/10 text-success">Visibile</Badge>
+            <Badge className="text-[10px] bg-success/10 text-success">Pubblicato</Badge>
           )}
-          {!sig.is_published && (
-            <Badge className="text-[10px] bg-warning/10 text-warning">Non pubblicato</Badge>
+          {!sig.is_published && !sig.is_archived && (
+            <Badge className="text-[10px] bg-warning/10 text-warning border border-warning/20">⏳ Bozza</Badge>
           )}
           {sig.is_archived && (
             <Badge className="text-[10px] bg-muted text-muted-foreground">Archiviato</Badge>
           )}
         </div>
         <span className="text-[10px] text-muted-foreground">
-          {new Date(sig.published_at).toLocaleString("it-IT")}
+          {sig.is_published ? new Date(sig.published_at).toLocaleString("it-IT") : `Creato: ${new Date(sig.created_at).toLocaleString("it-IT")}`}
         </span>
       </div>
 
