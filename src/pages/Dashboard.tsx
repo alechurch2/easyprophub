@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { trackEvent } from "@/lib/analytics";
 import { SharedSignals } from "@/components/dashboard/SharedSignals";
-import { Link as RouterLink } from "react-router-dom";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 
 interface Announcement {
   id: string;
