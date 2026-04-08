@@ -1028,9 +1028,22 @@ async function createMetaApiAccount(account: any): Promise<string> {
   const { profileId, source } = resolveProvisioningProfileId(brokerName);
   console.log(`[MetaApi] Creating account: broker="${brokerName}" reliability="${reliability}" provisioningProfile=${profileId || "none"} source="${source}"`);
 
+  // Decrypt investor password
+  const encryptionKey = Deno.env.get("INVESTOR_PASSWORD_ENCRYPTION_KEY") || "";
+  let decryptedPassword = account.investor_password;
+  if (encryptionKey && account.investor_password) {
+    const { data: decData, error: decErr } = await supabaseAdmin.rpc("decrypt_investor_password", {
+      _account_id: account.id,
+      _key: encryptionKey,
+    });
+    if (!decErr && decData) {
+      decryptedPassword = decData;
+    }
+  }
+
   const payload: Record<string, unknown> = {
     login: String(account.account_number),
-    password: account.investor_password,
+    password: decryptedPassword,
     name: account.account_name || `EasyProp-${account.account_number}`,
     server: account.server,
     platform: (account.platform || "mt5").toLowerCase(),
