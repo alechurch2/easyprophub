@@ -29,6 +29,8 @@ export default function AIReview() {
   const [reviewMode, setReviewMode] = useState<"pro" | "easy">("easy");
   const [reviewTier, setReviewTier] = useState<"standard" | "premium">("standard");
   const [premiumUsage, setPremiumUsage] = useState<PremiumUsage | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzingMode, setAnalyzingMode] = useState<"easy" | "pro">("easy");
 
   // Filters
   const [search, setSearch] = useState("");
