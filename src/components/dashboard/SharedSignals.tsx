@@ -268,7 +268,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
             lotSize: selectedSignal.lot_size_suggestion || 0.01,
             signalQuality: selectedSignal.signal_quality || "N/A",
             signalStrength: selectedSignal.signal_strength,
-            riskPercent: USER_DEFAULT_RISK,
+            riskPercent: riskCtx.riskPercent,
           }}
           account={{
             id: tradingAccount.id,
