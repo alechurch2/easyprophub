@@ -42,6 +42,13 @@ interface InvokeSignalNotificationArgs {
   source: string;
 }
 
+interface InvokeStatusChangeNotificationArgs {
+  signal: NotifiableSignal;
+  oldStatus: string;
+  newStatus: string;
+  source: string;
+}
+
 function getTriggerReason(currentPublished: boolean, nextPublished: boolean) {
   if (!currentPublished && nextPublished) return "signal transitioned from unpublished to published";
   if (currentPublished && !nextPublished) return "signal withdrawn";
@@ -151,6 +158,62 @@ export async function invokeSignalNotification({
   return {
     triggerNotifications: true,
     reason,
+    result: (data || null) as SignalNotificationResponse | null,
+    error: null,
+  };
+}
+
+export async function invokeStatusChangeNotification({
+  signal,
+  oldStatus,
+  newStatus,
+  source,
+}: InvokeStatusChangeNotificationArgs) {
+  console.log("[SignalNotifications] Status change", {
+    signal_id: signal.id,
+    old_status: oldStatus,
+    new_status: newStatus,
+    source,
+  });
+
+  const sessionCheck = await getValidFunctionAuthToken();
+  if (sessionCheck.error || !sessionCheck.token) {
+    console.error("[SignalNotifications] Auth failed for status change", sessionCheck.error);
+    return {
+      triggerNotifications: true,
+      reason: `status change: ${oldStatus} → ${newStatus}`,
+      result: null,
+      error: sessionCheck.error || "Autenticazione non valida",
+    };
+  }
+
+  const { data, error } = await supabase.functions.invoke("notify-signal", {
+    body: {
+      signal,
+      meta: {
+        source,
+        notification_type: "status_change",
+        old_status: oldStatus,
+        new_status: newStatus,
+      },
+    },
+  });
+
+  if (error) {
+    console.error("[SignalNotifications] Status change notify error", error);
+    return {
+      triggerNotifications: true,
+      reason: `status change: ${oldStatus} → ${newStatus}`,
+      result: null,
+      error: error.message || "Errore invio notifiche cambio stato",
+    };
+  }
+
+  console.log("[SignalNotifications] Status change result", data);
+
+  return {
+    triggerNotifications: true,
+    reason: `status change: ${oldStatus} → ${newStatus}`,
     result: (data || null) as SignalNotificationResponse | null,
     error: null,
   };

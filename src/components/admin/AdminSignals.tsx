@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Loader2, Radio, Archive, Eye, EyeOff, TrendingUp, TrendingDown, Zap, Trash2, ChevronDown, Filter } from "lucide-react";
 import { toast } from "sonner";
-import { formatSignalNotificationToast, invokeSignalNotification } from "@/lib/signalNotifications";
+import { formatSignalNotificationToast, invokeSignalNotification, invokeStatusChangeNotification } from "@/lib/signalNotifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -150,13 +150,38 @@ export default function AdminSignals() {
     load();
   };
 
-  const changeStatus = async (id: string, newStatus: string) => {
-    await supabase.from("shared_signals").update({
+  const changeStatus = async (id: string, oldStatus: string, newStatus: string) => {
+    const { data: updatedSignal, error } = await supabase.from("shared_signals").update({
       signal_status: newStatus,
       status_updated_at: new Date().toISOString(),
-    } as any).eq("id", id);
+    } as any).eq("id", id).select("*").single();
+
+    if (error || !updatedSignal) {
+      toast.error("Errore nell'aggiornamento dello stato");
+      return;
+    }
+
     const label = SIGNAL_STATUSES.find(s => s.value === newStatus)?.label || newStatus;
-    toast.success(`Stato aggiornato: ${label}`);
+
+    // Only notify for meaningful status transitions on published signals
+    const notifiableStatuses = ["triggered", "won", "lost", "expired", "withdrawn"];
+    if (notifiableStatuses.includes(newStatus) && updatedSignal.is_published) {
+      const notifyOutcome = await invokeStatusChangeNotification({
+        signal: updatedSignal as Signal,
+        oldStatus,
+        newStatus,
+        source: "admin-signals-status-change",
+      });
+
+      if (notifyOutcome.error) {
+        toast.error(`Stato aggiornato (${label}) ma notifiche fallite: ${notifyOutcome.error}`);
+      } else {
+        toast.success(`Stato: ${label}. ${formatSignalNotificationToast(notifyOutcome.result)}`);
+      }
+    } else {
+      toast.success(`Stato aggiornato: ${label}`);
+    }
+
     load();
   };
 
@@ -211,7 +236,7 @@ export default function AdminSignals() {
 
       <div className="space-y-3">
         {filtered.map((sig) => (
-          <SignalRow key={sig.id} signal={sig} onTogglePublish={togglePublish} onToggleArchive={toggleArchive} onDelete={deleteSignal} onChangeStatus={changeStatus} />
+          <SignalRow key={sig.id} signal={sig} onTogglePublish={togglePublish} onToggleArchive={toggleArchive} onDelete={deleteSignal} onChangeStatus={(id, status) => changeStatus(id, sig.signal_status, status)} />
         ))}
       </div>
     </div>
