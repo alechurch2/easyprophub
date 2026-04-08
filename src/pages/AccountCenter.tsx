@@ -2031,17 +2031,17 @@ export default function AccountCenter() {
           <div className="absolute inset-0 bg-gradient-to-br from-card via-background to-card" />
           <div className="absolute top-0 right-0 w-[500px] h-[400px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
           
-          <div className="relative px-6 sm:px-8 lg:px-10 py-6 lg:py-8">
-            <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="relative px-4 sm:px-8 lg:px-10 py-5 sm:py-6 lg:py-8">
+            <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4">
               <div>
-                <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-2">Trading Intelligence</p>
-                <h1 className="font-heading text-display-sm font-bold text-foreground">Account Center</h1>
-                <p className="text-sm text-muted-foreground mt-1">Monitora i tuoi conti trading in tempo reale</p>
+                <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-1 sm:mb-2 text-[9px] sm:text-[10px]">Trading Intelligence</p>
+                <h1 className="font-heading text-xl sm:text-display-sm font-bold text-foreground">Account Center</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">Monitora i tuoi conti trading in tempo reale</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <LiveStatusIndicator mode={liveMode} lastUpdate={lastRealtimeUpdate} />
-                <Button onClick={() => setShowConnect(true)} size="sm">
-                  <Plus className="h-4 w-4 mr-1" /> Collega conto
+                <Button onClick={() => setShowConnect(true)} size="sm" className="h-8 text-xs sm:h-9 sm:text-sm">
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" /> Collega conto
                 </Button>
               </div>
             </div>
