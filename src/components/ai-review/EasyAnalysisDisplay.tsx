@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Zap, Timer, Send, Eye, Shield, ChevronDown, ChevronUp, ShieldCheck, Radio } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Target, ShieldAlert, Clock, BarChart3, DollarSign, Zap, Timer, Send, Eye, Shield, ChevronDown, ChevronUp, ShieldCheck, Radio, Crosshair, ArrowDownToLine, ArrowUpToLine, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -39,13 +39,11 @@ interface EasyAnalysis {
   setup_strength: number;
   primary_signal: PrimarySignal;
   pending_setups?: PendingSetup[];
-  // Legacy compat
   setups?: any[];
   expected_duration: string;
   warning?: string;
   conclusione: string;
   contesto_mercato?: string;
-  // Legacy no-setup fields
   no_setup_reason?: string;
   cosa_aspettare?: string;
   livello_prudenza?: string;
@@ -64,18 +62,18 @@ interface TradingAccount {
 
 // ── Helpers ──
 
-function strengthLabel(n: number): { label: string; color: string; emoji: string } {
+function strengthLabel(n: number): { label: string; color: string; emoji: string; barColor: string } {
   switch (n) {
-    case 1: return { label: "Molto debole", color: "bg-destructive/10 text-destructive border-destructive/20", emoji: "🔴" };
-    case 2: return { label: "Debole", color: "bg-destructive/10 text-destructive border-destructive/20", emoji: "🟠" };
-    case 3: return { label: "Discreto", color: "bg-warning/10 text-warning border-warning/20", emoji: "🟡" };
-    case 4: return { label: "Buono", color: "bg-success/10 text-success border-success/20", emoji: "🟢" };
-    case 5: return { label: "Forte", color: "bg-success/10 text-success border-success/20", emoji: "💚" };
-    default: return { label: "N/A", color: "bg-muted text-muted-foreground", emoji: "⚪" };
+    case 1: return { label: "Molto debole", color: "bg-destructive/10 text-destructive border-destructive/20", emoji: "🔴", barColor: "bg-destructive" };
+    case 2: return { label: "Debole", color: "bg-destructive/10 text-destructive border-destructive/20", emoji: "🟠", barColor: "bg-destructive" };
+    case 3: return { label: "Discreto", color: "bg-warning/10 text-warning border-warning/20", emoji: "🟡", barColor: "bg-warning" };
+    case 4: return { label: "Buono", color: "bg-success/10 text-success border-success/20", emoji: "🟢", barColor: "bg-success" };
+    case 5: return { label: "Forte", color: "bg-success/10 text-success border-success/20", emoji: "💚", barColor: "bg-success" };
+    default: return { label: "N/A", color: "bg-muted text-muted-foreground", emoji: "⚪", barColor: "bg-muted" };
   }
 }
 
-function qualityColor(q: string) {
+function qualityBadgeStyle(q: string) {
   switch (q?.toLowerCase()) {
     case "alta": return "bg-success/10 text-success border-success/20";
     case "media": return "bg-warning/10 text-warning border-warning/20";
@@ -84,18 +82,11 @@ function qualityColor(q: string) {
   }
 }
 
-function directionIcon(tipo: string, size = "h-5 w-5") {
+function directionConfig(tipo: string) {
   const t = tipo?.toLowerCase() || "";
-  if (t.includes("buy")) return <TrendingUp className={cn(size, "text-success")} />;
-  if (t.includes("sell")) return <TrendingDown className={cn(size, "text-destructive")} />;
-  return null;
-}
-
-function directionBorderColor(tipo: string) {
-  const t = tipo?.toLowerCase() || "";
-  if (t.includes("buy")) return "border-success/30 bg-success/5";
-  if (t.includes("sell")) return "border-destructive/30 bg-destructive/5";
-  return "border-border";
+  if (t.includes("buy")) return { icon: TrendingUp, colorClass: "text-success", bgClass: "bg-success", borderClass: "border-success/40", heroBg: "from-success/10 via-success/5 to-transparent" };
+  if (t.includes("sell")) return { icon: TrendingDown, colorClass: "text-destructive", bgClass: "bg-destructive", borderClass: "border-destructive/40", heroBg: "from-destructive/10 via-destructive/5 to-transparent" };
+  return { icon: TrendingUp, colorClass: "text-muted-foreground", bgClass: "bg-muted", borderClass: "border-border", heroBg: "from-muted/10 to-transparent" };
 }
 
 function parsePrice(value: string): number {
@@ -103,6 +94,55 @@ function parsePrice(value: string): number {
   if (!nums || nums.length === 0) return 0;
   if (nums.length >= 2) return (parseFloat(nums[0]) + parseFloat(nums[1])) / 2;
   return parseFloat(nums[0]);
+}
+
+// ── Strength Gauge ──
+function StrengthGauge({ strength, label: lbl }: { strength: number; label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className={cn(
+              "rounded-full transition-all duration-300",
+              i <= strength
+                ? strength >= 4 ? "bg-success" : strength === 3 ? "bg-warning" : "bg-destructive"
+                : "bg-muted/60",
+              i <= strength ? "h-2.5 w-5 sm:w-6" : "h-2 w-4 sm:w-5"
+            )}
+          />
+        ))}
+      </div>
+      <span className="text-[10px] font-medium text-muted-foreground">{strength}/5 — {lbl}</span>
+    </div>
+  );
+}
+
+// ── Copyability Status ──
+function CopyabilityStatus({ strength }: { strength: number }) {
+  if (strength >= 4) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-success/25 bg-gradient-to-r from-success/8 to-transparent px-3 py-2">
+        <Shield className="h-4 w-4 text-success flex-shrink-0" />
+        <p className="text-xs sm:text-sm text-success font-medium">Segnale copiabile</p>
+      </div>
+    );
+  }
+  if (strength === 3) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-warning/25 bg-gradient-to-r from-warning/8 to-transparent px-3 py-2">
+        <ShieldAlert className="h-4 w-4 text-warning flex-shrink-0" />
+        <p className="text-xs sm:text-sm text-warning font-medium">Copiabile con prudenza</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-destructive/25 bg-gradient-to-r from-destructive/8 to-transparent px-3 py-2">
+      <ShieldAlert className="h-4 w-4 text-destructive flex-shrink-0" />
+      <p className="text-xs sm:text-sm text-destructive font-medium">Copia non consigliata</p>
+    </div>
+  );
 }
 
 // ── Component ──
@@ -133,14 +173,13 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
 
   if (!analysis) return null;
 
-  // Normalize data: support both new format (primary_signal) and legacy (setups array)
   const raw = analysis as EasyAnalysis;
   let primarySignal: PrimarySignal | null = raw.primary_signal || null;
   let pendingSetups: PendingSetup[] = raw.pending_setups || [];
   const strength = raw.setup_strength || 3;
   const strengthInfo = strengthLabel(strength);
 
-  // Legacy compat: if old format with setups[] but no primary_signal
+  // Legacy compat
   if (!primarySignal && raw.setups && raw.setups.length > 0) {
     const first = raw.setups[0];
     primarySignal = {
@@ -183,7 +222,6 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
 
   const effectiveRisk = riskPercent && riskPercent > 0 ? riskPercent : 0.002;
 
-  // Lot calc helper
   const calcLot = (signal: PrimarySignal | PendingSetup) => {
     const entryPrice = parsePrice(signal.entry_range);
     const slPrice = parsePrice(signal.stop_loss);
@@ -193,167 +231,193 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
   };
 
   const primaryLotCalc = primarySignal ? calcLot(primarySignal) : null;
+  const dir = primarySignal ? directionConfig(primarySignal.tipo) : directionConfig("");
+  const DirIcon = dir.icon;
 
   return (
-    <div className="space-y-4">
-      {/* Header badges */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Badge className={cn("text-sm px-3 py-1", qualityColor(raw.signal_quality))}>
-          <BarChart3 className="h-3.5 w-3.5 mr-1" />
-          Qualità: {raw.signal_quality || "N/A"}
-        </Badge>
-        <Badge className={cn("text-sm px-3 py-1", strengthInfo.color)}>
-          <Zap className="h-3.5 w-3.5 mr-1" />
-          Forza: {strengthInfo.emoji} {strength}/5 — {strengthInfo.label}
-        </Badge>
-        {raw.expected_duration && (
-          <Badge variant="secondary" className="text-sm px-3 py-1">
-            <Clock className="h-3.5 w-3.5 mr-1" />
-            {raw.expected_duration}
-          </Badge>
-        )}
-        <Badge variant="outline" className="text-xs px-2 py-0.5">
-          {raw.leggibilita_immagine}
-        </Badge>
-        {effectiveRisk && (
-          <Badge variant="outline" className="text-xs px-2.5 py-0.5 border-primary/30 text-primary">
-            <ShieldCheck className="h-3 w-3 mr-1" />
-            Rischio: {(effectiveRisk * 100).toFixed(2).replace(/\.?0+$/, '')}%
-          </Badge>
-        )}
-      </div>
+    <div className="space-y-4 sm:space-y-5">
 
-      {/* Signal copyability banner */}
-      {isSignalCopyable ? (
-        <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-4 py-2.5">
-          <Shield className="h-4 w-4 text-success flex-shrink-0" />
-          <p className="text-sm text-success font-medium">Segnale copiabile con prudenza</p>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2.5">
-          <ShieldAlert className="h-4 w-4 text-destructive flex-shrink-0" />
-          <p className="text-sm text-destructive font-medium">Segnale non consigliato da copiare — forza {strength}/5</p>
-        </div>
-      )}
-
-      {/* Contesto mercato */}
-      {raw.contesto_mercato && (
-        <div className="card-premium p-4 border-primary/20">
-          <div className="flex items-center gap-2 mb-2">
-            <Eye className="h-4 w-4 text-primary" />
-            <span className="text-xs font-medium text-muted-foreground uppercase">Contesto di mercato</span>
-          </div>
-          <p className="text-sm text-foreground">{raw.contesto_mercato}</p>
-        </div>
-      )}
-
-      {/* ═══════ PRIMARY MARKET SIGNAL ═══════ */}
+      {/* ═══════ HERO SIGNAL CARD ═══════ */}
       {primarySignal && (
-        <div className={cn("rounded-xl border-2 p-5 space-y-3", directionBorderColor(primarySignal.tipo))}>
-          {/* Header */}
-          <div className="flex items-center gap-3">
-            {directionIcon(primarySignal.tipo, "h-6 w-6")}
-            <div className="flex-1">
-              <h3 className="font-heading font-bold text-foreground text-lg">
-                {primarySignal.tipo} Market
-              </h3>
-              <p className="text-xs text-muted-foreground">Segnale principale — ordine a mercato</p>
+        <div className={cn(
+          "relative rounded-2xl border-2 overflow-hidden",
+          dir.borderClass
+        )}>
+          {/* Gradient header band */}
+          <div className={cn("bg-gradient-to-r px-4 sm:px-5 pt-4 sm:pt-5 pb-3", dir.heroBg)}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className={cn("flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 rounded-xl", dir.bgClass + "/15")}>
+                  <DirIcon className={cn("h-5 w-5 sm:h-6 sm:w-6", dir.colorClass)} />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-foreground text-lg sm:text-xl leading-tight">
+                    {primarySignal.tipo}
+                  </h3>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/40 text-primary h-4">
+                      Market
+                    </Badge>
+                    {raw.expected_duration && (
+                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <Clock className="h-2.5 w-2.5" /> {raw.expected_duration}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <StrengthGauge strength={strength} label={strengthInfo.label} />
             </div>
-            <Badge variant="outline" className="text-xs px-2.5 py-1 border-primary/40 text-primary">
-              <Zap className="h-3 w-3 mr-1" />
-              Market
-            </Badge>
           </div>
 
-          {/* Price levels */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-background/50 rounded-lg p-3 text-center">
-              <p className="text-[10px] uppercase text-muted-foreground mb-1">Entry</p>
-              <p className="text-sm font-semibold text-foreground">{primarySignal.entry_range}</p>
+          <div className="px-4 sm:px-5 pb-4 sm:pb-5 space-y-3 sm:space-y-4">
+            {/* Signal quality + copyability row */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-3 sm:pt-4">
+              <div className="flex items-center gap-2 flex-1">
+                <Badge className={cn("text-xs px-2.5 py-0.5 border", qualityBadgeStyle(raw.signal_quality))}>
+                  <BarChart3 className="h-3 w-3 mr-1" />
+                  Qualità {raw.signal_quality || "N/A"}
+                </Badge>
+                {effectiveRisk && (
+                  <Badge variant="outline" className="text-[10px] px-2 py-0.5 border-primary/25 text-primary">
+                    <ShieldCheck className="h-2.5 w-2.5 mr-0.5" />
+                    {(effectiveRisk * 100).toFixed(2).replace(/\.?0+$/, '')}%
+                  </Badge>
+                )}
+                <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                  {raw.leggibilita_immagine}
+                </Badge>
+              </div>
+              <CopyabilityStatus strength={strength} />
             </div>
-            <div className="bg-background/50 rounded-lg p-3 text-center">
-              <p className="text-[10px] uppercase text-muted-foreground mb-1">Stop Loss</p>
-              <p className="text-sm font-semibold text-destructive">{primarySignal.stop_loss}</p>
-            </div>
-            <div className="bg-background/50 rounded-lg p-3 text-center">
-              <p className="text-[10px] uppercase text-muted-foreground mb-1">Take Profit</p>
-              <p className="text-sm font-semibold text-success">{primarySignal.take_profit}</p>
-            </div>
-          </div>
 
-          {/* Lot size calculation */}
-          {primaryLotCalc && (
-            <div className="bg-background/50 rounded-lg p-4 border border-border/50">
+            {/* ── Price Levels ── */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="panel-inset rounded-xl p-2.5 sm:p-3 text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary/40 rounded-full" />
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Crosshair className="h-3 w-3 text-primary" />
+                  <p className="text-[9px] sm:text-[10px] uppercase font-semibold text-primary tracking-wider">Entry</p>
+                </div>
+                <p className="text-sm sm:text-base font-bold font-mono-data text-foreground">{primarySignal.entry_range}</p>
+              </div>
+              <div className="panel-inset rounded-xl p-2.5 sm:p-3 text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-destructive/50 rounded-full" />
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <ArrowDownToLine className="h-3 w-3 text-destructive" />
+                  <p className="text-[9px] sm:text-[10px] uppercase font-semibold text-destructive tracking-wider">SL</p>
+                </div>
+                <p className="text-sm sm:text-base font-bold font-mono-data text-destructive">{primarySignal.stop_loss}</p>
+              </div>
+              <div className="panel-inset rounded-xl p-2.5 sm:p-3 text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-success/50 rounded-full" />
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <ArrowUpToLine className="h-3 w-3 text-success" />
+                  <p className="text-[9px] sm:text-[10px] uppercase font-semibold text-success tracking-wider">TP</p>
+                </div>
+                <p className="text-sm sm:text-base font-bold font-mono-data text-success">{primarySignal.take_profit}</p>
+              </div>
+            </div>
+
+            {/* ── Lot Sizing Panel ── */}
+            {primaryLotCalc && (
+              <div className="panel-inset rounded-xl p-3 sm:p-4">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="flex items-center justify-center h-6 w-6 rounded-md bg-primary/10">
+                    <DollarSign className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <span className="text-[10px] sm:text-xs font-semibold text-foreground uppercase tracking-wider">Dimensionamento</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                  <div className="bg-card rounded-lg p-2 sm:p-2.5 text-center border border-border/40">
+                    <p className="text-[9px] sm:text-[10px] text-muted-foreground font-medium uppercase mb-0.5">Lotto</p>
+                    <p className="text-base sm:text-lg font-bold font-mono-data text-foreground">{primaryLotCalc.lotSize}</p>
+                  </div>
+                  <div className="bg-card rounded-lg p-2 sm:p-2.5 text-center border border-border/40">
+                    <p className="text-[9px] sm:text-[10px] text-muted-foreground font-medium uppercase mb-0.5">Rischio</p>
+                    <p className="text-base sm:text-lg font-bold font-mono-data text-destructive">${primaryLotCalc.riskAmount.toFixed(0)}</p>
+                  </div>
+                  <div className="bg-card rounded-lg p-2 sm:p-2.5 text-center border border-border/40">
+                    <p className="text-[9px] sm:text-[10px] text-muted-foreground font-medium uppercase mb-0.5">Profitto</p>
+                    <p className="text-base sm:text-lg font-bold font-mono-data text-success">${primaryLotCalc.theoreticalProfit?.toFixed(0) ?? "—"}</p>
+                  </div>
+                  <div className="bg-card rounded-lg p-2 sm:p-2.5 text-center border border-border/40">
+                    <p className="text-[9px] sm:text-[10px] text-muted-foreground font-medium uppercase mb-0.5">R:R</p>
+                    <p className="text-base sm:text-lg font-bold font-mono-data text-primary">1:{primaryLotCalc.rrRatio ?? "—"}</p>
+                  </div>
+                </div>
+                <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-2 font-mono-data">{primaryLotCalc.formula}</p>
+              </div>
+            )}
+
+            {/* ── Setup Explanation ── */}
+            <div className="panel-inset rounded-xl p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="h-4 w-4 text-primary" />
-                <span className="text-xs font-medium text-foreground uppercase">Calcolo lottaggio</span>
+                <Eye className="h-3.5 w-3.5 text-primary" />
+                <span className="text-[10px] sm:text-xs font-semibold text-foreground uppercase tracking-wider">Analisi setup</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Lotto</p>
-                  <p className="text-sm font-bold text-foreground">{primaryLotCalc.lotSize}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Rischio</p>
-                  <p className="text-sm font-bold text-destructive">${primaryLotCalc.riskAmount.toFixed(0)}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Profitto teorico</p>
-                  <p className="text-sm font-bold text-success">${primaryLotCalc.theoreticalProfit?.toFixed(0) ?? "N/A"}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">R:R</p>
-                  <p className="text-sm font-bold text-primary">1:{primaryLotCalc.rrRatio ?? "N/A"}</p>
-                </div>
+              <p className="text-[13px] sm:text-sm text-foreground/90 leading-relaxed">{primarySignal.spiegazione}</p>
+            </div>
+
+            {/* ── Copy to Account CTA ── */}
+            {accountChecked && primaryLotCalc && (
+              <div className="pt-1">
+                {canExecuteTrade && isSignalCopyable ? (
+                  <Button
+                    className={cn(
+                      "w-full h-11 sm:h-12 rounded-xl font-semibold text-sm",
+                      "bg-gradient-to-r shadow-md",
+                      primarySignal.tipo.toLowerCase().includes("buy")
+                        ? "from-success/90 to-success hover:from-success hover:to-success/90 text-success-foreground shadow-success/20"
+                        : "from-destructive/90 to-destructive hover:from-destructive hover:to-destructive/90 text-destructive-foreground shadow-destructive/20"
+                    )}
+                    onClick={() => handleCopy(primarySignal!, primaryLotCalc, "market")}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Copia sul conto
+                  </Button>
+                ) : canExecuteTrade && !isSignalCopyable ? (
+                  <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-destructive/20 bg-destructive/5">
+                    <ShieldAlert className="h-3.5 w-3.5 text-destructive" />
+                    <p className="text-xs text-destructive font-medium">Forza {strength}/5 — copia non consigliata</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border/50 bg-muted/30">
+                    <p className="text-xs text-muted-foreground">{getAccountIneligibleReason()}</p>
+                  </div>
+                )}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-2">{primaryLotCalc.formula}</p>
-            </div>
-          )}
-
-          <p className="text-sm text-foreground">{primarySignal.spiegazione}</p>
-
-          {/* Copy to account — primary */}
-          {accountChecked && primaryLotCalc && (
-            <div className="pt-2 border-t border-border/50">
-              {canExecuteTrade && isSignalCopyable ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full border-primary/30 text-primary hover:bg-primary/10"
-                  onClick={() => handleCopy(primarySignal!, primaryLotCalc, "market")}
-                >
-                  <Send className="h-3.5 w-3.5 mr-2" />
-                  Copia sul conto (Market)
-                </Button>
-              ) : canExecuteTrade && !isSignalCopyable ? (
-                <div className="text-center">
-                  <p className="text-[10px] text-destructive">
-                    Segnale con forza {strength}/5 — copia non consigliata
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <p className="text-[10px] text-muted-foreground">
-                    {getAccountIneligibleReason()}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
-      {/* ═══════ PENDING SETUPS (SECONDARY) ═══════ */}
+      {/* ═══════ MARKET CONTEXT ═══════ */}
+      {raw.contesto_mercato && (
+        <div className="panel-inset rounded-xl p-3 sm:p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Gauge className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[10px] sm:text-xs font-semibold text-foreground uppercase tracking-wider">Contesto di mercato</span>
+          </div>
+          <p className="text-[13px] sm:text-sm text-foreground/90 leading-relaxed">{raw.contesto_mercato}</p>
+        </div>
+      )}
+
+      {/* ═══════ PENDING SETUPS ═══════ */}
       {pendingSetups.length > 0 && (
         <div className="space-y-2">
           <button
             onClick={() => setShowPending(!showPending)}
-            className="flex items-center gap-2 w-full text-left px-1 py-1 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 w-full text-left px-3 py-2.5 rounded-xl border border-border/50 bg-card hover:bg-accent/30 transition-colors"
           >
             {showPending ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-            <span className="text-xs font-medium text-muted-foreground uppercase">
-              Setup aggiuntivi — Ordini pending ({pendingSetups.length})
+            <Timer className="h-3.5 w-3.5 text-warning" />
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wide flex-1">
+              Ordini pending ({pendingSetups.length})
             </span>
+            <Badge variant="outline" className="text-[10px] px-2 py-0 border-warning/30 text-warning h-5">
+              Pending
+            </Badge>
           </button>
 
           {showPending && pendingSetups.map((setup, i) => {
@@ -361,127 +425,119 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
             const pStrength = setup.pending_strength || 3;
             const pStrengthInfo = strengthLabel(pStrength);
             const isPendingCopyable = pStrength >= 3;
+            const pDir = directionConfig(setup.tipo);
+            const PDirIcon = pDir.icon;
 
             return (
-              <div key={i} className={cn("rounded-xl border p-4 space-y-3", directionBorderColor(setup.tipo), "opacity-90")}>
-                <div className="flex items-center gap-3">
-                  {directionIcon(setup.tipo)}
-                  <div className="flex-1">
-                    <h4 className="font-heading font-semibold text-foreground text-base">{setup.tipo}</h4>
-                    <p className="text-xs text-muted-foreground">Setup aggiuntivo — ordine pending</p>
+              <div key={i} className={cn("rounded-xl border p-3 sm:p-4 space-y-3", pDir.borderClass, "bg-card")}>
+                <div className="flex items-center gap-2.5">
+                  <div className={cn("flex items-center justify-center h-8 w-8 rounded-lg", pDir.bgClass + "/10")}>
+                    <PDirIcon className={cn("h-4 w-4", pDir.colorClass)} />
                   </div>
-                  <Badge variant="outline" className="text-xs px-2 py-0.5 border-warning/40 text-warning">
-                    <Timer className="h-3 w-3 mr-1" />
-                    Pending
-                  </Badge>
-                  <Badge className={cn("text-xs px-2 py-0.5", pStrengthInfo.color)}>
-                    {pStrengthInfo.emoji} {pStrength}/5
-                  </Badge>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-heading font-semibold text-foreground text-sm sm:text-base">{setup.tipo}</h4>
+                    <p className="text-[10px] text-muted-foreground">Ordine pending</p>
+                  </div>
+                  <StrengthGauge strength={pStrength} label={pStrengthInfo.label} />
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-background/50 rounded-lg p-2.5 text-center">
-                    <p className="text-[10px] uppercase text-muted-foreground mb-0.5">Entry</p>
-                    <p className="text-sm font-semibold text-foreground">{setup.entry_range}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="panel-inset rounded-lg p-2 text-center">
+                    <p className="text-[9px] uppercase text-primary font-semibold mb-0.5">Entry</p>
+                    <p className="text-xs sm:text-sm font-bold font-mono-data text-foreground">{setup.entry_range}</p>
                   </div>
-                  <div className="bg-background/50 rounded-lg p-2.5 text-center">
-                    <p className="text-[10px] uppercase text-muted-foreground mb-0.5">Stop Loss</p>
-                    <p className="text-sm font-semibold text-destructive">{setup.stop_loss}</p>
+                  <div className="panel-inset rounded-lg p-2 text-center">
+                    <p className="text-[9px] uppercase text-destructive font-semibold mb-0.5">SL</p>
+                    <p className="text-xs sm:text-sm font-bold font-mono-data text-destructive">{setup.stop_loss}</p>
                   </div>
-                  <div className="bg-background/50 rounded-lg p-2.5 text-center">
-                    <p className="text-[10px] uppercase text-muted-foreground mb-0.5">Take Profit</p>
-                    <p className="text-sm font-semibold text-success">{setup.take_profit}</p>
+                  <div className="panel-inset rounded-lg p-2 text-center">
+                    <p className="text-[9px] uppercase text-success font-semibold mb-0.5">TP</p>
+                    <p className="text-xs sm:text-sm font-bold font-mono-data text-success">{setup.take_profit}</p>
                   </div>
                 </div>
 
                 {lotCalc && (
-                  <div className="bg-background/50 rounded-lg p-3 border border-border/50">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-center">
+                  <div className="panel-inset rounded-lg p-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Lotto</p>
-                        <p className="text-sm font-bold text-foreground">{lotCalc.lotSize}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase">Lotto</p>
+                        <p className="text-sm font-bold font-mono-data text-foreground">{lotCalc.lotSize}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Rischio</p>
-                        <p className="text-sm font-bold text-destructive">${lotCalc.riskAmount.toFixed(0)}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase">Rischio</p>
+                        <p className="text-sm font-bold font-mono-data text-destructive">${lotCalc.riskAmount.toFixed(0)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">Profitto</p>
-                        <p className="text-sm font-bold text-success">${lotCalc.theoreticalProfit?.toFixed(0) ?? "N/A"}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase">Profitto</p>
+                        <p className="text-sm font-bold font-mono-data text-success">${lotCalc.theoreticalProfit?.toFixed(0) ?? "—"}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-muted-foreground">R:R</p>
-                        <p className="text-sm font-bold text-primary">1:{lotCalc.rrRatio ?? "N/A"}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase">R:R</p>
+                        <p className="text-sm font-bold font-mono-data text-primary">1:{lotCalc.rrRatio ?? "—"}</p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                <p className="text-sm text-foreground">{setup.spiegazione}</p>
+                <p className="text-[13px] sm:text-sm text-foreground/80 leading-relaxed">{setup.spiegazione}</p>
 
                 {accountChecked && lotCalc && canExecuteTrade && isPendingCopyable && (
-                  <div className="pt-2 border-t border-border/50">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full border-warning/30 text-warning hover:bg-warning/10 text-xs"
-                      onClick={() => handleCopy(setup, lotCalc, "limit")}
-                    >
-                      <Send className="h-3 w-3 mr-1.5" />
-                      Copia sul conto (Pending)
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-warning/30 text-warning hover:bg-warning/10 text-xs rounded-lg"
+                    onClick={() => handleCopy(setup, lotCalc, "limit")}
+                  >
+                    <Send className="h-3 w-3 mr-1.5" />
+                    Copia sul conto (Pending)
+                  </Button>
                 )}
 
                 {/* Admin publish per pending */}
                 {isAdmin && pStrength >= 3 && (
-                  <div className="pt-2 border-t border-border/50">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full border-primary/30 text-primary hover:bg-primary/10 text-xs"
-                      onClick={async () => {
-                        const entryPrice = parsePrice(setup.entry_range);
-                        const slPrice = parsePrice(setup.stop_loss);
-                        const tpPrice = parsePrice(setup.take_profit);
-                        console.log("[AdminPublish] Pending order", { reviewId, orderType: setup.tipo, asset, entryPrice, slPrice, tpPrice, strength: pStrength });
-                        const { data: insertedSignal, error } = await supabase.from("shared_signals").insert({
-                          review_id: reviewId || null,
-                          created_by: user!.id,
-                          asset: asset || "N/A",
-                          direction: setup.tipo.includes("Buy") ? "Buy" : "Sell",
-                          order_type: setup.tipo.toLowerCase().includes("limit") ? "limit" : setup.tipo.toLowerCase().includes("stop") ? "stop" : "pending",
-                          entry_price: entryPrice,
-                          stop_loss: slPrice,
-                          take_profit: tpPrice,
-                          lot_size_suggestion: lotCalc?.lotSize || null,
-                          signal_strength: pStrength,
-                          signal_quality: raw.signal_quality,
-                          explanation: setup.spiegazione || raw.conclusione,
-                          is_published: true,
-                        } as any).select("*").single();
-                        if (error || !insertedSignal) {
-                          toast.error("Errore nella pubblicazione del segnale");
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full border-primary/30 text-primary hover:bg-primary/10 text-xs rounded-lg"
+                    onClick={async () => {
+                      const entryPrice = parsePrice(setup.entry_range);
+                      const slPrice = parsePrice(setup.stop_loss);
+                      const tpPrice = parsePrice(setup.take_profit);
+                      const { data: insertedSignal, error } = await supabase.from("shared_signals").insert({
+                        review_id: reviewId || null,
+                        created_by: user!.id,
+                        asset: asset || "N/A",
+                        direction: setup.tipo.includes("Buy") ? "Buy" : "Sell",
+                        order_type: setup.tipo.toLowerCase().includes("limit") ? "limit" : setup.tipo.toLowerCase().includes("stop") ? "stop" : "pending",
+                        entry_price: entryPrice,
+                        stop_loss: slPrice,
+                        take_profit: tpPrice,
+                        lot_size_suggestion: lotCalc?.lotSize || null,
+                        signal_strength: pStrength,
+                        signal_quality: raw.signal_quality,
+                        explanation: setup.spiegazione || raw.conclusione,
+                        is_published: true,
+                      } as any).select("*").single();
+                      if (error || !insertedSignal) {
+                        toast.error("Errore nella pubblicazione del segnale");
+                      } else {
+                        const notifyOutcome = await invokeSignalNotification({
+                          signal: insertedSignal as any,
+                          currentPublished: false,
+                          nextPublished: true,
+                          source: "easy-analysis-pending",
+                        });
+                        if (notifyOutcome.error) {
+                          toast.error(`Segnale pending pubblicato ma notifiche fallite: ${notifyOutcome.error}`);
                         } else {
-                          const notifyOutcome = await invokeSignalNotification({
-                            signal: insertedSignal as any,
-                            currentPublished: false,
-                            nextPublished: true,
-                            source: "easy-analysis-pending",
-                          });
-
-                          if (notifyOutcome.error) {
-                            toast.error(`Segnale pending pubblicato ma notifiche fallite: ${notifyOutcome.error}`);
-                          } else {
-                            toast.success(`Segnale pending pubblicato. ${formatSignalNotificationToast(notifyOutcome.result || undefined)}`);
-                          }
+                          toast.success(`Segnale pending pubblicato. ${formatSignalNotificationToast(notifyOutcome.result || undefined)}`);
                         }
-                      }}
-                    >
-                      <Radio className="h-3 w-3 mr-1.5" />
-                      Pubblica come segnale globale (Pending)
-                    </Button>
-                  </div>
+                      }
+                    }}
+                  >
+                    <Radio className="h-3 w-3 mr-1.5" />
+                    Pubblica come segnale globale (Pending)
+                  </Button>
                 )}
               </div>
             );
@@ -489,41 +545,40 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
         </div>
       )}
 
-      {/* Warning */}
+      {/* ═══════ WARNING ═══════ */}
       {raw.warning && (
-        <div className="card-premium p-4 border-warning/20">
-          <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle className="h-4 w-4 text-warning" />
-            <span className="text-xs font-medium text-warning uppercase">Attenzione</span>
+        <div className="flex items-start gap-2.5 rounded-xl border border-warning/20 bg-warning/5 px-3 sm:px-4 py-2.5 sm:py-3">
+          <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="text-[10px] font-semibold text-warning uppercase tracking-wider">Attenzione</span>
+            <p className="text-[13px] sm:text-sm text-foreground/90 mt-0.5 leading-relaxed">{raw.warning}</p>
           </div>
-          <p className="text-sm text-foreground">{raw.warning}</p>
         </div>
       )}
 
-      {/* Conclusion */}
-      <div className="card-premium p-4 border-primary/20">
-        <div className="flex items-center gap-2 mb-1">
-          <Target className="h-4 w-4 text-primary" />
-          <span className="text-xs font-medium text-muted-foreground uppercase">Conclusione</span>
+      {/* ═══════ CONCLUSION ═══════ */}
+      <div className="panel-inset rounded-xl p-3 sm:p-4 accent-line-top">
+        <div className="flex items-center gap-2 mb-2">
+          <Target className="h-3.5 w-3.5 text-primary" />
+          <span className="text-[10px] sm:text-xs font-semibold text-foreground uppercase tracking-wider">Conclusione</span>
         </div>
-        <p className="text-sm text-foreground">{raw.conclusione}</p>
+        <p className="text-[13px] sm:text-sm text-foreground/90 leading-relaxed">{raw.conclusione}</p>
       </div>
 
-      {/* Admin: publish as global signal */}
+      {/* ═══════ ADMIN PUBLISH ═══════ */}
       {isAdmin && primarySignal && strength >= 3 && (
-        <div className="card-premium p-4 border-primary/30">
+        <div className="panel-inset rounded-xl p-3 sm:p-4 border-primary/30">
           <div className="flex items-center gap-2 mb-2">
             <Radio className="h-4 w-4 text-primary" />
-            <span className="text-xs font-medium text-primary uppercase">Azione Admin</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-primary uppercase tracking-wider">Azione Admin</span>
           </div>
           <Button
             variant="outline"
-            className="w-full border-primary/30 text-primary hover:bg-primary/10"
+            className="w-full border-primary/30 text-primary hover:bg-primary/10 rounded-lg"
             onClick={async () => {
               const entryPrice = parsePrice(primarySignal!.entry_range);
               const slPrice = parsePrice(primarySignal!.stop_loss);
               const tpPrice = parsePrice(primarySignal!.take_profit);
-              console.log("[AdminPublish] Market order", { reviewId, asset, entryPrice, slPrice, tpPrice, adminLot: primaryLotCalc?.lotSize, strength, risk: effectiveRisk });
               const { data: insertedSignal, error } = await supabase.from("shared_signals").insert({
                 review_id: reviewId || null,
                 created_by: user!.id,
@@ -548,7 +603,6 @@ export function EasyAnalysisDisplay({ analysis, accountSize, asset, reviewId, ri
                   nextPublished: true,
                   source: "easy-analysis-market",
                 });
-
                 if (notifyOutcome.error) {
                   toast.error(`Segnale pubblicato ma notifiche fallite: ${notifyOutcome.error}`);
                 } else {
