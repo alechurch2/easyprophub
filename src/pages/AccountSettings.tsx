@@ -15,6 +15,11 @@ const NotificationSettings = lazy(() => import("@/components/NotificationSetting
 
 export default function AccountSettings() {
   const { user, profile } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
+  const isFree = licenseSettings.license_level === "free";
+  const { prefs, linkedAccount, loading: riskLoading, save: saveRisk } = useRiskPreferences();
+  const [manualSize, setManualSize] = useState<string>("");
+  const [riskSaving, setRiskSaving] = useState(false);
 
   // Email change
   const [newEmail, setNewEmail] = useState("");
