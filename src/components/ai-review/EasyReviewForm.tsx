@@ -372,30 +372,30 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
         </div>
 
         {/* ─── SECTION: SCREENSHOT ─── */}
-        <div className="card-premium p-5">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="card-premium p-3.5 sm:p-5">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <span className="inline-flex items-center justify-center h-5 w-5 rounded-md bg-primary/10 text-primary text-[10px] font-bold">4</span>
-            <p className="text-label font-semibold uppercase text-muted-foreground/60">Grafico</p>
+            <p className="text-label font-semibold uppercase text-muted-foreground/60 text-[10px] sm:text-xs">Grafico</p>
           </div>
           
           {preview ? (
             <div className="relative group">
-              <img src={preview} alt="Preview" className="rounded-lg w-full max-h-48 object-contain border border-border/60 bg-background" />
+              <img src={preview} alt="Preview" className="rounded-lg w-full max-h-36 sm:max-h-48 object-contain border border-border/60 bg-background" />
               <button
                 type="button"
                 onClick={() => { setFile(null); setPreview(null); }}
-                className="absolute top-2 right-2 h-7 w-7 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
+                className="absolute top-2 right-2 h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
               >
                 ×
               </button>
             </div>
           ) : (
-            <label className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border/60 hover:border-primary/30 bg-muted/20 p-8 cursor-pointer transition-all duration-200 group">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                <Upload className="h-5 w-5 text-primary" />
+            <label className="flex flex-col items-center justify-center gap-1.5 sm:gap-2 rounded-xl border-2 border-dashed border-border/60 hover:border-primary/30 bg-muted/20 p-5 sm:p-8 cursor-pointer transition-all duration-200 group">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                <Upload className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
-              <p className="text-sm text-muted-foreground">Carica screenshot del grafico</p>
-              <p className="text-[10px] text-muted-foreground/60">PNG, JPG — max 10MB</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Carica screenshot</p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground/60">PNG, JPG — max 10MB</p>
               <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden" />
             </label>
           )}
