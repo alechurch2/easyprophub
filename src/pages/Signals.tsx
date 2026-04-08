@@ -348,6 +348,74 @@ export default function Signals() {
             )}
           </div>
         </div>
+
+        {/* ═══ ADMIN CREATE DIALOG ═══ */}
+        {isAdmin && (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-primary" />Nuovo segnale manuale
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Asset *</Label>
+                    <Input value={formData.asset} onChange={e => setFormData(p => ({ ...p, asset: e.target.value }))} placeholder="EURUSD" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Direzione *</Label>
+                    <Select value={formData.direction} onValueChange={v => setFormData(p => ({ ...p, direction: v }))}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DIRECTIONS.map(d => <SelectItem key={d} value={d} className="capitalize">{d.toUpperCase()}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Tipo ordine</Label>
+                  <Select value={formData.order_type} onValueChange={v => setFormData(p => ({ ...p, order_type: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ORDER_TYPES.map(t => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Entry *</Label>
+                    <Input type="number" step="any" value={formData.entry_price} onChange={e => setFormData(p => ({ ...p, entry_price: e.target.value }))} className="mt-1 font-mono" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Stop Loss *</Label>
+                    <Input type="number" step="any" value={formData.stop_loss} onChange={e => setFormData(p => ({ ...p, stop_loss: e.target.value }))} className="mt-1 font-mono" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Take Profit *</Label>
+                    <Input type="number" step="any" value={formData.take_profit} onChange={e => setFormData(p => ({ ...p, take_profit: e.target.value }))} className="mt-1 font-mono" />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Forza segnale: {formData.signal_strength}/5</Label>
+                  <Slider min={1} max={5} step={1} value={[formData.signal_strength]} onValueChange={v => setFormData(p => ({ ...p, signal_strength: v[0] }))} className="mt-2" />
+                </div>
+                <div>
+                  <Label className="text-xs">Spiegazione / nota</Label>
+                  <Textarea value={formData.explanation} onChange={e => setFormData(p => ({ ...p, explanation: e.target.value }))} placeholder="Breve spiegazione del setup..." className="mt-1 min-h-[80px]" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCreateOpen(false)}>Annulla</Button>
+                <Button onClick={handleCreateSignal} disabled={saving}>
+                  {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                  <Save className="h-3.5 w-3.5 mr-1" />Crea bozza
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </AppLayout>
   );
