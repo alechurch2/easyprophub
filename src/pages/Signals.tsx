@@ -70,7 +70,7 @@ export default function Signals() {
   const loadAll = async () => {
     const { data } = await supabase
       .from("shared_signals")
-      .select("id, asset, direction, order_type, entry_price, stop_loss, take_profit, signal_strength, signal_status, published_at, explanation")
+      .select("id, asset, direction, order_type, entry_price, stop_loss, take_profit, signal_strength, signal_status, signal_source, published_at, explanation")
       .eq("is_published", true)
       .eq("is_archived", false)
       .order("published_at", { ascending: false });
