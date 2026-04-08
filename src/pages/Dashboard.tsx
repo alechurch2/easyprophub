@@ -168,7 +168,15 @@ export default function Dashboard() {
 
           {/* ── Signals section ── */}
           <SharedSignals />
-          <SignalHistory />
+          {/* Link to full signals page */}
+          <div className="mb-6 -mt-6">
+            <Link
+              to="/signals"
+              className="inline-flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary font-medium transition-colors"
+            >
+              Vedi tutti i segnali e lo storico completo <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
 
           {/* ── Stats row — asymmetric layout ── */}
           {totalReviews > 0 && (
