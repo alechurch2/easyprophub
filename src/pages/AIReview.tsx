@@ -308,63 +308,64 @@ export default function AIReview() {
                 <p className="text-muted-foreground text-sm">Nessuna review trovata</p>
               </div>
             ) : (
-              <div className="space-y-1.5">
+              <div className="space-y-2 sm:space-y-1.5">
                 {filtered.map((r) => (
                   <div key={r.id} className={cn(
-                    "card-premium p-3.5 hover:border-primary/15 transition-all duration-200 flex items-center gap-3",
+                    "card-premium p-3 sm:p-3.5 hover:border-primary/15 transition-all duration-200 flex items-start sm:items-center gap-2.5 sm:gap-3",
                     r.review_tier === "premium" && "border-primary/10"
                   )}>
                     <Checkbox
                       checked={compareIds.has(r.id)}
                       onCheckedChange={() => toggleCompare(r.id)}
                       disabled={compareIds.size >= 2 && !compareIds.has(r.id)}
-                      className="shrink-0"
+                      className="shrink-0 mt-0.5 sm:mt-0"
                     />
                     <button onClick={() => setSelectedReview(r)} className="flex-1 text-left group min-w-0">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
                         <div className="min-w-0">
-                          <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                          <h3 className="text-[13px] sm:text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
                             {r.asset} · {r.timeframe}
                             {r.parent_review_id && <span className="text-primary text-[10px] ml-1.5">🔗 Riesame</span>}
                           </h3>
-                          <p className="text-[11px] text-muted-foreground/60 mt-0.5 font-mono-data">
+                          <p className="text-[10px] sm:text-[11px] text-muted-foreground/60 mt-0.5 font-mono-data">
                             {r.request_type} · {new Date(r.created_at).toLocaleDateString("it-IT")}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1.5 flex-wrap justify-end shrink-0">
+                        <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap shrink-0">
                           {r.review_tier === "premium" && (
-                            <Badge className="bg-primary/8 text-primary border-primary/15 text-[10px]">
+                            <Badge className="bg-primary/8 text-primary border-primary/15 text-[9px] sm:text-[10px] px-1.5 sm:px-2">
                               <Crown className="h-2.5 w-2.5 mr-0.5" />Premium
                             </Badge>
                           )}
                           {r.review_mode === "easy" && (
-                            <Badge variant="outline" className="text-[10px] border-primary/15 text-primary">
+                            <Badge variant="outline" className="text-[9px] sm:text-[10px] border-primary/15 text-primary px-1.5 sm:px-2">
                               <Zap className="h-2.5 w-2.5 mr-0.5" />Easy
                             </Badge>
                           )}
                           {(r as any).uses_ai_overlay && (
-                            <Badge className="bg-violet-500/10 text-violet-500 border-violet-500/20 text-[10px]">
+                            <Badge className="bg-violet-500/10 text-violet-500 border-violet-500/20 text-[9px] sm:text-[10px] px-1.5 sm:px-2 hidden sm:inline-flex">
                               <Layers className="h-2.5 w-2.5 mr-0.5" />Overlay
                             </Badge>
                           )}
-                          {r.user_note && <MessageSquare className="h-3 w-3 text-muted-foreground/40" />}
+                          {r.user_note && <MessageSquare className="h-3 w-3 text-muted-foreground/40 hidden sm:block" />}
                           {r.analysis?.qualita_setup != null && (
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1.5 sm:px-2">
                               <Star className="h-2.5 w-2.5 mr-0.5" />{r.analysis.qualita_setup}/10
                             </Badge>
                           )}
                           {r.analysis?.signal_quality && !r.analysis?.qualita_setup && (
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1.5 sm:px-2">
                               {r.analysis.signal_quality}
                             </Badge>
                           )}
                           <Badge className={cn(
-                            "text-[10px]",
+                            "text-[9px] sm:text-[10px] px-1.5 sm:px-2",
                             r.status === "completed" ? "bg-success/8 text-success border-success/15" :
                             r.status === "failed" ? "bg-destructive/8 text-destructive border-destructive/15" :
                             "bg-warning/8 text-warning border-warning/15"
                           )}>
-                            {r.status === "completed" ? "Completata" : r.status === "failed" ? "Fallita" : "In attesa"}
+                            {r.status === "completed" ? "✓" : r.status === "failed" ? "✗" : "…"}
+                            <span className="hidden sm:inline ml-0.5">{r.status === "completed" ? "Completata" : r.status === "failed" ? "Fallita" : "In attesa"}</span>
                           </Badge>
                         </div>
                       </div>
