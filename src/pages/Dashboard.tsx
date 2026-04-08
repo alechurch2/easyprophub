@@ -185,7 +185,7 @@ export default function Dashboard() {
           <div className="divider-fade" />
         </div>
 
-        <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
+        <div className="px-4 sm:px-8 lg:px-10 py-4 sm:py-6 lg:py-8 max-w-5xl mx-auto">
           <OnboardingChecklist />
 
           {licenseLoading ? (
