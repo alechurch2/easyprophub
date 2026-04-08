@@ -192,7 +192,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                   <div className="panel-inset p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Calculator className="h-3 w-3 text-primary/60" />
-                      <p className="text-[10px] text-primary/80 font-medium">Sul tuo conto • Rischio {(USER_DEFAULT_RISK * 100).toFixed(1)}%</p>
+                      <p className="text-[10px] text-primary/80 font-medium">{riskCtx.sourceLabel} • Rischio {(riskCtx.riskPercent * 100).toFixed(1)}%</p>
                     </div>
                     <div className="grid grid-cols-4 gap-2 text-center">
                       {[
