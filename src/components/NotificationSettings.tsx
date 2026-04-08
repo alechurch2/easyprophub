@@ -220,11 +220,33 @@ export default function NotificationSettings({ isFree = false }: NotificationSet
       <div className="card-premium p-4 space-y-4">
         <div className="flex items-center gap-2 mb-2">
           <Send className="h-4 w-4 text-muted-foreground" />
-          <div>
-            <Label className="text-sm font-medium">Telegram</Label>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">Telegram</Label>
+              {isFree && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary gap-1">
+                  <Crown className="h-2.5 w-2.5" /> Pro
+                </Badge>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">Ricevi notifiche istantanee su Telegram</p>
           </div>
         </div>
+
+        {isFree ? (
+          <div className="panel-inset p-4 rounded-xl text-center space-y-2">
+            <div className="flex items-center justify-center gap-2">
+              <Lock className="h-4 w-4 text-muted-foreground/60" />
+              <span className="text-sm font-medium text-muted-foreground/80">
+                Disponibile con piano Pro o Live
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground/50">
+              Upgrade il tuo piano per ricevere notifiche istantanee sui segnali direttamente su Telegram.
+            </p>
+          </div>
+        ) : (
+          <>
 
         {/* Status: Connected */}
         {linkStatus === "connected" && (
