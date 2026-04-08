@@ -131,18 +131,18 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
             >
               {/* Signal header bar */}
               <div className={cn(
-                "px-4 py-3 flex items-center justify-between gap-3",
+                "px-3 sm:px-4 py-2.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2",
                 buy ? "bg-success/[0.04]" : "bg-destructive/[0.04]"
               )}>
                 <div className="flex items-center gap-2.5">
                   <div className={cn(
-                    "h-8 w-8 rounded-lg flex items-center justify-center",
+                    "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
                     buy ? "bg-success/10" : "bg-destructive/10"
                   )}>
                     {buy ? <ArrowUpRight className="h-4 w-4 text-success" /> : <ArrowDownRight className="h-4 w-4 text-destructive" />}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-heading font-bold text-foreground text-base">{sig.asset}</span>
                       <Badge className={cn("text-[10px]", buy ? "bg-success/8 text-success border-success/15" : "bg-destructive/8 text-destructive border-destructive/15")}>
                         {sig.direction} {sig.order_type}
@@ -151,7 +151,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-[42px] sm:ml-0">
                   <div className="flex items-center gap-1">
                     {[1,2,3,4,5].map(i => (
                       <div key={i} className={cn(
