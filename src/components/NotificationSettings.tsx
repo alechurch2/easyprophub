@@ -344,6 +344,7 @@ export default function NotificationSettings({ isFree = false }: NotificationSet
             Collega Telegram
           </Button>
         )}
+        )}
       </div>
     </div>
   );
