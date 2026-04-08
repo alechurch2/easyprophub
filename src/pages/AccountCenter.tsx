@@ -2090,14 +2090,16 @@ export default function AccountCenter() {
 
         {/* Tabs */}
         <Tabs defaultValue="overview">
-          <TabsList className="mb-6 w-full grid grid-cols-3 sm:grid-cols-6 gap-1 h-auto bg-muted/30 p-1 rounded-xl">
-            <TabsTrigger value="overview" className="text-xs px-2 rounded-lg"><Wallet className="h-3 w-3 mr-1 hidden sm:inline" />Overview</TabsTrigger>
-            <TabsTrigger value="positions" className="text-xs px-2 rounded-lg"><Activity className="h-3 w-3 mr-1 hidden sm:inline" />Posizioni</TabsTrigger>
-            <TabsTrigger value="history" className="text-xs px-2 rounded-lg"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Storico</TabsTrigger>
-            <TabsTrigger value="journal" className="text-xs px-2 rounded-lg"><BookOpen className="h-3 w-3 mr-1 hidden sm:inline" />Journal</TabsTrigger>
-            <TabsTrigger value="metrics" className="text-xs px-2 rounded-lg"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Metriche</TabsTrigger>
-            <TabsTrigger value="sync-logs" className="text-xs px-2 rounded-lg"><RefreshCw className="h-3 w-3 mr-1 hidden sm:inline" />Sync</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 mb-4 sm:mb-6">
+            <TabsList className="w-max sm:w-full grid grid-cols-6 gap-0.5 sm:gap-1 h-auto bg-muted/30 p-0.5 sm:p-1 rounded-xl min-w-[420px] sm:min-w-0">
+              <TabsTrigger value="overview" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg">Overview</TabsTrigger>
+              <TabsTrigger value="positions" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg">Posizioni</TabsTrigger>
+              <TabsTrigger value="history" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg">Storico</TabsTrigger>
+              <TabsTrigger value="journal" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg">Journal</TabsTrigger>
+              <TabsTrigger value="metrics" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg">Metriche</TabsTrigger>
+              <TabsTrigger value="sync-logs" className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-lg">Sync</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview"><AccountOverview accounts={accounts} onSync={handleSync} syncing={syncing} onDelete={handleDelete} deleting={deleting} onRecheck={handleRecheck} rechecking={rechecking} /></TabsContent>
           <TabsContent value="positions"><OpenPositions trades={trades} /></TabsContent>
