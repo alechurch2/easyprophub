@@ -4,12 +4,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, Bell, Mail, Send, Link, Unlink, Copy, Check, RefreshCw } from "lucide-react";
+import { Loader2, Bell, Mail, Send, Link, Unlink, Copy, Check, RefreshCw, Crown, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 type LinkStatus = "disconnected" | "pending" | "connected";
 
-export default function NotificationSettings() {
+interface NotificationSettingsProps {
+  isFree?: boolean;
+}
+
+export default function NotificationSettings({ isFree = false }: NotificationSettingsProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
