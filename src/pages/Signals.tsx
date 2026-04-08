@@ -279,72 +279,135 @@ export default function Signals() {
                 <p className="text-[10px] text-muted-foreground/40 mt-1">I segnali chiusi appariranno qui</p>
               </div>
             ) : (
-              <div className="overflow-x-auto card-elevated">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Asset</th>
-                      <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Direzione</th>
-                      <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Tipo</th>
-                      <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Entry</th>
-                      <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">SL</th>
-                      <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">TP</th>
-                      <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Forza</th>
-                      <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Stato</th>
-                      <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Data</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historySignals.map((sig) => {
-                      const buy = sig.direction.toLowerCase().includes("buy");
-                      return (
-                        <tr key={sig.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-1.5">
-                              {buy ? <TrendingUp className="h-3 w-3 text-success" /> : <TrendingDown className="h-3 w-3 text-destructive" />}
-                              <span className="font-medium text-foreground">{sig.asset}</span>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3">
+              <>
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto card-elevated">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Asset</th>
+                        <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Direzione</th>
+                        <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Tipo</th>
+                        <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Entry</th>
+                        <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">SL</th>
+                        <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">TP</th>
+                        <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Forza</th>
+                        <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Stato</th>
+                        <th className="py-2.5 px-3 text-left font-medium text-muted-foreground">Data</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historySignals.map((sig) => {
+                        const buy = sig.direction.toLowerCase().includes("buy");
+                        return (
+                          <tr key={sig.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-1.5">
+                                {buy ? <TrendingUp className="h-3 w-3 text-success" /> : <TrendingDown className="h-3 w-3 text-destructive" />}
+                                <span className="font-medium text-foreground">{sig.asset}</span>
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <Badge className={cn("text-[10px]", buy ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+                                {sig.direction}
+                              </Badge>
+                            </td>
+                            <td className="py-2.5 px-3 text-muted-foreground capitalize">{sig.order_type}</td>
+                            <td className="py-2.5 px-3 font-mono-data text-foreground">{sig.entry_price}</td>
+                            <td className="py-2.5 px-3 font-mono-data text-destructive">
+                              {isFree ? <span className="blur-[5px] select-none pointer-events-none">0.0000</span> : sig.stop_loss}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono-data text-success">
+                              {isFree ? <span className="blur-[5px] select-none pointer-events-none">0.0000</span> : sig.take_profit}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-0.5">
+                                {[1,2,3,4,5].map(i => (
+                                  <div key={i} className={cn(
+                                    "h-1.5 w-2 rounded-full",
+                                    i <= sig.signal_strength ? "bg-primary" : "bg-muted-foreground/10"
+                                  )} />
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-1">
+                                <SignalStatusBadge status={sig.signal_status} />
+                                {sig.signal_source === "manual" && (
+                                  <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/20 text-amber-600">M</Badge>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-muted-foreground font-mono-data">
+                              {new Date(sig.published_at).toLocaleDateString("it-IT")}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile cards */}
+                <div className="md:hidden space-y-2">
+                  {historySignals.map((sig) => {
+                    const buy = sig.direction.toLowerCase().includes("buy");
+                    return (
+                      <div key={sig.id} className="card-premium p-3.5">
+                        <div className="flex items-center justify-between mb-2.5">
+                          <div className="flex items-center gap-2">
+                            {buy ? <TrendingUp className="h-4 w-4 text-success" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
+                            <span className="font-heading font-bold text-foreground">{sig.asset}</span>
                             <Badge className={cn("text-[10px]", buy ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
                               {sig.direction}
                             </Badge>
-                          </td>
-                          <td className="py-2.5 px-3 text-muted-foreground capitalize">{sig.order_type}</td>
-                          <td className="py-2.5 px-3 font-mono-data text-foreground">{sig.entry_price}</td>
-                          <td className="py-2.5 px-3 font-mono-data text-destructive">
-                            {isFree ? <span className="blur-[5px] select-none pointer-events-none">0.0000</span> : sig.stop_loss}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono-data text-success">
-                            {isFree ? <span className="blur-[5px] select-none pointer-events-none">0.0000</span> : sig.take_profit}
-                          </td>
-                          <td className="py-2.5 px-3">
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <SignalStatusBadge status={sig.signal_status} />
+                            {sig.signal_source === "manual" && (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/20 text-amber-600">M</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mb-2">
+                          <div className="panel-inset p-2 text-center">
+                            <p className="text-[9px] uppercase text-muted-foreground/50 font-semibold">Entry</p>
+                            <p className="text-xs font-mono-data font-bold text-foreground">{sig.entry_price}</p>
+                          </div>
+                          <div className="panel-inset p-2 text-center">
+                            <p className="text-[9px] uppercase text-muted-foreground/50 font-semibold">SL</p>
+                            <p className="text-xs font-mono-data font-bold text-destructive">
+                              {isFree ? <span className="blur-[5px] select-none">0.00</span> : sig.stop_loss}
+                            </p>
+                          </div>
+                          <div className="panel-inset p-2 text-center">
+                            <p className="text-[9px] uppercase text-muted-foreground/50 font-semibold">TP</p>
+                            <p className="text-xs font-mono-data font-bold text-success">
+                              {isFree ? <span className="blur-[5px] select-none">0.00</span> : sig.take_profit}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-muted-foreground capitalize">{sig.order_type}</span>
                             <div className="flex items-center gap-0.5">
                               {[1,2,3,4,5].map(i => (
                                 <div key={i} className={cn(
-                                  "h-1.5 w-2 rounded-full",
+                                  "h-1 w-1.5 rounded-full",
                                   i <= sig.signal_strength ? "bg-primary" : "bg-muted-foreground/10"
                                 )} />
                               ))}
                             </div>
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-1">
-                              <SignalStatusBadge status={sig.signal_status} />
-                              {sig.signal_source === "manual" && (
-                                <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/20 text-amber-600">M</Badge>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-muted-foreground font-mono-data">
+                          </div>
+                          <span className="text-[10px] text-muted-foreground/50 font-mono-data">
                             {new Date(sig.published_at).toLocaleDateString("it-IT")}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </div>
         </div>

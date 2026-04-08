@@ -194,7 +194,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                       <Calculator className="h-3 w-3 text-primary/60" />
                       <p className="text-[10px] text-primary/80 font-medium">{riskCtx.sourceLabel} • Rischio {(riskCtx.riskPercent * 100).toFixed(1)}%</p>
                     </div>
-                    <div className="grid grid-cols-4 gap-2 text-center">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                       {[
                         { label: "Lotto", value: lotCalc.lotSize, color: "text-foreground" },
                         { label: "Rischio", value: `$${lotCalc.riskAmount.toFixed(0)}`, color: "text-destructive" },

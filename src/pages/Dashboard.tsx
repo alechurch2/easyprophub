@@ -146,7 +146,7 @@ export default function Dashboard() {
                   <p className="text-muted-foreground mt-1 sm:mt-2 text-xs sm:text-sm max-w-md">{BRAND.description}</p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/5 border border-success/15">
                     <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse-soft" />
                     <span className="text-[11px] font-medium text-success">
