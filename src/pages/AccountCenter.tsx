@@ -325,19 +325,6 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
     setSaving(true);
     setConnectionStep("Creazione account...");
 
-    // Encrypt password server-side before storing
-    let encryptedPassword = investorPassword.trim() || null;
-    if (encryptedPassword) {
-      const { data: encData } = await supabase.rpc("encrypt_text_value" as any, {
-        _plaintext: encryptedPassword,
-        _key: "", // key is read server-side in SECURITY DEFINER context
-      });
-      // If RPC returns encrypted value, use it; otherwise store as-is
-      if (encData && typeof encData === "string" && encData !== encryptedPassword) {
-        encryptedPassword = encData;
-      }
-    }
-
     const { data: account, error } = await supabase.from("trading_accounts").insert({
       user_id: user.id,
       account_name: name.trim(),
@@ -345,7 +332,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
       broker: broker.trim() || null,
       server: server.trim() || null,
       account_number: accountNumber.trim() || null,
-      investor_password: encryptedPassword,
+      investor_password: investorPassword.trim() || null,
       connection_status: "pending",
       sync_status: "idle",
       provider_type: "metaapi",
