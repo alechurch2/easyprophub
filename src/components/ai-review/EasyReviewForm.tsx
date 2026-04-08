@@ -300,22 +300,22 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
         </div>
 
         {/* ─── SECTION: RISK ─── */}
-        <div className="card-premium p-5">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="card-premium p-3.5 sm:p-5">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <span className="inline-flex items-center justify-center h-5 w-5 rounded-md bg-primary/10 text-primary text-[10px] font-bold">3</span>
-            <p className="text-label font-semibold uppercase text-muted-foreground/60">Rischio per operazione</p>
+            <p className="text-label font-semibold uppercase text-muted-foreground/60 text-[10px] sm:text-xs">Rischio per operazione</p>
           </div>
-          <p className="text-[11px] text-muted-foreground mb-3">
+          <p className="text-[10px] sm:text-[11px] text-muted-foreground mb-2.5 sm:mb-3">
             Seleziona quanto del conto vuoi rischiare su questa operazione.
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {RISK_PRESETS.map((p) => (
               <button
                 key={p.value}
                 type="button"
                 onClick={() => setRiskPercent(String(p.value))}
                 className={cn(
-                  "rounded-lg px-4 py-2.5 text-xs font-bold border transition-all duration-200",
+                  "rounded-lg px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-[10px] sm:text-xs font-bold border transition-all duration-200",
                   riskPercent === String(p.value)
                     ? "bg-primary/10 text-primary border-primary/30 ring-1 ring-primary/20"
                     : "bg-card text-muted-foreground border-border hover:border-primary/20 hover:text-foreground"
@@ -328,34 +328,34 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
               type="button"
               onClick={() => setRiskPercent("custom")}
               className={cn(
-                "rounded-lg px-4 py-2.5 text-xs font-bold border transition-all duration-200",
+                "rounded-lg px-2.5 sm:px-4 py-1.5 sm:py-2.5 text-[10px] sm:text-xs font-bold border transition-all duration-200",
                 isCustomRisk
                   ? "bg-primary/10 text-primary border-primary/30 ring-1 ring-primary/20"
                   : "bg-card text-muted-foreground border-border hover:border-primary/20 hover:text-foreground"
               )}
             >
-              Personalizzato
+              Custom
             </button>
           </div>
           {isCustomRisk && (
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-2.5 sm:mt-3 flex items-center gap-2">
               <Input
                 type="number"
                 value={customRisk}
                 onChange={(e) => setCustomRisk(e.target.value)}
                 placeholder="Es: 0.15"
-                className="max-w-[140px]"
+                className="max-w-[120px] sm:max-w-[140px] h-8 sm:h-9 text-xs sm:text-sm"
                 min={0.01}
                 max={MAX_CUSTOM_RISK * 100}
                 step={0.01}
               />
-              <span className="text-xs text-muted-foreground">% (max {MAX_CUSTOM_RISK * 100}%)</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">% (max {MAX_CUSTOM_RISK * 100}%)</span>
             </div>
           )}
           {riskMonetary && accountSize > 0 && selectedRisk > 0 && (
-            <div className="mt-3 panel-inset p-3 flex items-center gap-3">
-              <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-              <p className="text-xs text-muted-foreground">
+            <div className="mt-2.5 sm:mt-3 panel-inset p-2.5 sm:p-3 flex items-center gap-2.5 sm:gap-3">
+              <ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
+              <p className="text-[10px] sm:text-xs text-muted-foreground">
                 Rischio: <span className="font-semibold text-foreground font-mono-data">{(selectedRisk * 100).toFixed(2).replace(/\.?0+$/, '')}%</span> di{" "}
                 <span className="font-semibold text-foreground font-mono-data">${accountSize.toLocaleString()}</span>{" "}
                 = <span className="font-bold text-destructive font-mono-data">${parseFloat(riskMonetary).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -363,10 +363,10 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
             </div>
           )}
           {/* Prop firm disclaimer */}
-          <div className="mt-3 rounded-lg border border-amber-500/15 bg-amber-500/5 px-3 py-2">
-            <p className="text-[11px] text-muted-foreground">
+          <div className="mt-2.5 sm:mt-3 rounded-lg border border-amber-500/15 bg-amber-500/5 px-2.5 sm:px-3 py-1.5 sm:py-2">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground">
               <span className="font-semibold text-amber-600">💡 Prop firm:</span>{" "}
-              Se stai operando su un conto prop firm, ti consigliamo di mantenere il rischio sotto lo 0,25% per rispettare i limiti di drawdown.
+              Rischio consigliato sotto lo 0,25% per rispettare i limiti di drawdown.
             </p>
           </div>
         </div>
