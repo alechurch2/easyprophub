@@ -49,8 +49,11 @@ interface SignalStats {
 
 
 
+const ORDER_TYPES = ["market", "buy limit", "sell limit", "buy stop", "sell stop"];
+const DIRECTIONS = ["buy", "sell"];
+
 export default function Signals() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { settings: licenseSettings } = useLicenseSettings();
   const isFree = licenseSettings.license_level === "free";
   const [allSignals, setAllSignals] = useState<HistorySignal[]>([]);
@@ -58,6 +61,13 @@ export default function Signals() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterAsset, setFilterAsset] = useState("all");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    asset: "", direction: "buy", order_type: "market",
+    entry_price: "", stop_loss: "", take_profit: "",
+    signal_strength: 3, signal_quality: "media", explanation: "",
+  });
 
   useEffect(() => {
     trackEvent("signals_opened", { page: "signals", section: "signals" });
