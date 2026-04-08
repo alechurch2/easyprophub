@@ -275,7 +275,14 @@ export default function Signals() {
                               ))}
                             </div>
                           </td>
-                          <td className="py-2.5 px-3"><SignalStatusBadge status={sig.signal_status} /></td>
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-1">
+                              <SignalStatusBadge status={sig.signal_status} />
+                              {sig.signal_source === "manual" && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/20 text-amber-600">M</Badge>
+                              )}
+                            </div>
+                          </td>
                           <td className="py-2.5 px-3 text-muted-foreground font-mono-data">
                             {new Date(sig.published_at).toLocaleDateString("it-IT")}
                           </td>
