@@ -49,11 +49,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Admin-only items are still hidden for non-admins; premium items are always visible
   const filteredItems = navItems.filter((item) => {
     if (item.adminOnly && !isAdmin) return false;
-    if (item.requireKey && !isAdmin && !licenseSettings[item.requireKey]) return false;
     return true;
   });
+
+  // Check if a nav item is locked (premium but not enabled for user)
+  const isItemLocked = (item: NavItem): boolean => {
+    if (isAdmin) return false;
+    if (!item.requireKey) return false;
+    return !licenseSettings[item.requireKey];
+  };
 
   const handleSignOut = async () => {
     await signOut();
