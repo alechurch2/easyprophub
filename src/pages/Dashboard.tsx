@@ -135,7 +135,7 @@ export default function Dashboard() {
           <div className="absolute top-0 right-0 w-[600px] h-[400px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
           <div className="absolute bottom-0 left-0 w-[400px] h-[300px] bg-primary/[0.02] rounded-full blur-[80px] translate-y-1/2" />
 
-          <div className="relative px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
+          <div className="relative px-4 sm:px-8 lg:px-10 py-6 sm:py-8 lg:py-10">
             <div className="max-w-5xl mx-auto">
               <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-2">
                 <div>
