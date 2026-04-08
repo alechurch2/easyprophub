@@ -24,6 +24,7 @@ interface SharedSignal {
   published_at: string;
   review_id: string | null;
   signal_status: string;
+  signal_source?: string;
 }
 
 interface TradingAccount {
