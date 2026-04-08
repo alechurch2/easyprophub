@@ -2050,14 +2050,14 @@ export default function AccountCenter() {
         </div>
 
         {/* ═══ MAIN CONTENT ═══ */}
-        <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
+        <div className="px-4 sm:px-8 lg:px-10 py-4 sm:py-6 lg:py-8 max-w-5xl mx-auto">
 
         {/* Disclaimer */}
-        <div className="panel-inset p-3.5 mb-6">
+        <div className="panel-inset p-3 sm:p-3.5 mb-4 sm:mb-6">
           <div className="flex items-start gap-2">
-            <Shield className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              <strong className="text-foreground/60">Modalità sola lettura.</strong> Conto collegato in sola lettura. Il portale non può aprire, chiudere o modificare operazioni. I dati vengono sincronizzati dal provider esterno.
+            <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary mt-0.5 flex-shrink-0" />
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground leading-relaxed">
+              <strong className="text-foreground/60">Disclaimer.</strong> I dati vengono sincronizzati dal provider esterno. Il portale non può aprire, chiudere o modificare operazioni.
             </p>
           </div>
         </div>
