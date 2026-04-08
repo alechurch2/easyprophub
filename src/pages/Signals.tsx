@@ -241,8 +241,12 @@ export default function Signals() {
                           </td>
                           <td className="py-2.5 px-3 text-muted-foreground capitalize">{sig.order_type}</td>
                           <td className="py-2.5 px-3 font-mono-data text-foreground">{sig.entry_price}</td>
-                          <td className="py-2.5 px-3 font-mono-data text-destructive">{sig.stop_loss}</td>
-                          <td className="py-2.5 px-3 font-mono-data text-success">{sig.take_profit}</td>
+                          <td className="py-2.5 px-3 font-mono-data text-destructive">
+                            {isFree ? <span className="blur-[5px] select-none pointer-events-none">0.0000</span> : sig.stop_loss}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono-data text-success">
+                            {isFree ? <span className="blur-[5px] select-none pointer-events-none">0.0000</span> : sig.take_profit}
+                          </td>
                           <td className="py-2.5 px-3">
                             <div className="flex items-center gap-0.5">
                               {[1,2,3,4,5].map(i => (
