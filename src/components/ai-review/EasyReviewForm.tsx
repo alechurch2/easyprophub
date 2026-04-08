@@ -20,11 +20,12 @@ import { useRiskPreferences } from "@/hooks/useRiskPreferences";
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
+  onAnalyzing?: () => void;
   reviewTier?: "standard" | "premium";
   licenseLevel?: string;
 }
 
-export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", licenseLevel = "free" }: Props) {
+export function EasyReviewForm({ onClose, onSuccess, onAnalyzing, reviewTier = "standard", licenseLevel = "free" }: Props) {
   const { user } = useAuth();
   const { prefs: riskPrefs, linkedAccount, loading: riskPrefsLoading, getRiskContext } = useRiskPreferences();
   const [asset, setAsset] = useState(ASSETS[0]);
