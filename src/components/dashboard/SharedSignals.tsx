@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator, ArrowUpRight, ArrowDownRight, Info, Settings } from "lucide-react";
+import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator, ArrowUpRight, ArrowDownRight, Info, Settings, Lock } from "lucide-react";
 import { TradeExecutionModal } from "@/components/ai-review/TradeExecutionModal";
 import { fullLotCalculationFromPrices } from "@/components/ai-review/lotSizeCalculator";
 import { SignalStatusBadge, isSignalCopyable, getUncopyableMessage } from "./SignalStatusBadge";
@@ -187,8 +187,8 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                   <p className="text-xs text-muted-foreground leading-relaxed">{sig.explanation}</p>
                 )}
 
-                {/* Lot calc */}
-                {lotCalc && copyable && (
+                {/* Lot calc — hidden for Free */}
+                {!isFreeUser && lotCalc && copyable && (
                   <div className="panel-inset p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Calculator className="h-3 w-3 text-primary/60" />
@@ -210,7 +210,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                   </div>
                 )}
 
-                {!lotCalc && riskCtx.isConfigured && copyable && (
+                {!isFreeUser && !lotCalc && riskCtx.isConfigured && copyable && (
                   <div className="panel-inset p-2.5">
                     <p className="text-[10px] text-muted-foreground/50 text-center">
                       Asset non supportato per il calcolo automatico del lotto
@@ -218,11 +218,26 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                   </div>
                 )}
 
-                {!riskCtx.isConfigured && copyable && (
+                {!isFreeUser && !riskCtx.isConfigured && copyable && (
                   <div className="panel-inset p-3 flex items-center gap-2">
                     <Settings className="h-3.5 w-3.5 text-primary/60 shrink-0" />
                     <p className="text-[10px] text-muted-foreground">
                       Per calcolare rischio e lottaggio, imposta la grandezza del conto nelle <a href="/account-settings" className="text-primary underline underline-offset-2">Impostazioni</a>.
+                    </p>
+                  </div>
+                )}
+
+                {/* Free upsell */}
+                {isFreeUser && (
+                  <div className="panel-inset p-3 rounded-xl text-center space-y-1.5">
+                    <div className="flex items-center justify-center gap-2">
+                      <Lock className="h-3.5 w-3.5 text-primary/60" />
+                      <span className="text-[11px] font-medium text-muted-foreground/80">
+                        Parametri operativi riservati ai piani Pro e Live
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/50">
+                      SL, TP, lottaggio, rischio e profitto teorico disponibili con un piano attivo
                     </p>
                   </div>
                 )}
@@ -237,8 +252,8 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                   </div>
                 )}
 
-                {/* Action */}
-                {copyable && canExecute && sig.signal_strength >= 3 && lotCalc ? (
+                {/* Action — hidden for Free */}
+                {!isFreeUser && copyable && canExecute && sig.signal_strength >= 3 && lotCalc ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -248,7 +263,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                     <Send className="h-3.5 w-3.5 mr-2" />
                     Copia sul conto
                   </Button>
-                ) : copyable && tradingAccount && !canExecute ? (
+                ) : !isFreeUser && copyable && tradingAccount && !canExecute ? (
                   <div className="flex items-center gap-2 justify-center py-1">
                     <Shield className="h-3 w-3 text-muted-foreground/40" />
                     <p className="text-[10px] text-muted-foreground/50">

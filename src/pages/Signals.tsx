@@ -201,7 +201,7 @@ export default function Signals() {
                 <div>
                   <p className="text-sm font-heading font-semibold text-foreground">Sblocca i segnali completi</p>
                   <p className="text-xs text-muted-foreground/60 mt-0.5">
-                    Stop Loss e Take Profit sono disponibili con i piani Pro e Live per un'operatività completa e professionale.
+                    Per vedere stop loss, take profit, lottaggio, rischio e profitto teorico attiva un piano Pro o Live.
                   </p>
                 </div>
               </div>
