@@ -13,6 +13,7 @@ import {
   ArrowUpDown, Filter, Loader2, Target, Percent, Activity, Minus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
 interface HistorySignal {
   id: string;
@@ -37,6 +38,154 @@ interface SignalStats {
   expired: number;
   withdrawn: number;
   winRate: number | null;
+}
+
+const CHART_COLORS = {
+  won: "hsl(var(--success))",
+  lost: "hsl(var(--destructive))",
+  triggered: "hsl(var(--primary))",
+  expired: "hsl(var(--muted-foreground))",
+  withdrawn: "hsl(var(--warning, 45 93% 47%))",
+};
+
+function SignalCharts({ signals, stats }: { signals: HistorySignal[]; stats: SignalStats }) {
+  const donutData = useMemo(() => {
+    const items = [
+      { name: "Vinti", value: stats.won, color: CHART_COLORS.won },
+      { name: "Persi", value: stats.lost, color: CHART_COLORS.lost },
+      { name: "Aperti", value: stats.triggered, color: CHART_COLORS.triggered },
+      { name: "Scaduti", value: stats.expired, color: CHART_COLORS.expired },
+      { name: "Ritirati", value: stats.withdrawn, color: CHART_COLORS.withdrawn },
+    ];
+    return items.filter(i => i.value > 0);
+  }, [stats]);
+
+  const monthlyData = useMemo(() => {
+    const map: Record<string, { month: string; won: number; lost: number }> = {};
+    signals
+      .filter(s => s.signal_status === "won" || s.signal_status === "lost")
+      .forEach(s => {
+        const d = new Date(s.published_at);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        if (!map[key]) map[key] = { month: key, won: 0, lost: 0 };
+        if (s.signal_status === "won") map[key].won++;
+        else map[key].lost++;
+      });
+    return Object.values(map).sort((a, b) => a.month.localeCompare(b.month)).slice(-12);
+  }, [signals]);
+
+  const closedTotal = stats.won + stats.lost;
+  if (closedTotal === 0 && donutData.length === 0) return null;
+
+  const formatMonth = (m: string) => {
+    const [y, mo] = m.split("-");
+    const months = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+    return `${months[parseInt(mo) - 1]} ${y.slice(2)}`;
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+      {/* Donut — outcome distribution */}
+      <div className="card-premium p-5">
+        <p className="text-[10px] uppercase text-muted-foreground/50 font-semibold mb-3">Distribuzione esiti</p>
+        <div className="h-[200px] relative">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={donutData}
+                cx="50%"
+                cy="50%"
+                innerRadius={55}
+                outerRadius={80}
+                paddingAngle={3}
+                dataKey="value"
+                strokeWidth={0}
+              >
+                {donutData.map((entry, i) => (
+                  <Cell key={i} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  color: "hsl(var(--foreground))",
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          {/* Center label */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="text-center">
+              <p className="font-heading text-2xl font-bold text-foreground">{stats.winRate !== null ? `${stats.winRate}%` : "—"}</p>
+              <p className="text-[9px] uppercase text-muted-foreground/50 font-semibold">Win Rate</p>
+            </div>
+          </div>
+        </div>
+        {/* Legend */}
+        <div className="flex flex-wrap justify-center gap-3 mt-2">
+          {donutData.map(d => (
+            <div key={d.name} className="flex items-center gap-1.5">
+              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: d.color }} />
+              <span className="text-[10px] text-muted-foreground">{d.name} ({d.value})</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bar chart — monthly W/L */}
+      {monthlyData.length > 0 && (
+        <div className="card-premium p-5">
+          <p className="text-[10px] uppercase text-muted-foreground/50 font-semibold mb-3">Win / Loss mensile</p>
+          <div className="h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyData} barGap={2}>
+                <XAxis
+                  dataKey="month"
+                  tickFormatter={formatMonth}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={24}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    color: "hsl(var(--foreground))",
+                  }}
+                  labelFormatter={formatMonth}
+                />
+                <Bar dataKey="won" name="Vinti" fill={CHART_COLORS.won} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="lost" name="Persi" fill={CHART_COLORS.lost} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          {/* Mini legend */}
+          <div className="flex justify-center gap-4 mt-2">
+            <div className="flex items-center gap-1.5">
+              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: CHART_COLORS.won }} />
+              <span className="text-[10px] text-muted-foreground">Vinti</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: CHART_COLORS.lost }} />
+              <span className="text-[10px] text-muted-foreground">Persi</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Signals() {
@@ -152,6 +301,9 @@ export default function Signals() {
                   </div>
                 ))}
               </div>
+
+              {/* ═══ CHARTS ═══ */}
+              <SignalCharts signals={allSignals} stats={stats} />
             </div>
           )}
 
