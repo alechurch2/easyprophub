@@ -15,6 +15,7 @@ import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES } from "./types";
 import { ACCOUNT_PRESETS, RISK_PRESETS, MAX_CUSTOM_RISK } from "./lotSizeCalculator";
 import { ReviewLoadingState } from "./ReviewLoadingState";
+import { useRiskPreferences } from "@/hooks/useRiskPreferences";
 
 interface Props {
   onClose: () => void;
