@@ -216,8 +216,8 @@ export default function AIReview() {
 
           {/* ── New review form ── */}
           {showForm && (
-            <div className="flex flex-col gap-10 mb-10">
-              <div className="space-y-8">
+            <div className="flex flex-col gap-6 sm:gap-10 mb-8 sm:mb-10">
+              <div className="space-y-5 sm:space-y-8">
                 <TierSelector
                   tier={reviewTier}
                   onChange={setReviewTier}
@@ -229,33 +229,33 @@ export default function AIReview() {
 
               {/* Selection summary */}
               <div className={cn(
-                "relative rounded-2xl overflow-hidden transition-all duration-300",
+                "relative rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300",
                 reviewTier === "premium"
                   ? "bg-gradient-to-r from-primary/[0.06] via-card to-amber-500/[0.04] border border-primary/20"
                   : "bg-gradient-to-r from-success/[0.04] via-card to-primary/[0.04] border border-border/40"
               )}>
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-                <div className="px-6 py-5">
-                  <div className="flex items-center gap-2 mb-4">
+                <div className="px-3.5 py-3 sm:px-6 sm:py-5">
+                  <div className="flex items-center gap-2 mb-2.5 sm:mb-4">
                     <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-semibold">
+                    <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-semibold">
                       Configurazione attiva
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <div className={cn(
-                      "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all",
+                      "inline-flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold transition-all",
                       reviewTier === "premium"
                         ? "bg-primary/10 text-primary border border-primary/20 shadow-sm shadow-primary/5"
                         : "bg-success/8 text-success border border-success/15"
                     )}>
-                      {reviewTier === "premium" ? <Crown className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                      {reviewTier === "premium" ? "Premium Review" : "Standard Review"}
+                      {reviewTier === "premium" ? <Crown className="h-3 w-3 sm:h-4 sm:w-4" /> : <Zap className="h-3 w-3 sm:h-4 sm:w-4" />}
+                      {reviewTier === "premium" ? "Premium" : "Standard"}
                     </div>
-                    <span className="text-muted-foreground/20 text-lg">×</span>
-                    <div className="inline-flex items-center gap-2 rounded-xl bg-primary/8 text-primary border border-primary/15 px-4 py-2 text-sm font-bold shadow-sm shadow-primary/5">
-                      {reviewMode === "pro" ? <BarChart3 className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
-                      {reviewMode === "pro" ? "Pro Mode" : "Easy Mode"}
+                    <span className="text-muted-foreground/20 text-sm sm:text-lg">×</span>
+                    <div className="inline-flex items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl bg-primary/8 text-primary border border-primary/15 px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold shadow-sm shadow-primary/5">
+                      {reviewMode === "pro" ? <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" /> : <Zap className="h-3 w-3 sm:h-4 sm:w-4" />}
+                      {reviewMode === "pro" ? "Pro" : "Easy"}
                     </div>
                   </div>
                 </div>
