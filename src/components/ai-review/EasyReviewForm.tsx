@@ -40,6 +40,7 @@ export function EasyReviewForm({ onClose, onSuccess, onAnalyzing, reviewTier = "
   const isCustomRisk = riskPercent === "custom";
   const [submitting, setSubmitting] = useState(false);
   const [usesAiOverlay, setUsesAiOverlay] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const [connectedEquity, setConnectedEquity] = useState<number | null>(null);
   const [connectedAccountName, setConnectedAccountName] = useState<string | null>(null);
