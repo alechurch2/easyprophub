@@ -188,38 +188,38 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
   return (
     <div className="animate-fade-in">
       {/* ─── FORM HEADER ─── */}
-      <div className="card-elevated p-6 mb-6 relative overflow-hidden">
+      <div className="card-elevated p-4 sm:p-6 mb-4 sm:mb-6 relative overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-        <div className="flex items-center gap-3 mb-1">
-          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Camera className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-2.5 sm:gap-3 mb-1">
+          <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
           </div>
           <div>
-            <h2 className="font-heading font-bold text-foreground text-lg">Easy Mode</h2>
-            <p className="text-xs text-muted-foreground">Analisi semplificata con idea operativa diretta</p>
+            <h2 className="font-heading font-bold text-foreground text-base sm:text-lg">Easy Mode</h2>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Analisi semplificata con idea operativa diretta</p>
           </div>
         </div>
       </div>
 
-      <form onSubmit={submit} className="space-y-6">
+      <form onSubmit={submit} className="space-y-4 sm:space-y-6">
         {/* ─── SECTION: ASSET & TIMEFRAME ─── */}
-        <div className="card-premium p-5">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="card-premium p-3.5 sm:p-5">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <span className="inline-flex items-center justify-center h-5 w-5 rounded-md bg-primary/10 text-primary text-[10px] font-bold">1</span>
-            <p className="text-label font-semibold uppercase text-muted-foreground/60">Mercato</p>
+            <p className="text-label font-semibold uppercase text-muted-foreground/60 text-[10px] sm:text-xs">Mercato</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Asset</Label>
+              <Label className="text-[10px] sm:text-xs text-muted-foreground mb-1 sm:mb-1.5 block">Asset</Label>
               <Select value={asset} onValueChange={setAsset}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>{ASSETS.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Timeframe</Label>
+              <Label className="text-[10px] sm:text-xs text-muted-foreground mb-1 sm:mb-1.5 block">Timeframe</Label>
               <Select value={timeframe} onValueChange={setTimeframe}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm"><SelectValue /></SelectTrigger>
                 <SelectContent>{TIMEFRAMES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
               </Select>
             </div>
