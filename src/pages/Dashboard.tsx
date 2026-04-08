@@ -4,13 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, GraduationCap, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, ChevronRight } from "lucide-react";
+import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, Radio, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { trackEvent } from "@/lib/analytics";
 import { SharedSignals } from "@/components/dashboard/SharedSignals";
-import { SignalHistory } from "@/components/dashboard/SignalHistory";
+import { Link as RouterLink } from "react-router-dom";
 
 interface Announcement {
   id: string;
@@ -98,7 +98,7 @@ export default function Dashboard() {
 
   const quickLinks = [
     { title: "Formazione", desc: "Percorsi e moduli dedicati", icon: BookOpen, path: "/training", accent: "primary" },
-    { title: "Libreria Didattica", desc: "Esempi selezionati di analisi AI", icon: GraduationCap, path: "/case-studies", accent: "info" },
+    { title: "Segnali", desc: "Hub segnali operativi e storico", icon: Radio, path: "/signals", accent: "info" },
     { title: "AI Chart Review", desc: "Analisi strutturata dei grafici", icon: BarChart3, path: "/ai-review", accent: "success" },
     { title: "AI Assistant", desc: "Chat AI per supporto operativo", icon: Bot, path: "/ai-assistant", accent: "primary" },
     { title: "Account Center", desc: "Monitora i tuoi conti", icon: Wallet, path: "/account-center", accent: "success" },
@@ -168,7 +168,15 @@ export default function Dashboard() {
 
           {/* ── Signals section ── */}
           <SharedSignals />
-          <SignalHistory />
+          {/* Link to full signals page */}
+          <div className="mb-6 -mt-6">
+            <Link
+              to="/signals"
+              className="inline-flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary font-medium transition-colors"
+            >
+              Vedi tutti i segnali e lo storico completo <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
 
           {/* ── Stats row — asymmetric layout ── */}
           {totalReviews > 0 && (
