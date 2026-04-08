@@ -10,10 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import {
   Radio, TrendingUp, TrendingDown, BarChart3, Trophy, XCircle, Clock,
-  ArrowUpDown, Filter, Loader2, Target, Percent, Activity, Minus, Lock
+  ArrowUpDown, Filter, Loader2, Target, Percent, Activity, Minus, Lock, Plus, Save
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface HistorySignal {
   id: string;
@@ -43,8 +49,11 @@ interface SignalStats {
 
 
 
+const ORDER_TYPES = ["market", "buy limit", "sell limit", "buy stop", "sell stop"];
+const DIRECTIONS = ["buy", "sell"];
+
 export default function Signals() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { settings: licenseSettings } = useLicenseSettings();
   const isFree = licenseSettings.license_level === "free";
   const [allSignals, setAllSignals] = useState<HistorySignal[]>([]);
@@ -52,6 +61,13 @@ export default function Signals() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterAsset, setFilterAsset] = useState("all");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    asset: "", direction: "buy", order_type: "market",
+    entry_price: "", stop_loss: "", take_profit: "",
+    signal_strength: 3, signal_quality: "media", explanation: "",
+  });
 
   useEffect(() => {
     trackEvent("signals_opened", { page: "signals", section: "signals" });
@@ -107,6 +123,36 @@ export default function Signals() {
     return result;
   }, [allSignals, filterStatus, filterAsset, sortOrder]);
 
+  const handleCreateSignal = async () => {
+    if (!formData.asset || !formData.entry_price || !formData.stop_loss || !formData.take_profit) {
+      toast.error("Compila tutti i campi obbligatori");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("shared_signals").insert({
+      asset: formData.asset.toUpperCase().trim(),
+      direction: formData.direction,
+      order_type: formData.order_type,
+      entry_price: parseFloat(formData.entry_price),
+      stop_loss: parseFloat(formData.stop_loss),
+      take_profit: parseFloat(formData.take_profit),
+      signal_strength: formData.signal_strength,
+      signal_quality: formData.signal_quality,
+      explanation: formData.explanation || null,
+      signal_source: "manual",
+      signal_status: "active",
+      is_published: false,
+      is_archived: false,
+      created_by: user!.id,
+    } as any);
+    setSaving(false);
+    if (error) { toast.error("Errore nella creazione"); console.error(error); return; }
+    toast.success("Segnale creato come bozza. Pubblicalo dal pannello Admin.");
+    setCreateOpen(false);
+    setFormData({ asset: "", direction: "buy", order_type: "market", entry_price: "", stop_loss: "", take_profit: "", signal_strength: 3, signal_quality: "media", explanation: "" });
+    loadAll();
+  };
+
   return (
     <AppLayout>
       <div className="animate-fade-in">
@@ -116,14 +162,21 @@ export default function Signals() {
           <div className="absolute top-0 right-0 w-[500px] h-[350px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
           <div className="relative px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
             <div className="max-w-5xl mx-auto">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Radio className="h-5 w-5 text-primary" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Radio className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium">Trading Hub</p>
+                    <h1 className="font-heading text-2xl font-bold text-foreground">Segnali</h1>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium">Trading Hub</p>
-                  <h1 className="font-heading text-2xl font-bold text-foreground">Segnali</h1>
-                </div>
+                {isAdmin && (
+                  <Button size="sm" onClick={() => setCreateOpen(true)}>
+                    <Plus className="h-3.5 w-3.5 mr-1" />Nuovo segnale
+                  </Button>
+                )}
               </div>
               <p className="text-sm text-muted-foreground/60 ml-[52px]">
                 Segnali operativi condivisi, storico completo e statistiche di performance
@@ -295,6 +348,74 @@ export default function Signals() {
             )}
           </div>
         </div>
+
+        {/* ═══ ADMIN CREATE DIALOG ═══ */}
+        {isAdmin && (
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-primary" />Nuovo segnale manuale
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs">Asset *</Label>
+                    <Input value={formData.asset} onChange={e => setFormData(p => ({ ...p, asset: e.target.value }))} placeholder="EURUSD" className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Direzione *</Label>
+                    <Select value={formData.direction} onValueChange={v => setFormData(p => ({ ...p, direction: v }))}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {DIRECTIONS.map(d => <SelectItem key={d} value={d} className="capitalize">{d.toUpperCase()}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Tipo ordine</Label>
+                  <Select value={formData.order_type} onValueChange={v => setFormData(p => ({ ...p, order_type: v }))}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ORDER_TYPES.map(t => <SelectItem key={t} value={t} className="capitalize">{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Entry *</Label>
+                    <Input type="number" step="any" value={formData.entry_price} onChange={e => setFormData(p => ({ ...p, entry_price: e.target.value }))} className="mt-1 font-mono" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Stop Loss *</Label>
+                    <Input type="number" step="any" value={formData.stop_loss} onChange={e => setFormData(p => ({ ...p, stop_loss: e.target.value }))} className="mt-1 font-mono" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Take Profit *</Label>
+                    <Input type="number" step="any" value={formData.take_profit} onChange={e => setFormData(p => ({ ...p, take_profit: e.target.value }))} className="mt-1 font-mono" />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Forza segnale: {formData.signal_strength}/5</Label>
+                  <Slider min={1} max={5} step={1} value={[formData.signal_strength]} onValueChange={v => setFormData(p => ({ ...p, signal_strength: v[0] }))} className="mt-2" />
+                </div>
+                <div>
+                  <Label className="text-xs">Spiegazione / nota</Label>
+                  <Textarea value={formData.explanation} onChange={e => setFormData(p => ({ ...p, explanation: e.target.value }))} placeholder="Breve spiegazione del setup..." className="mt-1 min-h-[80px]" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCreateOpen(false)}>Annulla</Button>
+                <Button onClick={handleCreateSignal} disabled={saving}>
+                  {saving && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                  <Save className="h-3.5 w-3.5 mr-1" />Crea bozza
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </AppLayout>
   );
