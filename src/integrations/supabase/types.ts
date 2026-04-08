@@ -1665,6 +1665,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_review_usage: {
+        Args: {
+          _month_year: string
+          _premium_quota_limit?: number
+          _tier?: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
       is_broker_allowed: {
         Args: { _broker_name: string; _user_id: string }
         Returns: boolean
