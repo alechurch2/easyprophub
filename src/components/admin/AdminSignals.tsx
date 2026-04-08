@@ -150,13 +150,38 @@ export default function AdminSignals() {
     load();
   };
 
-  const changeStatus = async (id: string, newStatus: string) => {
-    await supabase.from("shared_signals").update({
+  const changeStatus = async (id: string, oldStatus: string, newStatus: string) => {
+    const { data: updatedSignal, error } = await supabase.from("shared_signals").update({
       signal_status: newStatus,
       status_updated_at: new Date().toISOString(),
-    } as any).eq("id", id);
+    } as any).eq("id", id).select("*").single();
+
+    if (error || !updatedSignal) {
+      toast.error("Errore nell'aggiornamento dello stato");
+      return;
+    }
+
     const label = SIGNAL_STATUSES.find(s => s.value === newStatus)?.label || newStatus;
-    toast.success(`Stato aggiornato: ${label}`);
+
+    // Only notify for meaningful status transitions on published signals
+    const notifiableStatuses = ["triggered", "won", "lost", "expired", "withdrawn"];
+    if (notifiableStatuses.includes(newStatus) && updatedSignal.is_published) {
+      const notifyOutcome = await invokeStatusChangeNotification({
+        signal: updatedSignal as Signal,
+        oldStatus,
+        newStatus,
+        source: "admin-signals-status-change",
+      });
+
+      if (notifyOutcome.error) {
+        toast.error(`Stato aggiornato (${label}) ma notifiche fallite: ${notifyOutcome.error}`);
+      } else {
+        toast.success(`Stato: ${label}. ${formatSignalNotificationToast(notifyOutcome.result)}`);
+      }
+    } else {
+      toast.success(`Stato aggiornato: ${label}`);
+    }
+
     load();
   };
 
