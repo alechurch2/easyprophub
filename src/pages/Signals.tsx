@@ -123,6 +123,36 @@ export default function Signals() {
     return result;
   }, [allSignals, filterStatus, filterAsset, sortOrder]);
 
+  const handleCreateSignal = async () => {
+    if (!formData.asset || !formData.entry_price || !formData.stop_loss || !formData.take_profit) {
+      toast.error("Compila tutti i campi obbligatori");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("shared_signals").insert({
+      asset: formData.asset.toUpperCase().trim(),
+      direction: formData.direction,
+      order_type: formData.order_type,
+      entry_price: parseFloat(formData.entry_price),
+      stop_loss: parseFloat(formData.stop_loss),
+      take_profit: parseFloat(formData.take_profit),
+      signal_strength: formData.signal_strength,
+      signal_quality: formData.signal_quality,
+      explanation: formData.explanation || null,
+      signal_source: "manual",
+      signal_status: "active",
+      is_published: false,
+      is_archived: false,
+      created_by: user!.id,
+    } as any);
+    setSaving(false);
+    if (error) { toast.error("Errore nella creazione"); console.error(error); return; }
+    toast.success("Segnale creato come bozza. Pubblicalo dal pannello Admin.");
+    setCreateOpen(false);
+    setFormData({ asset: "", direction: "buy", order_type: "market", entry_price: "", stop_loss: "", take_profit: "", signal_strength: 3, signal_quality: "media", explanation: "" });
+    loadAll();
+  };
+
   return (
     <AppLayout>
       <div className="animate-fade-in">
@@ -132,14 +162,21 @@ export default function Signals() {
           <div className="absolute top-0 right-0 w-[500px] h-[350px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
           <div className="relative px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
             <div className="max-w-5xl mx-auto">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Radio className="h-5 w-5 text-primary" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Radio className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium">Trading Hub</p>
+                    <h1 className="font-heading text-2xl font-bold text-foreground">Segnali</h1>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 font-medium">Trading Hub</p>
-                  <h1 className="font-heading text-2xl font-bold text-foreground">Segnali</h1>
-                </div>
+                {isAdmin && (
+                  <Button size="sm" onClick={() => setCreateOpen(true)}>
+                    <Plus className="h-3.5 w-3.5 mr-1" />Nuovo segnale
+                  </Button>
+                )}
               </div>
               <p className="text-sm text-muted-foreground/60 ml-[52px]">
                 Segnali operativi condivisi, storico completo e statistiche di performance
