@@ -38,7 +38,7 @@ interface TradingAccount {
   equity: number | null;
 }
 
-export function SharedSignals() {
+export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) {
   const { user } = useAuth();
   const [signals, setSignals] = useState<SharedSignal[]>([]);
   const [tradingAccount, setTradingAccount] = useState<TradingAccount | null>(null);
