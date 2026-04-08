@@ -13,6 +13,7 @@ import {
   ArrowUpDown, Filter, Loader2, Target, Percent, Activity, Minus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
 interface HistorySignal {
   id: string;
