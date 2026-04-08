@@ -233,13 +233,13 @@ export default function Signals() {
 
           {/* ═══ HISTORY ═══ */}
           <div className="mb-10">
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground/50" />
                 <p className="text-label uppercase text-muted-foreground/50 font-semibold">Storico segnali</p>
                 <Badge variant="outline" className="text-[9px] ml-0.5 px-1.5">{historySignals.length}</Badge>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                   <SelectTrigger className="w-[120px] h-8 text-xs">
                     <SelectValue placeholder="Stato" />
