@@ -143,8 +143,9 @@ export default function AIAssistant() {
     const path = `${userId}/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from("chat-attachments").upload(path, file, { contentType: file.type });
     if (error) throw new Error("Errore upload immagine: " + error.message);
-    const { data: urlData } = supabase.storage.from("chat-attachments").getPublicUrl(path);
-    return urlData.publicUrl;
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage.from("chat-attachments").createSignedUrl(path, 3600);
+    if (signedUrlError || !signedUrlData?.signedUrl) throw new Error("Errore nel generare l'URL dell'immagine");
+    return signedUrlData.signedUrl;
   };
 
   const sendMessage = async () => {

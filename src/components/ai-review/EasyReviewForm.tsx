@@ -102,7 +102,8 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
       const filePath = `${user!.id}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage.from("chart-screenshots").upload(filePath, file);
       if (uploadError) { toast.error("Errore nel caricamento dell'immagine"); setSubmitting(false); return; }
-      const { data: urlData } = supabase.storage.from("chart-screenshots").getPublicUrl(filePath);
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage.from("chart-screenshots").createSignedUrl(filePath, 3600);
+      if (signedUrlError || !signedUrlData?.signedUrl) { toast.error("Errore nel generare l'URL dell'immagine"); setSubmitting(false); return; }
 
       const { token, error: tokenError } = await getValidFunctionAuthToken();
       if (tokenError || !token) {
@@ -123,7 +124,7 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
             asset,
             timeframe,
             request_type: "Easy Mode",
-            screenshot_url: urlData.publicUrl,
+            screenshot_url: signedUrlData.signedUrl,
             user_note: userNote.trim() || null,
             review_mode: "easy",
             account_size: accountSize,

@@ -51,8 +51,9 @@ export function ReviewForm({ onClose, onSuccess, parentReviewId, defaultAsset, d
       const filePath = `${user!.id}/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage.from("chart-screenshots").upload(filePath, file);
       if (uploadError) { toast.error("Errore nel caricamento dell'immagine"); setSubmitting(false); return; }
-      const { data: urlData } = supabase.storage.from("chart-screenshots").getPublicUrl(filePath);
-      const screenshotUrl = urlData.publicUrl;
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage.from("chart-screenshots").createSignedUrl(filePath, 3600);
+      if (signedUrlError || !signedUrlData?.signedUrl) { toast.error("Errore nel generare l'URL dell'immagine"); setSubmitting(false); return; }
+      const screenshotUrl = signedUrlData.signedUrl;
 
       const { token, error: tokenError } = await getValidFunctionAuthToken();
       if (tokenError || !token) {
