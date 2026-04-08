@@ -1551,8 +1551,8 @@ const USER_IDLE_TIMEOUT = 60_000;      // 60s of no interaction = idle
 const FAST_REFRESH_DEBOUNCE = 3_000;
 
 export default function AccountCenter() {
-  const { user } = useAuth();
-  const { settings: licenseSettings } = useLicenseSettings();
+  const { user, isAdmin } = useAuth();
+  const { settings: licenseSettings, loading: licenseLoading } = useLicenseSettings();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
