@@ -153,6 +153,9 @@ export default function Signals() {
                   </div>
                 ))}
               </div>
+
+              {/* ═══ CHARTS ═══ */}
+              <SignalCharts signals={allSignals} stats={stats} />
             </div>
           )}
 
