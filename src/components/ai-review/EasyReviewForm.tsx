@@ -80,6 +80,17 @@ export function EasyReviewForm({ onClose, onSuccess, onAnalyzing, reviewTier = "
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
+  const handleFile = (f: File | null) => {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { toast.error("Solo file immagine (PNG, JPG)"); return; }
+    if (f.size > 10 * 1024 * 1024) { toast.error("File troppo grande (max 10MB)"); return; }
+    setFile(f);
+  };
+
+  const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); handleFile(e.dataTransfer.files?.[0] || null); };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
+
   const loadConnectedAccount = async () => {
     setLoadingAccount(true);
     const { data } = await supabase
