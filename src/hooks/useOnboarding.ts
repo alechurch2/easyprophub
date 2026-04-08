@@ -17,17 +17,40 @@ const ONBOARDING_STEPS: Omit<OnboardingStep, "status">[] = [
   { key: "first_review", title: "Prova una AI Chart Review", description: "Analizza il tuo primo grafico con l'AI", path: "/ai-review" },
   { key: "first_chat", title: "Usa l'AI Assistant", description: "Apri una conversazione con l'assistente", path: "/ai-assistant" },
   { key: "connect_account", title: "Collega un conto", description: "Collega il tuo conto trading (opzionale)", path: "/account-center" },
-  { key: "browse_library", title: "Consulta la Libreria", description: "Esplora gli esempi didattici selezionati", path: "/case-studies" },
 ];
+
+const DISMISS_KEY = "onboarding_dismissed";
 
 export function useOnboarding() {
   const { user } = useAuth();
   const [steps, setSteps] = useState<OnboardingStep[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissedState] = useState(false);
+
+  // Persist dismiss: check DB first, fallback to localStorage
+  const setDismissed = useCallback(async (val: boolean) => {
+    setDismissedState(val);
+    if (!val || !user) return;
+    // Persist in localStorage immediately
+    localStorage.setItem(`${DISMISS_KEY}_${user.id}`, "true");
+    // Also persist in DB
+    await supabase.from("user_onboarding_progress" as any).upsert({
+      user_id: user.id,
+      step_key: DISMISS_KEY,
+      status: "dismissed",
+      completed_at: new Date().toISOString(),
+    }, { onConflict: "user_id,step_key" });
+  }, [user]);
 
   const load = useCallback(async () => {
     if (!user) return;
+
+    // Check if dismissed (localStorage first for speed)
+    if (localStorage.getItem(`${DISMISS_KEY}_${user.id}`) === "true") {
+      setDismissedState(true);
+      setLoading(false);
+      return;
+    }
 
     // Get saved progress
     const { data: progress } = await supabase
@@ -35,8 +58,19 @@ export function useOnboarding() {
       .select("step_key, status")
       .eq("user_id", user.id);
 
+    const progressList = (progress as any[] || []);
+
+    // Check DB dismiss
+    const dbDismissed = progressList.find((p: any) => p.step_key === DISMISS_KEY && p.status === "dismissed");
+    if (dbDismissed) {
+      localStorage.setItem(`${DISMISS_KEY}_${user.id}`, "true");
+      setDismissedState(true);
+      setLoading(false);
+      return;
+    }
+
     const completedKeys = new Set(
-      (progress as any[] || []).filter((p: any) => p.status === "completed").map((p: any) => p.step_key)
+      progressList.filter((p: any) => p.status === "completed").map((p: any) => p.step_key)
     );
 
     // Auto-detect completed steps
@@ -47,24 +81,15 @@ export function useOnboarding() {
       supabase.from("lesson_progress").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("completed", true),
     ]);
 
-    // Profile is always "complete" if user is logged in and approved
     completedKeys.add("profile_complete");
     if ((reviewCount.count || 0) > 0) completedKeys.add("first_review");
     if ((chatCount.count || 0) > 0) completedKeys.add("first_chat");
     if ((accountCount.count || 0) > 0) completedKeys.add("connect_account");
     if ((lessonCount.count || 0) > 0) completedKeys.add("first_training");
 
-    // Check library visit from analytics
-    const { count: libraryCount } = await supabase
-      .from("product_analytics_events" as any)
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("event_name", "library_opened");
-    if ((libraryCount || 0) > 0) completedKeys.add("browse_library");
-
     // Persist auto-detected completions
     for (const key of completedKeys) {
-      const existing = (progress as any[] || []).find((p: any) => p.step_key === key);
+      const existing = progressList.find((p: any) => p.step_key === key);
       if (!existing) {
         await supabase.from("user_onboarding_progress" as any).insert({
           user_id: user.id,
@@ -82,7 +107,6 @@ export function useOnboarding() {
 
     setSteps(builtSteps);
 
-    // Check if all completed → auto-dismiss
     const allDone = builtSteps.every((s) => s.status === "completed");
     if (allDone) {
       const { count: completedEvent } = await supabase
