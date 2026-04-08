@@ -336,7 +336,7 @@ export default function AccountSettings() {
         <Card>
           <CardContent className="pt-6">
             <Suspense fallback={<div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>}>
-              <NotificationSettings />
+              <NotificationSettings isFree={isFree} />
             </Suspense>
           </CardContent>
         </Card>
