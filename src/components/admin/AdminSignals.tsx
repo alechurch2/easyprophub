@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Loader2, Radio, Archive, Eye, EyeOff, TrendingUp, TrendingDown, Zap, Trash2, ChevronDown, Filter } from "lucide-react";
 import { toast } from "sonner";
-import { formatSignalNotificationToast, invokeSignalNotification } from "@/lib/signalNotifications";
+import { formatSignalNotificationToast, invokeSignalNotification, invokeStatusChangeNotification } from "@/lib/signalNotifications";
 import {
   DropdownMenu,
   DropdownMenuContent,
