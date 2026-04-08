@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, Radio, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, ChevronRight } from "lucide-react";
+import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, Radio, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, ChevronRight, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
