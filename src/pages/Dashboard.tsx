@@ -28,6 +28,7 @@ interface ReviewStats {
 
 export default function Dashboard() {
   const { profile, isAdmin, licenseStatus, accessExpiresAt, daysRemaining, user } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stats, setStats] = useState<ReviewStats>({ totalPro: 0, totalEasy: 0, avgQuality: null, topAssets: [] });
   const [premiumUsage, setPremiumUsage] = useState<{ used: number; limit: number } | null>(null);
