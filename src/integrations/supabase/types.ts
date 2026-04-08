@@ -968,12 +968,16 @@ export type Database = {
           is_archived: boolean | null
           is_published: boolean | null
           lot_size_suggestion: number | null
+          modified_at: string | null
+          modified_by: string | null
           order_type: string
+          original_payload: Json | null
           published_at: string | null
           review_id: string | null
           review_mode: string | null
           review_tier: string | null
           signal_quality: string | null
+          signal_source: string
           signal_status: string
           signal_strength: number | null
           status_updated_at: string | null
@@ -993,12 +997,16 @@ export type Database = {
           is_archived?: boolean | null
           is_published?: boolean | null
           lot_size_suggestion?: number | null
+          modified_at?: string | null
+          modified_by?: string | null
           order_type?: string
+          original_payload?: Json | null
           published_at?: string | null
           review_id?: string | null
           review_mode?: string | null
           review_tier?: string | null
           signal_quality?: string | null
+          signal_source?: string
           signal_status?: string
           signal_strength?: number | null
           status_updated_at?: string | null
@@ -1018,12 +1026,16 @@ export type Database = {
           is_archived?: boolean | null
           is_published?: boolean | null
           lot_size_suggestion?: number | null
+          modified_at?: string | null
+          modified_by?: string | null
           order_type?: string
+          original_payload?: Json | null
           published_at?: string | null
           review_id?: string | null
           review_mode?: string | null
           review_tier?: string | null
           signal_quality?: string | null
+          signal_source?: string
           signal_status?: string
           signal_strength?: number | null
           status_updated_at?: string | null
