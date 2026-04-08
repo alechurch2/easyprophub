@@ -176,7 +176,6 @@ export function EasyReviewForm({ onClose, onSuccess, onAnalyzing, reviewTier = "
       trackEvent(reviewTier === "premium" ? "review_premium_used" : "review_standard_used", { section: "ai-review" });
       trackEvent("review_easy_used", { section: "ai-review" });
       toast.success(`Analisi ${reviewTier === "premium" ? "premium " : ""}completata!`);
-      onClose();
       onSuccess();
     } catch {
       toast.error("Errore di connessione");
@@ -184,9 +183,7 @@ export function EasyReviewForm({ onClose, onSuccess, onAnalyzing, reviewTier = "
     setSubmitting(false);
   };
 
-  if (submitting) {
-    return <ReviewLoadingState mode="easy" />;
-  }
+  if (submitting) return null;
 
   return (
     <div className="animate-fade-in">
