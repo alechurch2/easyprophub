@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Mail, Lock, User, Shield, Loader2 } from "lucide-react";
+import { Mail, Lock, User, Shield, Loader2, Calculator, Link2, Pencil } from "lucide-react";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import { useRiskPreferences } from "@/hooks/useRiskPreferences";
 const NotificationSettings = lazy(() => import("@/components/NotificationSettings"));
 
 export default function AccountSettings() {
