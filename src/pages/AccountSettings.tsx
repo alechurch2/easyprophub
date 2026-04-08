@@ -212,7 +212,127 @@ export default function AccountSettings() {
           </CardContent>
         </Card>
 
-        {/* Notification Settings */}
+        {/* Risk Reference Settings */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Riferimento rischio</CardTitle>
+            </div>
+            <CardDescription>Imposta la grandezza conto usata per calcolare rischio e lottaggio nei segnali e nelle analisi AI.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {riskLoading ? (
+              <div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  {/* Manual option */}
+                  <button
+                    type="button"
+                    onClick={() => saveRisk({ risk_reference_type: "manual_account_size" })}
+                    className={`w-full text-left rounded-xl border p-4 transition-all ${
+                      prefs.risk_reference_type === "manual_account_size"
+                        ? "border-primary/30 bg-primary/[0.04] ring-1 ring-primary/20"
+                        : "border-border hover:border-primary/20"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                        prefs.risk_reference_type === "manual_account_size" ? "border-primary" : "border-muted-foreground/30"
+                      }`}>
+                        {prefs.risk_reference_type === "manual_account_size" && <div className="h-2 w-2 rounded-full bg-primary" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                          <Pencil className="h-3.5 w-3.5" />Grandezza conto manuale
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Inserisci la dimensione del conto per il calcolo del rischio</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {prefs.risk_reference_type === "manual_account_size" && (
+                    <div className="ml-7 flex items-center gap-3">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                        <Input
+                          type="number"
+                          value={manualSize || String(prefs.manual_account_size)}
+                          onChange={e => setManualSize(e.target.value)}
+                          className="pl-7 max-w-[180px] font-mono"
+                          min={1}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        disabled={riskSaving}
+                        onClick={async () => {
+                          const val = parseInt(manualSize || String(prefs.manual_account_size));
+                          if (!val || val <= 0) { toast({ title: "Errore", description: "Inserisci un valore valido", variant: "destructive" }); return; }
+                          setRiskSaving(true);
+                          await saveRisk({ manual_account_size: val });
+                          setRiskSaving(false);
+                          setManualSize("");
+                          toast({ title: "Salvato", description: `Grandezza conto impostata a $${val.toLocaleString()}` });
+                        }}
+                      >
+                        {riskSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Salva"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Linked account option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isFree) return;
+                      if (!linkedAccount) {
+                        toast({ title: "Nessun conto collegato", description: "Collega un conto dall'Account Center per usare questa opzione.", variant: "destructive" });
+                        return;
+                      }
+                      saveRisk({ risk_reference_type: "linked_account", linked_account_id: linkedAccount.id });
+                    }}
+                    className={`w-full text-left rounded-xl border p-4 transition-all ${
+                      isFree ? "opacity-50 cursor-not-allowed border-border" :
+                      prefs.risk_reference_type === "linked_account"
+                        ? "border-primary/30 bg-primary/[0.04] ring-1 ring-primary/20"
+                        : "border-border hover:border-primary/20"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                        prefs.risk_reference_type === "linked_account" ? "border-primary" : "border-muted-foreground/30"
+                      }`}>
+                        {prefs.risk_reference_type === "linked_account" && <div className="h-2 w-2 rounded-full bg-primary" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                          <Link2 className="h-3.5 w-3.5" />Conto collegato
+                          {isFree && <Badge className="text-[9px] ml-1 bg-primary/10 text-primary border-primary/20">Pro / Live</Badge>}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {isFree
+                            ? "Disponibile con piani Pro e Live"
+                            : linkedAccount
+                              ? `${linkedAccount.account_name} — Equity: $${(linkedAccount.equity || linkedAccount.balance || 0).toLocaleString()}`
+                              : "Nessun conto collegato — collega un conto dall'Account Center"}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                <div className="panel-inset p-3">
+                  <p className="text-[11px] text-muted-foreground">
+                    <span className="font-semibold text-foreground">Dove viene usato:</span> segnali condivisi, AI Chart Review, calcolo lottaggio e rischio monetario.
+                  </p>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent className="pt-6">
             <Suspense fallback={<div className="flex justify-center p-4"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>}>
