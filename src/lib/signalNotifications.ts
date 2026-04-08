@@ -42,6 +42,13 @@ interface InvokeSignalNotificationArgs {
   source: string;
 }
 
+interface InvokeStatusChangeNotificationArgs {
+  signal: NotifiableSignal;
+  oldStatus: string;
+  newStatus: string;
+  source: string;
+}
+
 function getTriggerReason(currentPublished: boolean, nextPublished: boolean) {
   if (!currentPublished && nextPublished) return "signal transitioned from unpublished to published";
   if (currentPublished && !nextPublished) return "signal withdrawn";
