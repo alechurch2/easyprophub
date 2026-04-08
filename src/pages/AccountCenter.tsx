@@ -1551,8 +1551,8 @@ const USER_IDLE_TIMEOUT = 60_000;      // 60s of no interaction = idle
 const FAST_REFRESH_DEBOUNCE = 3_000;
 
 export default function AccountCenter() {
-  const { user } = useAuth();
-  const { settings: licenseSettings } = useLicenseSettings();
+  const { user, isAdmin } = useAuth();
+  const { settings: licenseSettings, loading: licenseLoading } = useLicenseSettings();
   const [accounts, setAccounts] = useState<TradingAccount[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
@@ -1983,7 +1983,17 @@ export default function AccountCenter() {
     loadData();
   };
 
-  if (!licenseSettings.account_center_enabled) {
+  if (licenseLoading) {
+    return (
+      <AppLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!isAdmin && !licenseSettings.account_center_enabled) {
     return (
       <AppLayout>
         <LicenseGate allowed={false} featureKey="account_center" requiredLevel="live" />

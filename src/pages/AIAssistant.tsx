@@ -48,8 +48,8 @@ Scegli una modalità e inizia a scrivere!`;
 const DISCLAIMER = "Questa chat ha finalità informative, educative e di supporto operativo. Non costituisce esecuzione automatica, consulenza finanziaria personalizzata o garanzia di risultato.";
 
 export default function AIAssistant() {
-  const { user } = useAuth();
-  const { settings: licenseSettings } = useLicenseSettings();
+  const { user, isAdmin } = useAuth();
+  const { settings: licenseSettings, loading: licenseLoading } = useLicenseSettings();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -255,7 +255,17 @@ export default function AIAssistant() {
   const isNewChat = !activeConv && messages.length === 0;
   const canSend = (input.trim() || pendingImage) && !isLoading && !(isNewChat && showModeSelect);
 
-  if (!licenseSettings.ai_assistant_enabled) {
+  if (licenseLoading) {
+    return (
+      <AppLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!isAdmin && !licenseSettings.ai_assistant_enabled) {
     return (
       <AppLayout>
         <LicenseGate allowed={false} featureKey="ai_assistant" requiredLevel="pro" />

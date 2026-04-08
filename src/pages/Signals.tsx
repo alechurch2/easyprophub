@@ -54,8 +54,8 @@ const DIRECTIONS = ["buy", "sell"];
 
 export default function Signals() {
   const { user, isAdmin } = useAuth();
-  const { settings: licenseSettings } = useLicenseSettings();
-  const isFree = licenseSettings.license_level === "free";
+  const { settings: licenseSettings, loading: licenseLoading } = useLicenseSettings();
+  const isFree = !licenseLoading && !isAdmin && licenseSettings.license_level === "free";
   const [allSignals, setAllSignals] = useState<HistorySignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
