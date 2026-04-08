@@ -10,10 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import {
   Radio, TrendingUp, TrendingDown, BarChart3, Trophy, XCircle, Clock,
-  ArrowUpDown, Filter, Loader2, Target, Percent, Activity, Minus, Lock
+  ArrowUpDown, Filter, Loader2, Target, Percent, Activity, Minus, Lock, Plus, Save
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface HistorySignal {
   id: string;
