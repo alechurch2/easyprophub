@@ -15,6 +15,7 @@ import { getValidFunctionAuthToken } from "@/lib/getValidFunctionAuthToken";
 import { ASSETS, TIMEFRAMES } from "./types";
 import { ACCOUNT_PRESETS, RISK_PRESETS, MAX_CUSTOM_RISK } from "./lotSizeCalculator";
 import { ReviewLoadingState } from "./ReviewLoadingState";
+import { useRiskPreferences } from "@/hooks/useRiskPreferences";
 
 interface Props {
   onClose: () => void;
@@ -25,14 +26,15 @@ interface Props {
 
 export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", licenseLevel = "free" }: Props) {
   const { user } = useAuth();
+  const { prefs: riskPrefs, linkedAccount, loading: riskPrefsLoading, getRiskContext } = useRiskPreferences();
   const [asset, setAsset] = useState(ASSETS[0]);
   const [timeframe, setTimeframe] = useState(TIMEFRAMES[4]);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [userNote, setUserNote] = useState("");
-  const [accountPreset, setAccountPreset] = useState("100000");
+  const [accountPreset, setAccountPreset] = useState<string>("");
   const [customAccount, setCustomAccount] = useState("");
-  const [riskPercent, setRiskPercent] = useState("0.005");
+  const [riskPercent, setRiskPercent] = useState<string>("");
   const [customRisk, setCustomRisk] = useState("");
   const isCustomRisk = riskPercent === "custom";
   const [submitting, setSubmitting] = useState(false);
@@ -41,6 +43,28 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
   const [connectedEquity, setConnectedEquity] = useState<number | null>(null);
   const [connectedAccountName, setConnectedAccountName] = useState<string | null>(null);
   const [loadingAccount, setLoadingAccount] = useState(false);
+
+  // Initialize from saved risk preferences
+  useEffect(() => {
+    if (riskPrefsLoading) return;
+    const riskCtx = getRiskContext();
+    // Set account preset from saved preference
+    if (riskPrefs.risk_reference_type === "linked_account" && linkedAccount) {
+      setAccountPreset("linked");
+    } else {
+      const matchedPreset = ACCOUNT_PRESETS.find(p => p.value === riskPrefs.manual_account_size);
+      setAccountPreset(matchedPreset ? String(matchedPreset.value) : "custom");
+      if (!matchedPreset) setCustomAccount(String(riskPrefs.manual_account_size));
+    }
+    // Set risk percent from saved preference
+    const matchedRisk = RISK_PRESETS.find(p => p.value === riskPrefs.default_risk_percent);
+    if (matchedRisk) {
+      setRiskPercent(String(matchedRisk.value));
+    } else {
+      setRiskPercent("custom");
+      setCustomRisk(String(riskPrefs.default_risk_percent * 100));
+    }
+  }, [riskPrefsLoading]);
 
   useEffect(() => {
     if (!user) return;

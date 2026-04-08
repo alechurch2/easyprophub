@@ -1629,6 +1629,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_risk_preferences: {
+        Row: {
+          created_at: string
+          default_risk_percent: number
+          id: string
+          linked_account_id: string | null
+          manual_account_size: number | null
+          risk_reference_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_risk_percent?: number
+          id?: string
+          linked_account_id?: string | null
+          manual_account_size?: number | null
+          risk_reference_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_risk_percent?: number
+          id?: string
+          linked_account_id?: string | null
+          manual_account_size?: number | null
+          risk_reference_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_risk_preferences_linked_account_id_fkey"
+            columns: ["linked_account_id"]
+            isOneToOne: false
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string

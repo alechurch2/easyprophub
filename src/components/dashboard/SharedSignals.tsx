@@ -4,10 +4,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator, ArrowUpRight, ArrowDownRight, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator, ArrowUpRight, ArrowDownRight, Info, Settings } from "lucide-react";
 import { TradeExecutionModal } from "@/components/ai-review/TradeExecutionModal";
 import { fullLotCalculationFromPrices } from "@/components/ai-review/lotSizeCalculator";
 import { SignalStatusBadge, isSignalCopyable, getUncopyableMessage } from "./SignalStatusBadge";
+import { useRiskPreferences } from "@/hooks/useRiskPreferences";
 
 interface SharedSignal {
   id: string;
@@ -45,6 +46,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
   const [tradingAccount, setTradingAccount] = useState<TradingAccount | null>(null);
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
   const [selectedSignal, setSelectedSignal] = useState<SharedSignal | null>(null);
+  const { prefs, getRiskContext, loading: riskLoading } = useRiskPreferences();
 
   const loadSignals = async () => {
     const { data } = await supabase
@@ -101,7 +103,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
   };
 
   const isBuy = (d: string) => d.toLowerCase().includes("buy");
-  const USER_DEFAULT_RISK = 0.002;
+  const riskCtx = getRiskContext();
 
   return (
     <div className="mb-10">
@@ -117,9 +119,8 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
         {signals.map((sig) => {
           const sInfo = strengthLabel(sig.signal_strength);
           const buy = isBuy(sig.direction);
-          const userEquity = tradingAccount?.equity || null;
-          const lotCalc = userEquity
-            ? fullLotCalculationFromPrices(userEquity, sig.entry_price, sig.stop_loss, sig.take_profit, sig.asset, USER_DEFAULT_RISK)
+          const lotCalc = riskCtx.isConfigured
+            ? fullLotCalculationFromPrices(riskCtx.effectiveAccountSize, sig.entry_price, sig.stop_loss, sig.take_profit, sig.asset, riskCtx.riskPercent)
             : null;
           const copyable = isSignalCopyable(sig.signal_status);
 
@@ -191,7 +192,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                   <div className="panel-inset p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Calculator className="h-3 w-3 text-primary/60" />
-                      <p className="text-[10px] text-primary/80 font-medium">Sul tuo conto • Rischio {(USER_DEFAULT_RISK * 100).toFixed(1)}%</p>
+                      <p className="text-[10px] text-primary/80 font-medium">{riskCtx.sourceLabel} • Rischio {(riskCtx.riskPercent * 100).toFixed(1)}%</p>
                     </div>
                     <div className="grid grid-cols-4 gap-2 text-center">
                       {[
@@ -209,10 +210,19 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                   </div>
                 )}
 
-                {!lotCalc && tradingAccount && copyable && (
+                {!lotCalc && riskCtx.isConfigured && copyable && (
                   <div className="panel-inset p-2.5">
                     <p className="text-[10px] text-muted-foreground/50 text-center">
                       Asset non supportato per il calcolo automatico del lotto
+                    </p>
+                  </div>
+                )}
+
+                {!riskCtx.isConfigured && copyable && (
+                  <div className="panel-inset p-3 flex items-center gap-2">
+                    <Settings className="h-3.5 w-3.5 text-primary/60 shrink-0" />
+                    <p className="text-[10px] text-muted-foreground">
+                      Per calcolare rischio e lottaggio, imposta la grandezza del conto nelle <a href="/account-settings" className="text-primary underline underline-offset-2">Impostazioni</a>.
                     </p>
                   </div>
                 )}
@@ -267,7 +277,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
             lotSize: selectedSignal.lot_size_suggestion || 0.01,
             signalQuality: selectedSignal.signal_quality || "N/A",
             signalStrength: selectedSignal.signal_strength,
-            riskPercent: USER_DEFAULT_RISK,
+            riskPercent: riskCtx.riskPercent,
           }}
           account={{
             id: tradingAccount.id,
