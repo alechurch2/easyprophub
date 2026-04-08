@@ -44,6 +44,8 @@ interface SignalStats {
 
 export default function Signals() {
   const { user } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
+  const isFree = licenseSettings.license_level === "free";
   const [allSignals, setAllSignals] = useState<HistorySignal[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
