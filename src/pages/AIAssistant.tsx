@@ -48,8 +48,8 @@ Scegli una modalità e inizia a scrivere!`;
 const DISCLAIMER = "Questa chat ha finalità informative, educative e di supporto operativo. Non costituisce esecuzione automatica, consulenza finanziaria personalizzata o garanzia di risultato.";
 
 export default function AIAssistant() {
-  const { user } = useAuth();
-  const { settings: licenseSettings } = useLicenseSettings();
+  const { user, isAdmin } = useAuth();
+  const { settings: licenseSettings, loading: licenseLoading } = useLicenseSettings();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
