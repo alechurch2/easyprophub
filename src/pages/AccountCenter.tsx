@@ -687,18 +687,18 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
             </div>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <MetricCard label="Balance" value={<span className="font-mono-data">${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>} accent />
-            <MetricCard label="Equity" value={<span className="font-mono-data">${acc.equity.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>} accent />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+            <MetricCard label="Balance" value={<span className="font-mono-data text-xs sm:text-base">${acc.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>} accent />
+            <MetricCard label="Equity" value={<span className="font-mono-data text-xs sm:text-base">${acc.equity.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>} accent />
             <MetricCard label="P/L Attuale" value={<PnLValue value={acc.profit_loss} prefix="$" />} />
             <MetricCard label="Drawdown" value={<span className="font-mono-data">{acc.drawdown.toFixed(2)}%</span>} warn={acc.drawdown > 5} />
             <MetricCard label="Win Rate" value={<span className="font-mono-data">{acc.win_rate.toFixed(1)}%</span>} />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mt-2 sm:mt-3">
             <MetricCard label="P/L Giornaliero" value={<PnLValue value={acc.daily_pnl} prefix="$" />} small />
             <MetricCard label="P/L Settimanale" value={<PnLValue value={acc.weekly_pnl} prefix="$" />} small />
-            <MetricCard label="Posizioni aperte" value={<span className="font-mono-data">{acc.open_positions_count}</span>} small />
+            <MetricCard label="Posizioni" value={<span className="font-mono-data">{acc.open_positions_count}</span>} small />
             <MetricCard label="Profit Factor" value={<span className="font-mono-data">{acc.profit_factor > 0 ? acc.profit_factor.toFixed(2) : "—"}</span>} small />
           </div>
 
