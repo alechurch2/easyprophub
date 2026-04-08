@@ -46,6 +46,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
   const [tradingAccount, setTradingAccount] = useState<TradingAccount | null>(null);
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
   const [selectedSignal, setSelectedSignal] = useState<SharedSignal | null>(null);
+  const { prefs, getRiskContext, loading: riskLoading } = useRiskPreferences();
 
   const loadSignals = async () => {
     const { data } = await supabase
@@ -102,7 +103,7 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
   };
 
   const isBuy = (d: string) => d.toLowerCase().includes("buy");
-  const USER_DEFAULT_RISK = 0.002;
+  const riskCtx = getRiskContext();
 
   return (
     <div className="mb-10">
