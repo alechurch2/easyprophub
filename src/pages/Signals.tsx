@@ -25,6 +25,7 @@ interface HistorySignal {
   take_profit: number;
   signal_strength: number;
   signal_status: string;
+  signal_source?: string;
   published_at: string;
   explanation: string | null;
 }
@@ -69,7 +70,7 @@ export default function Signals() {
   const loadAll = async () => {
     const { data } = await supabase
       .from("shared_signals")
-      .select("id, asset, direction, order_type, entry_price, stop_loss, take_profit, signal_strength, signal_status, published_at, explanation")
+      .select("id, asset, direction, order_type, entry_price, stop_loss, take_profit, signal_strength, signal_status, signal_source, published_at, explanation")
       .eq("is_published", true)
       .eq("is_archived", false)
       .order("published_at", { ascending: false });
@@ -274,7 +275,14 @@ export default function Signals() {
                               ))}
                             </div>
                           </td>
-                          <td className="py-2.5 px-3"><SignalStatusBadge status={sig.signal_status} /></td>
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-1">
+                              <SignalStatusBadge status={sig.signal_status} />
+                              {sig.signal_source === "manual" && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-500/20 text-amber-600">M</Badge>
+                              )}
+                            </div>
+                          </td>
                           <td className="py-2.5 px-3 text-muted-foreground font-mono-data">
                             {new Date(sig.published_at).toLocaleDateString("it-IT")}
                           </td>
