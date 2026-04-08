@@ -14,9 +14,9 @@ import { useRiskPreferences } from "@/hooks/useRiskPreferences";
 const NotificationSettings = lazy(() => import("@/components/NotificationSettings"));
 
 export default function AccountSettings() {
-  const { user, profile } = useAuth();
-  const { settings: licenseSettings } = useLicenseSettings();
-  const isFree = licenseSettings.license_level === "free";
+  const { user, profile, isAdmin } = useAuth();
+  const { settings: licenseSettings, loading: licenseLoading } = useLicenseSettings();
+  const isFree = !licenseLoading && !isAdmin && licenseSettings.license_level === "free";
   const { prefs, linkedAccount, loading: riskLoading, save: saveRisk } = useRiskPreferences();
   const [manualSize, setManualSize] = useState<string>("");
   const [riskSaving, setRiskSaving] = useState(false);
