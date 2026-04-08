@@ -160,7 +160,7 @@ export default function Signals() {
         <div className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-card via-background to-card" />
           <div className="absolute top-0 right-0 w-[500px] h-[350px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
-          <div className="relative px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
+          <div className="relative px-4 sm:px-8 lg:px-10 py-6 lg:py-10">
             <div className="max-w-5xl mx-auto">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 mb-3">
