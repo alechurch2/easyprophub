@@ -34,7 +34,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Formazione", icon: BookOpen, path: "/training" },
-  { label: "Libreria Didattica", icon: GraduationCap, path: "/case-studies" },
+  { label: "Segnali", icon: Radio, path: "/signals" },
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
   { label: "AI Assistant", icon: Bot, path: "/ai-assistant", requireKey: "ai_assistant_enabled" },
   { label: "Account Center", icon: Wallet, path: "/account-center", requireKey: "account_center_enabled" },
