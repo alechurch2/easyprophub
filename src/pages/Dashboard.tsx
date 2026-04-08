@@ -98,12 +98,12 @@ export default function Dashboard() {
   }, [user]);
 
   const quickLinks = [
-    { title: "Formazione", desc: "Percorsi e moduli dedicati", icon: BookOpen, path: "/training", accent: "primary" },
-    { title: "Segnali", desc: "Hub segnali operativi e storico", icon: Radio, path: "/signals", accent: "info" },
-    { title: "AI Chart Review", desc: "Analisi strutturata dei grafici", icon: BarChart3, path: "/ai-review", accent: "success" },
-    { title: "AI Assistant", desc: "Chat AI per supporto operativo", icon: Bot, path: "/ai-assistant", accent: "primary" },
-    { title: "Account Center", desc: "Monitora i tuoi conti", icon: Wallet, path: "/account-center", accent: "success" },
-    { title: "Supporto", desc: "Assistenza dedicata", icon: HeadphonesIcon, path: "/support", accent: "info" },
+    { title: "Formazione", desc: "Percorsi e moduli dedicati", icon: BookOpen, path: "/training", accent: "primary", locked: false },
+    { title: "Segnali", desc: "Hub segnali operativi e storico", icon: Radio, path: "/signals", accent: "info", locked: false },
+    { title: "AI Chart Review", desc: "Analisi strutturata dei grafici", icon: BarChart3, path: "/ai-review", accent: "success", locked: false },
+    { title: "AI Assistant", desc: "Chat AI per supporto operativo", icon: Bot, path: "/ai-assistant", accent: "primary", locked: !isAdmin && !licenseSettings.ai_assistant_enabled },
+    { title: "Account Center", desc: "Monitora i tuoi conti", icon: Wallet, path: "/account-center", accent: "success", locked: !isAdmin && !licenseSettings.account_center_enabled },
+    { title: "Supporto", desc: "Assistenza dedicata", icon: HeadphonesIcon, path: "/support", accent: "info", locked: false },
   ];
 
   const totalReviews = stats.totalPro + stats.totalEasy;
