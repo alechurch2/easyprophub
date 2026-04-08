@@ -1525,7 +1525,17 @@ Deno.serve(async (req) => {
           sync_status: "running",
         }).eq("id", account_id);
 
-        // 1. Create MetaApi account (broker-aware provisioning profile selection)
+        // 1. Decrypt investor password before MetaApi call
+        const encKey = Deno.env.get("INVESTOR_PASSWORD_ENCRYPTION_KEY") || "";
+        if (encKey && account.investor_password) {
+          const { data: decPwd } = await supabase.rpc("decrypt_investor_password", {
+            _account_id: account_id,
+            _key: encKey,
+          });
+          if (decPwd) account._decrypted_password = decPwd;
+        }
+
+        // 2. Create MetaApi account (broker-aware provisioning profile selection)
         console.log("[connect_metaapi] Step 1: Creating MetaApi account...");
         const metaAccountId = await createMetaApiAccount(account);
         console.log("[connect_metaapi] Step 1 done. MetaApi ID:", metaAccountId);
