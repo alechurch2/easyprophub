@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -40,7 +40,7 @@ function computeLicenseValid(profile: ProfileData | null, isAdmin: boolean): boo
   const ls = profile.license_status;
   if (ls === "lifetime") return true;
   if (ls !== "active") return false;
-  if (!profile.access_expires_at) return true; // no expiry = valid
+  if (!profile.access_expires_at) return true;
   return new Date(profile.access_expires_at) > new Date();
 }
 
@@ -58,66 +58,89 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [role, setRole] = useState<UserRole>(null);
 
-  const fetchProfile = async (userId: string) => {
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("full_name, avatar_url, status, license_status, access_started_at, access_expires_at")
-      .eq("user_id", userId)
-      .single();
+  const fetchProfile = useCallback(async (userId: string) => {
+    const [{ data: profileData }, { data: roleData }] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("full_name, avatar_url, status, license_status, access_started_at, access_expires_at")
+        .eq("user_id", userId)
+        .single(),
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId),
+    ]);
 
-    if (profileData) {
-      setProfile({
-        full_name: profileData.full_name,
-        avatar_url: profileData.avatar_url,
-        status: profileData.status as UserStatus,
-        license_status: (profileData as any).license_status as LicenseStatus,
-        access_started_at: (profileData as any).access_started_at,
-        access_expires_at: (profileData as any).access_expires_at,
-      });
-    }
-
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
+    setProfile(
+      profileData
+        ? {
+            full_name: profileData.full_name,
+            avatar_url: profileData.avatar_url,
+            status: profileData.status as UserStatus,
+            license_status: (profileData as any).license_status as LicenseStatus,
+            access_started_at: (profileData as any).access_started_at,
+            access_expires_at: (profileData as any).access_expires_at,
+          }
+        : null
+    );
 
     if (roleData && roleData.length > 0) {
-      const isAdmin = roleData.some((r) => r.role === "admin");
-      setRole(isAdmin ? "admin" : "member");
+      const hasAdminRole = roleData.some((r) => r.role === "admin");
+      setRole(hasAdminRole ? "admin" : "member");
+      return;
     }
-  };
+
+    setRole(null);
+  }, []);
+
+  const hydrateAuthState = useCallback(async (nextSession: Session | null) => {
+    setLoading(true);
+    setSession(nextSession);
+
+    const nextUser = nextSession?.user ?? null;
+    setUser(nextUser);
+
+    if (!nextUser) {
+      setProfile(null);
+      setRole(null);
+      setLoading(false);
+      return;
+    }
+
+    setProfile(null);
+    setRole(null);
+    await fetchProfile(nextUser.id);
+    setLoading(false);
+  }, [fetchProfile]);
 
   const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
+    if (!user) return;
+    await fetchProfile(user.id);
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    let isMounted = true;
 
-        if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
-        setLoading(false);
+    const syncAuthState = async (nextSession: Session | null) => {
+      if (!isMounted) return;
+      await hydrateAuthState(nextSession);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, nextSession) => {
+        void syncAuthState(nextSession);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-      setLoading(false);
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      void syncAuthState(initialSession);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [hydrateAuthState]);
 
   const signOut = async () => {
     await supabase.auth.signOut();

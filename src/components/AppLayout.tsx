@@ -1,7 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { BRAND } from "@/config/brand";
 import BrandLogo from "@/components/BrandLogo";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 import {
@@ -18,10 +17,8 @@ import {
   Wallet,
   Settings,
   ChevronRight,
-  Lock,
   Crown,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -46,21 +43,25 @@ const navItems: NavItem[] = [
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { profile, isAdmin, signOut } = useAuth();
-  const { settings: licenseSettings } = useLicenseSettings();
+  const { settings: licenseSettings, loading: licenseLoading } = useLicenseSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Admin-only items are still hidden for non-admins; premium items are always visible
   const filteredItems = navItems.filter((item) => {
     if (item.adminOnly && !isAdmin) return false;
     return true;
   });
 
-  // Check if a nav item is locked (premium but not enabled for user)
+  const isItemPending = (item: NavItem): boolean => {
+    if (isAdmin) return false;
+    return licenseLoading && Boolean(item.requireKey);
+  };
+
   const isItemLocked = (item: NavItem): boolean => {
     if (isAdmin) return false;
     if (!item.requireKey) return false;
+    if (isItemPending(item)) return false;
     return !licenseSettings[item.requireKey];
   };
 
@@ -70,29 +71,27 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   };
 
   const initials = profile?.full_name
-    ? profile.full_name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)
+    ? profile.full_name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
     : "U";
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* ── Desktop sidebar ── */}
       <aside className="hidden lg:flex lg:w-[240px] lg:flex-col lg:fixed lg:inset-y-0 bg-sidebar border-r border-sidebar-border">
-        {/* Brand */}
         <div className="h-[60px] flex items-center px-5">
           <Link to="/dashboard" className="transition-opacity hover:opacity-80">
             <BrandLogo size="sm" />
           </Link>
         </div>
 
-        {/* Divider */}
         <div className="divider-fade mx-5" />
 
-        {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           <p className="text-label uppercase text-muted-foreground/60 font-semibold px-3 mb-2 mt-1">Navigazione</p>
           {filteredItems.map((item) => {
             const active = location.pathname.startsWith(item.path);
-            const locked = isItemLocked(item);
+            const pending = isItemPending(item);
+            const locked = !pending && isItemLocked(item);
+
             return (
               <Link
                 key={item.path}
@@ -101,6 +100,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 group relative",
                   active
                     ? "bg-primary/10 text-primary"
+                    : pending
+                    ? "text-muted-foreground/50 pointer-events-none animate-pulse"
                     : locked
                     ? "text-muted-foreground/50 hover:text-muted-foreground/70 hover:bg-muted/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -109,24 +110,31 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 {active && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 rounded-r-full bg-primary" />
                 )}
-                <item.icon className={cn(
-                  "h-4 w-4 transition-colors shrink-0",
-                  active ? "text-primary" : locked ? "text-muted-foreground/40" : "text-muted-foreground/70 group-hover:text-foreground"
-                )} />
-                <span className={locked ? "opacity-70" : ""}>{item.label}</span>
+                <item.icon
+                  className={cn(
+                    "h-4 w-4 transition-colors shrink-0",
+                    active
+                      ? "text-primary"
+                      : pending
+                      ? "text-muted-foreground/30"
+                      : locked
+                      ? "text-muted-foreground/40"
+                      : "text-muted-foreground/70 group-hover:text-foreground"
+                  )}
+                />
+                <span className={cn((locked || pending) && "opacity-70")}>{item.label}</span>
                 {locked && (
                   <span className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 border border-primary/10">
                     <Crown className="h-2.5 w-2.5 text-primary/70" />
                     <span className="text-[9px] font-semibold text-primary/70 uppercase tracking-wider">Pro</span>
                   </span>
                 )}
-                {active && !locked && <ChevronRight className="h-3 w-3 ml-auto text-primary/50" />}
+                {active && !locked && !pending && <ChevronRight className="h-3 w-3 ml-auto text-primary/50" />}
               </Link>
             );
           })}
         </nav>
 
-        {/* User area */}
         <div className="p-3 border-t border-sidebar-border">
           <Link
             to="/account-settings"
@@ -156,7 +164,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* ── Mobile header ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-12 bg-background/90 glass-subtle border-b border-border/60 flex items-center justify-between px-4">
         <button
           onClick={() => setMobileOpen(true)}
@@ -165,10 +172,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <Menu className="h-5 w-5" />
         </button>
         <BrandLogo size="sm" />
-        <div className="w-8" /> {/* spacer */}
+        <div className="w-8" />
       </div>
 
-      {/* ── Mobile sidebar overlay ── */}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-background/70 backdrop-blur-md" onClick={() => setMobileOpen(false)} />
@@ -182,16 +188,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
               {filteredItems.map((item) => {
                 const active = location.pathname.startsWith(item.path);
-                const locked = isItemLocked(item);
+                const pending = isItemPending(item);
+                const locked = !pending && isItemLocked(item);
+
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
-                    onClick={() => setMobileOpen(false)}
+                    onClick={() => !pending && setMobileOpen(false)}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 relative",
                       active
                         ? "bg-primary/10 text-primary"
+                        : pending
+                        ? "text-muted-foreground/50 pointer-events-none animate-pulse"
                         : locked
                         ? "text-muted-foreground/50 hover:text-muted-foreground/70 hover:bg-muted/20"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -200,8 +210,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                     {active && (
                       <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 rounded-r-full bg-primary" />
                     )}
-                    <item.icon className={cn("h-4.5 w-4.5", active ? "text-primary" : locked ? "text-muted-foreground/40" : "")} />
-                    <span className={locked ? "opacity-70" : ""}>{item.label}</span>
+                    <item.icon className={cn(
+                      "h-4.5 w-4.5",
+                      active
+                        ? "text-primary"
+                        : pending
+                        ? "text-muted-foreground/30"
+                        : locked
+                        ? "text-muted-foreground/40"
+                        : ""
+                    )} />
+                    <span className={cn((locked || pending) && "opacity-70")}>{item.label}</span>
                     {locked && (
                       <span className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 border border-primary/10">
                         <Crown className="h-2.5 w-2.5 text-primary/70" />
@@ -234,7 +253,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      {/* ── Main content ── */}
       <main className="flex-1 lg:ml-[240px]">
         <div className="pt-12 lg:pt-0 min-h-screen">
           {children}
