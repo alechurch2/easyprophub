@@ -162,7 +162,7 @@ export default function AIReview() {
         </div>
 
         {/* ═══ MAIN CONTENT ═══ */}
-        <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
+        <div className="px-4 sm:px-8 lg:px-10 py-4 sm:py-6 lg:py-8 max-w-5xl mx-auto">
 
           {/* Disclaimer */}
           <div className="panel-inset p-3.5 mb-6">
