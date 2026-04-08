@@ -1438,7 +1438,7 @@ function AdminAccounts() {
   const [showExecLogs, setShowExecLogs] = useState(false);
 
   const load = async () => {
-    const { data } = await supabase.from("trading_accounts").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.from("trading_accounts").select("id, user_id, account_name, platform, broker, server, account_number, connection_status, sync_status, read_only_mode, balance, equity, profit_loss, drawdown, daily_pnl, weekly_pnl, win_rate, profit_factor, open_positions_count, user_note, last_sync_at, last_sync_error, last_successful_sync_at, provider_type, provider_account_id, created_at, updated_at, credential_mode, trading_execution_enabled, metadata").order("created_at", { ascending: false });
     if (data) {
       setAccounts(data);
       const userIds = [...new Set(data.map((a: any) => a.user_id))];
