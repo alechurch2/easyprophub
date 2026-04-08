@@ -135,7 +135,24 @@ export default function Signals() {
         <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
 
           {/* ═══ ACTIVE SIGNAL ═══ */}
-          <SharedSignals />
+          <SharedSignals isFreeUser={isFree} />
+
+          {/* ═══ FREE UPSELL ═══ */}
+          {isFree && (
+            <div className="mb-8 rounded-2xl border border-primary/15 bg-gradient-to-r from-primary/[0.04] via-card to-amber-500/[0.03] p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Lock className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-heading font-semibold text-foreground">Sblocca i segnali completi</p>
+                  <p className="text-xs text-muted-foreground/60 mt-0.5">
+                    Stop Loss e Take Profit sono disponibili con i piani Pro e Live per un'operatività completa e professionale.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ═══ STATS ═══ */}
           {!loading && stats.total > 0 && (
