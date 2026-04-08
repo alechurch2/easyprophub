@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator, ArrowUpRight, ArrowDownRight, Info, Settings } from "lucide-react";
+import { TrendingUp, TrendingDown, Zap, Send, Shield, Radio, Clock, Calculator, ArrowUpRight, ArrowDownRight, Info, Settings, Lock } from "lucide-react";
 import { TradeExecutionModal } from "@/components/ai-review/TradeExecutionModal";
 import { fullLotCalculationFromPrices } from "@/components/ai-review/lotSizeCalculator";
 import { SignalStatusBadge, isSignalCopyable, getUncopyableMessage } from "./SignalStatusBadge";
