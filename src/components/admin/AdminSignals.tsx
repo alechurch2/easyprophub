@@ -236,7 +236,7 @@ export default function AdminSignals() {
 
       <div className="space-y-3">
         {filtered.map((sig) => (
-          <SignalRow key={sig.id} signal={sig} onTogglePublish={togglePublish} onToggleArchive={toggleArchive} onDelete={deleteSignal} onChangeStatus={changeStatus} />
+          <SignalRow key={sig.id} signal={sig} onTogglePublish={togglePublish} onToggleArchive={toggleArchive} onDelete={deleteSignal} onChangeStatus={(id, status) => changeStatus(id, sig.signal_status, status)} />
         ))}
       </div>
     </div>
