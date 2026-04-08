@@ -10,10 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import {
   Radio, TrendingUp, TrendingDown, BarChart3, Trophy, XCircle, Clock,
-  ArrowUpDown, Filter, Loader2, Target, Percent, Activity, Minus
+  ArrowUpDown, Filter, Loader2, Target, Percent, Activity, Minus, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 
 interface HistorySignal {
   id: string;
