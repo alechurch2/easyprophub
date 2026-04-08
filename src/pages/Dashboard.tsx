@@ -98,7 +98,7 @@ export default function Dashboard() {
 
   const quickLinks = [
     { title: "Formazione", desc: "Percorsi e moduli dedicati", icon: BookOpen, path: "/training", accent: "primary" },
-    { title: "Libreria Didattica", desc: "Esempi selezionati di analisi AI", icon: GraduationCap, path: "/case-studies", accent: "info" },
+    { title: "Segnali", desc: "Hub segnali operativi e storico", icon: Radio, path: "/signals", accent: "info" },
     { title: "AI Chart Review", desc: "Analisi strutturata dei grafici", icon: BarChart3, path: "/ai-review", accent: "success" },
     { title: "AI Assistant", desc: "Chat AI per supporto operativo", icon: Bot, path: "/ai-assistant", accent: "primary" },
     { title: "Account Center", desc: "Monitora i tuoi conti", icon: Wallet, path: "/account-center", accent: "success" },

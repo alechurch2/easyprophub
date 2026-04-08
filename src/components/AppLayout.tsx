@@ -14,7 +14,7 @@ import {
   Menu,
   X,
   Bot,
-  GraduationCap,
+  Radio,
   Wallet,
   Settings,
   ChevronRight,
