@@ -217,8 +217,15 @@ export default function AIReview() {
             </div>
           )}
 
+          {/* ── Loading state (persists at parent level) ── */}
+          {isAnalyzing && (
+            <div className="mb-8 sm:mb-10">
+              <ReviewLoadingState mode={analyzingMode} />
+            </div>
+          )}
+
           {/* ── New review form ── */}
-          {showForm && (
+          {showForm && !isAnalyzing && (
             <div className="flex flex-col gap-6 sm:gap-10 mb-8 sm:mb-10">
               <div className="space-y-5 sm:space-y-8">
                 <TierSelector
@@ -266,9 +273,21 @@ export default function AIReview() {
 
               <div>
                 {reviewMode === "pro" ? (
-                  <ReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); refreshLicense(); }} reviewTier={reviewTier} licenseLevel={licenseSettings.license_level} />
+                  <ReviewForm
+                    onClose={() => setShowForm(false)}
+                    onSuccess={() => { setIsAnalyzing(false); setShowForm(false); loadReviews(); loadPremiumUsage(); refreshLicense(); }}
+                    onAnalyzing={() => { setAnalyzingMode("pro"); setIsAnalyzing(true); }}
+                    reviewTier={reviewTier}
+                    licenseLevel={licenseSettings.license_level}
+                  />
                 ) : (
-                  <EasyReviewForm onClose={() => setShowForm(false)} onSuccess={() => { loadReviews(); loadPremiumUsage(); refreshLicense(); }} reviewTier={reviewTier} licenseLevel={licenseSettings.license_level} />
+                  <EasyReviewForm
+                    onClose={() => setShowForm(false)}
+                    onSuccess={() => { setIsAnalyzing(false); setShowForm(false); loadReviews(); loadPremiumUsage(); refreshLicense(); }}
+                    onAnalyzing={() => { setAnalyzingMode("easy"); setIsAnalyzing(true); }}
+                    reviewTier={reviewTier}
+                    licenseLevel={licenseSettings.license_level}
+                  />
                 )}
               </div>
             </div>
