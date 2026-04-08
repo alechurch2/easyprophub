@@ -453,27 +453,28 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
         </div>
 
         {/* ─── SECTION: NOTE ─── */}
-        <div className="card-premium p-5">
-          <div className="flex items-center gap-2 mb-3">
+        <div className="card-premium p-3.5 sm:p-5">
+          <div className="flex items-center gap-2 mb-2.5 sm:mb-3">
             <span className="inline-flex items-center justify-center h-5 w-5 rounded-md bg-muted/50 text-muted-foreground text-[10px] font-bold">?</span>
-            <p className="text-label font-semibold uppercase text-muted-foreground/60">Nota <span className="normal-case font-normal">(facoltativa)</span></p>
+            <p className="text-label font-semibold uppercase text-muted-foreground/60 text-[10px] sm:text-xs">Nota <span className="normal-case font-normal">(facoltativa)</span></p>
           </div>
           <Textarea
             value={userNote}
             onChange={(e) => setUserNote(e.target.value)}
             placeholder="Cosa pensi di questo grafico?"
             rows={2}
+            className="text-xs sm:text-sm"
           />
         </div>
 
         {/* ─── ACTIONS ─── */}
-        <div className="flex items-center justify-between pt-2">
-          <Button type="button" variant="ghost" onClick={onClose} className="text-muted-foreground">
+        <div className="flex items-center justify-between pt-1 sm:pt-2">
+          <Button type="button" variant="ghost" onClick={onClose} className="text-muted-foreground text-xs sm:text-sm h-8 sm:h-10 px-3 sm:px-4">
             Annulla
           </Button>
-          <Button type="submit" disabled={submitting} size="lg" className="px-8 gap-2">
+          <Button type="submit" disabled={submitting} size="default" className="px-5 sm:px-8 gap-1.5 sm:gap-2 h-9 sm:h-11 text-xs sm:text-sm">
             Analizza
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
         </div>
       </form>
