@@ -123,6 +123,7 @@ export function EasyReviewForm({ onClose, onSuccess, onAnalyzing, reviewTier = "
       return;
     }
     setSubmitting(true);
+    onAnalyzing?.();
 
     try {
       const filePath = `${user!.id}/${Date.now()}_${file.name}`;
