@@ -135,18 +135,18 @@ export default function Dashboard() {
           <div className="absolute top-0 right-0 w-[600px] h-[400px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
           <div className="absolute bottom-0 left-0 w-[400px] h-[300px] bg-primary/[0.02] rounded-full blur-[80px] translate-y-1/2" />
 
-          <div className="relative px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
+          <div className="relative px-4 sm:px-8 lg:px-10 py-6 sm:py-8 lg:py-10">
             <div className="max-w-5xl mx-auto">
               <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-2">
                 <div>
                   <p className="text-label uppercase text-muted-foreground/60 font-semibold mb-2">Dashboard</p>
-                  <h1 className="font-heading text-display-sm sm:text-display font-bold text-foreground">
+                  <h1 className="font-heading text-xl sm:text-display-sm lg:text-display font-bold text-foreground">
                     Bentornato, <span className="text-gradient-gold">{profile?.full_name?.split(" ")[0] || "Utente"}</span>
                   </h1>
-                  <p className="text-muted-foreground mt-2 text-sm max-w-md">{BRAND.description}</p>
+                  <p className="text-muted-foreground mt-1 sm:mt-2 text-xs sm:text-sm max-w-md">{BRAND.description}</p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/5 border border-success/15">
                     <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse-soft" />
                     <span className="text-[11px] font-medium text-success">
@@ -185,7 +185,7 @@ export default function Dashboard() {
           <div className="divider-fade" />
         </div>
 
-        <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
+        <div className="px-4 sm:px-8 lg:px-10 py-4 sm:py-6 lg:py-8 max-w-5xl mx-auto">
           <OnboardingChecklist />
 
           {licenseLoading ? (

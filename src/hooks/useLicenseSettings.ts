@@ -35,6 +35,15 @@ const ADMIN_USAGE: LicenseUsage = {
   premiumReviewsRemaining: 9999,
 };
 
+// ── Module-level cache ──────────────────────────────────────
+// Persists across component remounts (navigation) so the sidebar
+// and other consumers never flash DEFAULT_LICENSE ("Free") for
+// a split second before the real value loads.
+let _cachedSettings: LicenseSettings | null = null;
+let _cachedUsage: LicenseUsage | null = null;
+let _cachedUserId: string | null = null;
+// ────────────────────────────────────────────────────────────
+
 function normalizeLicenseSettings(licenseData: any): LicenseSettings {
   if (!licenseData) return DEFAULT_LICENSE;
 
@@ -51,28 +60,45 @@ function normalizeLicenseSettings(licenseData: any): LicenseSettings {
 
 export function useLicenseSettings() {
   const { user, isAdmin, loading: authLoading } = useAuth();
-  const [settings, setSettings] = useState<LicenseSettings>(DEFAULT_LICENSE);
-  const [usage, setUsage] = useState<LicenseUsage>(EMPTY_USAGE);
-  const [loading, setLoading] = useState(true);
+
+  // Use cached values for the same user to prevent flicker on remount
+  const hasCacheForUser = _cachedUserId === user?.id && _cachedSettings !== null;
+
+  const [settings, setSettings] = useState<LicenseSettings>(
+    hasCacheForUser ? _cachedSettings! : DEFAULT_LICENSE
+  );
+  const [usage, setUsage] = useState<LicenseUsage>(
+    hasCacheForUser ? (_cachedUsage ?? EMPTY_USAGE) : EMPTY_USAGE
+  );
+  // If we have a valid cache for this user, start as NOT loading
+  const [loading, setLoading] = useState(!hasCacheForUser);
 
   const load = useCallback(async () => {
     if (authLoading) {
-      setLoading(true);
+      // Only show loading if we have no cache
+      if (!hasCacheForUser) setLoading(true);
       return;
     }
 
     if (!user) {
       setSettings(DEFAULT_LICENSE);
       setUsage(EMPTY_USAGE);
+      _cachedSettings = null;
+      _cachedUsage = null;
+      _cachedUserId = null;
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    // Only show loading spinner if we have NO cached data for this user
+    if (!hasCacheForUser) setLoading(true);
 
     if (isAdmin) {
       setSettings(ADMIN_SETTINGS);
       setUsage(ADMIN_USAGE);
+      _cachedSettings = ADMIN_SETTINGS;
+      _cachedUsage = ADMIN_USAGE;
+      _cachedUserId = user.id;
       setLoading(false);
       return;
     }
@@ -108,16 +134,22 @@ export function useLicenseSettings() {
       const stdUsed = (stdRes.data as any)?.reviews_used ?? 0;
       const premUsed = (premRes.data as any)?.reviews_used ?? 0;
 
-      setUsage({
+      const newUsage: LicenseUsage = {
         standardReviewsUsed: stdUsed,
         premiumReviewsUsed: premUsed,
         standardReviewsRemaining: Math.max(0, normalizedSettings.chart_review_monthly_limit - stdUsed),
         premiumReviewsRemaining: Math.max(0, normalizedSettings.premium_review_monthly_limit - premUsed),
-      });
+      };
+      setUsage(newUsage);
+
+      // Persist to module cache
+      _cachedSettings = normalizedSettings;
+      _cachedUsage = newUsage;
+      _cachedUserId = user.id;
     } finally {
       setLoading(false);
     }
-  }, [authLoading, isAdmin, user]);
+  }, [authLoading, isAdmin, user, hasCacheForUser]);
 
   useEffect(() => {
     void load();

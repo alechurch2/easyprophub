@@ -139,7 +139,7 @@ export default function AIReview() {
           <div className="absolute inset-0 bg-gradient-to-br from-card via-background to-card" />
           <div className="absolute top-0 right-0 w-[500px] h-[400px] bg-success/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
           
-          <div className="relative px-6 sm:px-8 lg:px-10 py-6 lg:py-8">
+          <div className="relative px-4 sm:px-8 lg:px-10 py-5 sm:py-6 lg:py-8">
             <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
                 <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-2">Analisi AI</p>
@@ -162,7 +162,7 @@ export default function AIReview() {
         </div>
 
         {/* ═══ MAIN CONTENT ═══ */}
-        <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
+        <div className="px-4 sm:px-8 lg:px-10 py-4 sm:py-6 lg:py-8 max-w-5xl mx-auto">
 
           {/* Disclaimer */}
           <div className="panel-inset p-3.5 mb-6">
