@@ -1986,7 +1986,7 @@ export default function AccountCenter() {
   if (!licenseSettings.account_center_enabled) {
     return (
       <AppLayout>
-        <LicenseGate allowed={false} requiredLevel="live" message="L'Account Center è disponibile dal piano Live." />
+        <LicenseGate allowed={false} featureKey="account_center" requiredLevel="live" />
       </AppLayout>
     );
   }

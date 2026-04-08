@@ -4,13 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, Radio, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, ChevronRight } from "lucide-react";
+import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, Radio, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, ChevronRight, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { trackEvent } from "@/lib/analytics";
 import { SharedSignals } from "@/components/dashboard/SharedSignals";
-import { Link as RouterLink } from "react-router-dom";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
 
 interface Announcement {
   id: string;
@@ -28,6 +28,7 @@ interface ReviewStats {
 
 export default function Dashboard() {
   const { profile, isAdmin, licenseStatus, accessExpiresAt, daysRemaining, user } = useAuth();
+  const { settings: licenseSettings } = useLicenseSettings();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stats, setStats] = useState<ReviewStats>({ totalPro: 0, totalEasy: 0, avgQuality: null, topAssets: [] });
   const [premiumUsage, setPremiumUsage] = useState<{ used: number; limit: number } | null>(null);
@@ -97,12 +98,12 @@ export default function Dashboard() {
   }, [user]);
 
   const quickLinks = [
-    { title: "Formazione", desc: "Percorsi e moduli dedicati", icon: BookOpen, path: "/training", accent: "primary" },
-    { title: "Segnali", desc: "Hub segnali operativi e storico", icon: Radio, path: "/signals", accent: "info" },
-    { title: "AI Chart Review", desc: "Analisi strutturata dei grafici", icon: BarChart3, path: "/ai-review", accent: "success" },
-    { title: "AI Assistant", desc: "Chat AI per supporto operativo", icon: Bot, path: "/ai-assistant", accent: "primary" },
-    { title: "Account Center", desc: "Monitora i tuoi conti", icon: Wallet, path: "/account-center", accent: "success" },
-    { title: "Supporto", desc: "Assistenza dedicata", icon: HeadphonesIcon, path: "/support", accent: "info" },
+    { title: "Formazione", desc: "Percorsi e moduli dedicati", icon: BookOpen, path: "/training", accent: "primary", locked: false },
+    { title: "Segnali", desc: "Hub segnali operativi e storico", icon: Radio, path: "/signals", accent: "info", locked: false },
+    { title: "AI Chart Review", desc: "Analisi strutturata dei grafici", icon: BarChart3, path: "/ai-review", accent: "success", locked: false },
+    { title: "AI Assistant", desc: "Chat AI per supporto operativo", icon: Bot, path: "/ai-assistant", accent: "primary", locked: !isAdmin && !licenseSettings.ai_assistant_enabled },
+    { title: "Account Center", desc: "Monitora i tuoi conti", icon: Wallet, path: "/account-center", accent: "success", locked: !isAdmin && !licenseSettings.account_center_enabled },
+    { title: "Supporto", desc: "Assistenza dedicata", icon: HeadphonesIcon, path: "/support", accent: "info", locked: false },
   ];
 
   const totalReviews = stats.totalPro + stats.totalEasy;
@@ -244,28 +245,50 @@ export default function Dashboard() {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className="card-premium p-4 group hover:border-primary/20 transition-all duration-300"
+                  className={cn(
+                    "card-premium p-4 group transition-all duration-300 relative overflow-hidden",
+                    item.locked
+                      ? "hover:border-primary/10 opacity-80"
+                      : "hover:border-primary/20"
+                  )}
                   style={{ animationDelay: `${i * 40}ms` }}
                 >
                   <div className="flex items-start gap-3">
                     <div className={cn(
                       "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105",
+                      item.locked ? "bg-muted/60" :
                       item.accent === "primary" ? "bg-primary/8" :
                       item.accent === "success" ? "bg-success/8" :
                       "bg-info/8"
                     )}>
                       <item.icon className={cn(
                         "h-4 w-4",
+                        item.locked ? "text-muted-foreground/50" :
                         item.accent === "primary" ? "text-primary" :
                         item.accent === "success" ? "text-success" :
                         "text-info"
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-heading font-semibold text-foreground text-sm leading-tight">{item.title}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.desc}</p>
+                      <div className="flex items-center gap-2">
+                        <h3 className={cn(
+                          "font-heading font-semibold text-sm leading-tight",
+                          item.locked ? "text-foreground/70" : "text-foreground"
+                        )}>{item.title}</h3>
+                        {item.locked && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 border border-primary/10">
+                            <Crown className="h-2.5 w-2.5 text-primary/70" />
+                            <span className="text-[9px] font-semibold text-primary/70 uppercase tracking-wider">Premium</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className={cn("text-xs mt-0.5 leading-relaxed", item.locked ? "text-muted-foreground/50" : "text-muted-foreground")}>{item.desc}</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/60 transition-all duration-300 shrink-0 mt-0.5 group-hover:translate-x-0.5" />
+                    {item.locked ? (
+                      <Lock className="h-4 w-4 text-muted-foreground/30 shrink-0 mt-0.5" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/60 transition-all duration-300 shrink-0 mt-0.5 group-hover:translate-x-0.5" />
+                    )}
                   </div>
                 </Link>
               ))}

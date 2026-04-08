@@ -258,7 +258,7 @@ export default function AIAssistant() {
   if (!licenseSettings.ai_assistant_enabled) {
     return (
       <AppLayout>
-        <LicenseGate allowed={false} requiredLevel="pro" message="L'AI Assistant è disponibile dal piano Pro." />
+        <LicenseGate allowed={false} featureKey="ai_assistant" requiredLevel="pro" />
       </AppLayout>
     );
   }
