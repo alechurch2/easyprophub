@@ -1030,7 +1030,7 @@ async function createMetaApiAccount(account: any): Promise<string> {
 
   const payload: Record<string, unknown> = {
     login: String(account.account_number),
-    password: account.investor_password,
+    password: account._decrypted_password || account.investor_password,
     name: account.account_name || `EasyProp-${account.account_number}`,
     server: account.server,
     platform: (account.platform || "mt5").toLowerCase(),
@@ -1525,7 +1525,34 @@ Deno.serve(async (req) => {
           sync_status: "running",
         }).eq("id", account_id);
 
-        // 1. Create MetaApi account (broker-aware provisioning profile selection)
+        // 1. Handle investor password encryption
+        const encKey = Deno.env.get("INVESTOR_PASSWORD_ENCRYPTION_KEY") || "";
+        let plaintextPassword = account.investor_password;
+        
+        if (encKey && account.investor_password) {
+          // Try to decrypt (in case it's already encrypted from a previous attempt)
+          const { data: decPwd } = await supabase.rpc("decrypt_investor_password", {
+            _account_id: account_id,
+            _key: encKey,
+          });
+          if (decPwd) {
+            plaintextPassword = decPwd;
+          }
+          
+          // Encrypt and save back to DB (so it's never stored as plaintext)
+          const { data: encPwd } = await supabase.rpc("encrypt_text_value", {
+            _plaintext: plaintextPassword,
+            _key: encKey,
+          });
+          if (encPwd && encPwd !== plaintextPassword) {
+            await supabase.from("trading_accounts").update({
+              investor_password: encPwd,
+            }).eq("id", account_id);
+          }
+        }
+        account._decrypted_password = plaintextPassword;
+
+        // 2. Create MetaApi account (broker-aware provisioning profile selection)
         console.log("[connect_metaapi] Step 1: Creating MetaApi account...");
         const metaAccountId = await createMetaApiAccount(account);
         console.log("[connect_metaapi] Step 1 done. MetaApi ID:", metaAccountId);
