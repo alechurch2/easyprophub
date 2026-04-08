@@ -15,7 +15,7 @@ import Support from "./pages/Support";
 import AIReview from "./pages/AIReview";
 import AIAssistant from "./pages/AIAssistant";
 import Admin from "./pages/Admin";
-import CaseStudies from "./pages/CaseStudies";
+import Signals from "./pages/Signals";
 import AccountCenter from "./pages/AccountCenter";
 import AccountSettings from "./pages/AccountSettings";
 import NotFound from "./pages/NotFound";
