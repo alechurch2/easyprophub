@@ -140,10 +140,10 @@ export default function Dashboard() {
               <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-2">
                 <div>
                   <p className="text-label uppercase text-muted-foreground/60 font-semibold mb-2">Dashboard</p>
-                  <h1 className="font-heading text-display-sm sm:text-display font-bold text-foreground">
+                  <h1 className="font-heading text-xl sm:text-display-sm lg:text-display font-bold text-foreground">
                     Bentornato, <span className="text-gradient-gold">{profile?.full_name?.split(" ")[0] || "Utente"}</span>
                   </h1>
-                  <p className="text-muted-foreground mt-2 text-sm max-w-md">{BRAND.description}</p>
+                  <p className="text-muted-foreground mt-1 sm:mt-2 text-xs sm:text-sm max-w-md">{BRAND.description}</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
