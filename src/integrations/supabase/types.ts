@@ -1694,6 +1694,10 @@ export type Database = {
     }
     Functions: {
       check_account_limit: { Args: { _user_id: string }; Returns: Json }
+      decrypt_investor_password: {
+        Args: { _account_id: string }
+        Returns: string
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
