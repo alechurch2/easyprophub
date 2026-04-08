@@ -210,10 +210,19 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                   </div>
                 )}
 
-                {!lotCalc && tradingAccount && copyable && (
+                {!lotCalc && riskCtx.isConfigured && copyable && (
                   <div className="panel-inset p-2.5">
                     <p className="text-[10px] text-muted-foreground/50 text-center">
                       Asset non supportato per il calcolo automatico del lotto
+                    </p>
+                  </div>
+                )}
+
+                {!riskCtx.isConfigured && copyable && (
+                  <div className="panel-inset p-3 flex items-center gap-2">
+                    <Settings className="h-3.5 w-3.5 text-primary/60 shrink-0" />
+                    <p className="text-[10px] text-muted-foreground">
+                      Per calcolare rischio e lottaggio, imposta la grandezza del conto nelle <a href="/account-settings" className="text-primary underline underline-offset-2">Impostazioni</a>.
                     </p>
                   </div>
                 )}
