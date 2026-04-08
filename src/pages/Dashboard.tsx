@@ -4,13 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { BRAND } from "@/config/brand";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, Radio, TrendingUp, Zap, Target, Wallet, Crown, Clock, Shield, ChevronRight, Lock } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { BookOpen, HeadphonesIcon, BarChart3, Megaphone, ArrowRight, Bot, Radio, TrendingUp, Zap, Target, Wallet, Crown, Clock, Lock, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import { trackEvent } from "@/lib/analytics";
 import { SharedSignals } from "@/components/dashboard/SharedSignals";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Announcement {
   id: string;
@@ -26,12 +26,21 @@ interface ReviewStats {
   topAssets: { asset: string; count: number }[];
 }
 
+interface QuickLink {
+  title: string;
+  desc: string;
+  icon: React.ElementType;
+  path: string;
+  accent: "primary" | "success" | "info";
+  locked: boolean;
+  pending?: boolean;
+}
+
 export default function Dashboard() {
-  const { profile, isAdmin, licenseStatus, accessExpiresAt, daysRemaining, user } = useAuth();
-  const { settings: licenseSettings } = useLicenseSettings();
+  const { profile, isAdmin, licenseStatus, daysRemaining, user } = useAuth();
+  const { settings: licenseSettings, usage: licenseUsage, loading: licenseLoading } = useLicenseSettings();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [stats, setStats] = useState<ReviewStats>({ totalPro: 0, totalEasy: 0, avgQuality: null, topAssets: [] });
-  const [premiumUsage, setPremiumUsage] = useState<{ used: number; limit: number } | null>(null);
 
   useEffect(() => {
     supabase
@@ -44,7 +53,8 @@ export default function Dashboard() {
         if (data) setAnnouncements(data);
       });
 
-    if (user) {
+    if (!user) return;
+
     supabase
       .from("ai_chart_reviews")
       .select("review_mode, asset, analysis, status")
@@ -69,10 +79,16 @@ export default function Dashboard() {
             return null;
           })
           .filter((v): v is number => v !== null);
-        const avgQuality = qualities.length ? Math.round((qualities.reduce((a, b) => a + b, 0) / qualities.length) * 10) / 10 : null;
+
+        const avgQuality = qualities.length
+          ? Math.round((qualities.reduce((a, b) => a + b, 0) / qualities.length) * 10) / 10
+          : null;
 
         const assetCounts: Record<string, number> = {};
-        data.forEach((r) => { assetCounts[r.asset] = (assetCounts[r.asset] || 0) + 1; });
+        data.forEach((r) => {
+          assetCounts[r.asset] = (assetCounts[r.asset] || 0) + 1;
+        });
+
         const topAssets = Object.entries(assetCounts)
           .sort(([, a], [, b]) => b - a)
           .slice(0, 3)
@@ -80,29 +96,32 @@ export default function Dashboard() {
 
         setStats({ totalPro, totalEasy, avgQuality, topAssets });
       });
-    }
-
-    if (user) {
-      const now = new Date();
-      const monthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      supabase
-        .from("premium_review_usage")
-        .select("reviews_used, quota_limit")
-        .eq("user_id", user.id)
-        .eq("month_year", monthYear)
-        .single()
-        .then(({ data }) => {
-          if (data) setPremiumUsage({ used: (data as any).reviews_used, limit: (data as any).quota_limit });
-        });
-    }
   }, [user]);
 
-  const quickLinks = [
+  const premiumFeaturesPending = licenseLoading && !isAdmin;
+
+  const quickLinks: QuickLink[] = [
     { title: "Formazione", desc: "Percorsi e moduli dedicati", icon: BookOpen, path: "/training", accent: "primary", locked: false },
     { title: "Segnali", desc: "Hub segnali operativi e storico", icon: Radio, path: "/signals", accent: "info", locked: false },
     { title: "AI Chart Review", desc: "Analisi strutturata dei grafici", icon: BarChart3, path: "/ai-review", accent: "success", locked: false },
-    { title: "AI Assistant", desc: "Chat AI per supporto operativo", icon: Bot, path: "/ai-assistant", accent: "primary", locked: !isAdmin && !licenseSettings.ai_assistant_enabled },
-    { title: "Account Center", desc: "Monitora i tuoi conti", icon: Wallet, path: "/account-center", accent: "success", locked: !isAdmin && !licenseSettings.account_center_enabled },
+    {
+      title: "AI Assistant",
+      desc: "Chat AI per supporto operativo",
+      icon: Bot,
+      path: "/ai-assistant",
+      accent: "primary",
+      locked: !licenseLoading && !isAdmin && !licenseSettings.ai_assistant_enabled,
+      pending: premiumFeaturesPending,
+    },
+    {
+      title: "Account Center",
+      desc: "Monitora i tuoi conti",
+      icon: Wallet,
+      path: "/account-center",
+      accent: "success",
+      locked: !licenseLoading && !isAdmin && !licenseSettings.account_center_enabled,
+      pending: premiumFeaturesPending,
+    },
     { title: "Supporto", desc: "Assistenza dedicata", icon: HeadphonesIcon, path: "/support", accent: "info", locked: false },
   ];
 
@@ -111,16 +130,13 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="animate-fade-in">
-        {/* ═══ HERO SECTION ═══ */}
         <div className="relative overflow-hidden">
-          {/* Background texture */}
           <div className="absolute inset-0 bg-gradient-to-br from-card via-background to-card" />
           <div className="absolute top-0 right-0 w-[600px] h-[400px] bg-primary/[0.03] rounded-full blur-[100px] -translate-y-1/2" />
           <div className="absolute bottom-0 left-0 w-[400px] h-[300px] bg-primary/[0.02] rounded-full blur-[80px] translate-y-1/2" />
-          
+
           <div className="relative px-6 sm:px-8 lg:px-10 py-8 lg:py-10">
             <div className="max-w-5xl mx-auto">
-              {/* Greeting + Status row */}
               <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-2">
                 <div>
                   <p className="text-label uppercase text-muted-foreground/60 font-semibold mb-2">Dashboard</p>
@@ -130,7 +146,6 @@ export default function Dashboard() {
                   <p className="text-muted-foreground mt-2 text-sm max-w-md">{BRAND.description}</p>
                 </div>
 
-                {/* Status badges — floating right on desktop */}
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/5 border border-success/15">
                     <div className="h-1.5 w-1.5 rounded-full bg-success animate-pulse-soft" />
@@ -140,19 +155,28 @@ export default function Dashboard() {
                   </div>
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border/60">
                     <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span className={cn("text-[11px] font-medium",
-                      licenseStatus === "lifetime" ? "text-primary" :
-                      daysRemaining !== null && daysRemaining <= 7 ? "text-warning" : "text-foreground"
-                    )}>
-                      {licenseStatus === "lifetime" ? "♾️ Lifetime" :
-                       daysRemaining !== null ? `${daysRemaining}g rimasti` : "Attiva"}
+                    <span
+                      className={cn(
+                        "text-[11px] font-medium",
+                        licenseStatus === "lifetime"
+                          ? "text-primary"
+                          : daysRemaining !== null && daysRemaining <= 7
+                          ? "text-warning"
+                          : "text-foreground"
+                      )}
+                    >
+                      {licenseStatus === "lifetime" ? "♾️ Lifetime" : daysRemaining !== null ? `${daysRemaining}g rimasti` : "Attiva"}
                     </span>
                   </div>
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border/60">
-                    <Crown className="h-3 w-3 text-primary" />
-                    <span className="text-[11px] font-medium text-foreground">
-                      Premium: {premiumUsage ? `${Math.max(0, premiumUsage.limit - premiumUsage.used)}/${premiumUsage.limit}` : "3/3"}
-                    </span>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border/60 min-w-[108px]">
+                    <Crown className="h-3 w-3 text-primary shrink-0" />
+                    {licenseLoading ? (
+                      <Skeleton className="h-3 w-14" />
+                    ) : (
+                      <span className="text-[11px] font-medium text-foreground">
+                        Premium: {licenseUsage.premiumReviewsRemaining}/{licenseSettings.premium_review_monthly_limit}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -161,30 +185,36 @@ export default function Dashboard() {
           <div className="divider-fade" />
         </div>
 
-        {/* ═══ MAIN CONTENT ═══ */}
         <div className="px-6 sm:px-8 lg:px-10 py-6 lg:py-8 max-w-5xl mx-auto">
-          
-          {/* Onboarding */}
           <OnboardingChecklist />
 
-          {/* ── Signals section ── */}
-          <SharedSignals isFreeUser={licenseSettings.license_level === "free"} />
-          {/* Link to full signals page */}
-          <div className="mb-6 -mt-6">
-            <Link
-              to="/signals"
-              className="inline-flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary font-medium transition-colors"
-            >
-              Vedi tutti i segnali e lo storico completo <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
+          {licenseLoading ? (
+            <div className="mb-8 card-premium p-6 space-y-4">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-12 w-full" />
+              <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            </div>
+          ) : (
+            <>
+              <SharedSignals isFreeUser={licenseSettings.license_level === "free"} />
+              <div className="mb-6 -mt-6">
+                <Link
+                  to="/signals"
+                  className="inline-flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary font-medium transition-colors"
+                >
+                  Vedi tutti i segnali e lo storico completo <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </>
+          )}
 
-          {/* ── Stats row — asymmetric layout ── */}
           {totalReviews > 0 && (
             <div className="mb-10">
               <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-4">Le tue statistiche</p>
               <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                {/* Main stat — large */}
                 <div className="md:col-span-5 card-elevated p-6 relative overflow-hidden accent-line-top">
                   <div className="flex items-center gap-2 mb-4">
                     <TrendingUp className="h-4 w-4 text-primary" />
@@ -197,7 +227,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Quality */}
                 <div className="md:col-span-3 card-premium p-5 flex flex-col justify-between">
                   <div className="flex items-center gap-2 mb-3">
                     <Zap className="h-4 w-4 text-success" />
@@ -211,7 +240,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Top assets */}
                 <div className="md:col-span-4 card-premium p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <Target className="h-4 w-4 text-info" />
@@ -237,7 +265,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ── Quick links — editorial grid ── */}
           <div className="mb-10">
             <p className="text-label uppercase text-muted-foreground/50 font-semibold mb-4">Accesso rapido</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -247,34 +274,54 @@ export default function Dashboard() {
                   to={item.path}
                   className={cn(
                     "card-premium p-4 group transition-all duration-300 relative overflow-hidden",
-                    item.locked
+                    item.pending
+                      ? "pointer-events-none opacity-70"
+                      : item.locked
                       ? "hover:border-primary/10 opacity-80"
                       : "hover:border-primary/20"
                   )}
                   style={{ animationDelay: `${i * 40}ms` }}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105",
-                      item.locked ? "bg-muted/60" :
-                      item.accent === "primary" ? "bg-primary/8" :
-                      item.accent === "success" ? "bg-success/8" :
-                      "bg-info/8"
-                    )}>
-                      <item.icon className={cn(
-                        "h-4 w-4",
-                        item.locked ? "text-muted-foreground/50" :
-                        item.accent === "primary" ? "text-primary" :
-                        item.accent === "success" ? "text-success" :
-                        "text-info"
-                      )} />
+                    <div
+                      className={cn(
+                        "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-105",
+                        item.pending
+                          ? "bg-muted/50 animate-pulse"
+                          : item.locked
+                          ? "bg-muted/60"
+                          : item.accent === "primary"
+                          ? "bg-primary/8"
+                          : item.accent === "success"
+                          ? "bg-success/8"
+                          : "bg-info/8"
+                      )}
+                    >
+                      <item.icon
+                        className={cn(
+                          "h-4 w-4",
+                          item.pending
+                            ? "text-muted-foreground/40"
+                            : item.locked
+                            ? "text-muted-foreground/50"
+                            : item.accent === "primary"
+                            ? "text-primary"
+                            : item.accent === "success"
+                            ? "text-success"
+                            : "text-info"
+                        )}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className={cn(
-                          "font-heading font-semibold text-sm leading-tight",
-                          item.locked ? "text-foreground/70" : "text-foreground"
-                        )}>{item.title}</h3>
+                        <h3
+                          className={cn(
+                            "font-heading font-semibold text-sm leading-tight",
+                            item.pending || item.locked ? "text-foreground/70" : "text-foreground"
+                          )}
+                        >
+                          {item.title}
+                        </h3>
                         {item.locked && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 border border-primary/10">
                             <Crown className="h-2.5 w-2.5 text-primary/70" />
@@ -282,9 +329,13 @@ export default function Dashboard() {
                           </span>
                         )}
                       </div>
-                      <p className={cn("text-xs mt-0.5 leading-relaxed", item.locked ? "text-muted-foreground/50" : "text-muted-foreground")}>{item.desc}</p>
+                      <p className={cn("text-xs mt-0.5 leading-relaxed", item.pending || item.locked ? "text-muted-foreground/50" : "text-muted-foreground")}>
+                        {item.desc}
+                      </p>
                     </div>
-                    {item.locked ? (
+                    {item.pending ? (
+                      <div className="h-4 w-4 rounded-full bg-muted/40 shrink-0 mt-0.5 animate-pulse" />
+                    ) : item.locked ? (
                       <Lock className="h-4 w-4 text-muted-foreground/30 shrink-0 mt-0.5" />
                     ) : (
                       <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary/60 transition-all duration-300 shrink-0 mt-0.5 group-hover:translate-x-0.5" />
@@ -295,7 +346,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ── Announcements ── */}
           {announcements.length > 0 && (
             <div className="mb-8">
               <div className="flex items-center gap-2 mb-4">
