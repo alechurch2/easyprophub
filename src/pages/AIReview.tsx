@@ -221,8 +221,8 @@ export default function AIReview() {
                 <TierSelector
                   tier={reviewTier}
                   onChange={setReviewTier}
-                  premiumUsed={premiumUsage?.reviews_used ?? 0}
-                  premiumQuota={premiumUsage?.quota_limit ?? 3}
+                  premiumUsed={licenseUsage.premiumReviewsUsed}
+                  premiumQuota={licenseSettings.premium_review_monthly_limit}
                 />
                 <ModeSelector mode={reviewMode} onChange={setReviewMode} />
               </div>

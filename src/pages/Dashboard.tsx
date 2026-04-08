@@ -168,7 +168,7 @@ export default function Dashboard() {
           <OnboardingChecklist />
 
           {/* ── Signals section ── */}
-          <SharedSignals />
+          <SharedSignals isFreeUser={licenseSettings.license_level === "free"} />
           {/* Link to full signals page */}
           <div className="mb-6 -mt-6">
             <Link

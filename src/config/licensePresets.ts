@@ -16,7 +16,7 @@ export const LICENSE_PRESETS: Record<LicenseLevel, LicenseSettings> = {
     training_access_level: "partial",
     ai_assistant_enabled: true,
     chart_review_monthly_limit: 5,
-    premium_review_monthly_limit: 0,
+    premium_review_monthly_limit: 1,
     account_center_enabled: false,
     trade_execution_enabled: false,
   },

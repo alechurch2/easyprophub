@@ -38,7 +38,7 @@ interface TradingAccount {
   equity: number | null;
 }
 
-export function SharedSignals() {
+export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) {
   const { user } = useAuth();
   const [signals, setSignals] = useState<SharedSignal[]>([]);
   const [tradingAccount, setTradingAccount] = useState<TradingAccount | null>(null);
@@ -168,13 +168,15 @@ export function SharedSignals() {
                 {/* Price levels */}
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { label: "Entry", value: sig.entry_price, color: "text-foreground" },
-                    { label: "Stop Loss", value: sig.stop_loss, color: "text-destructive" },
-                    { label: "Take Profit", value: sig.take_profit, color: "text-success" },
+                    { label: "Entry", value: sig.entry_price, color: "text-foreground", blur: false },
+                    { label: "Stop Loss", value: sig.stop_loss, color: "text-destructive", blur: isFreeUser },
+                    { label: "Take Profit", value: sig.take_profit, color: "text-success", blur: isFreeUser },
                   ].map(p => (
                     <div key={p.label} className="panel-inset p-2.5 text-center">
                       <p className="text-[9px] uppercase text-muted-foreground/50 font-semibold tracking-wider mb-0.5">{p.label}</p>
-                      <p className={cn("text-sm font-mono-data font-bold", p.color)}>{p.value}</p>
+                      <p className={cn("text-sm font-mono-data font-bold", p.color)}>
+                        {p.blur ? <span className="blur-[5px] select-none pointer-events-none">{p.value}</span> : p.value}
+                      </p>
                     </div>
                   ))}
                 </div>
