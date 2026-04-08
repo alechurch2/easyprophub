@@ -1028,16 +1028,27 @@ async function createMetaApiAccount(account: any): Promise<string> {
   const { profileId, source } = resolveProvisioningProfileId(brokerName);
   console.log(`[MetaApi] Creating account: broker="${brokerName}" reliability="${reliability}" provisioningProfile=${profileId || "none"} source="${source}"`);
 
-  // Decrypt investor password
-  const encryptionKey = Deno.env.get("INVESTOR_PASSWORD_ENCRYPTION_KEY") || "";
+  // Decrypt investor password if encrypted
   let decryptedPassword = account.investor_password;
+  const encryptionKey = Deno.env.get("INVESTOR_PASSWORD_ENCRYPTION_KEY") || "";
   if (encryptionKey && account.investor_password) {
-    const { data: decData, error: decErr } = await supabaseAdmin.rpc("decrypt_investor_password", {
-      _account_id: account.id,
-      _key: encryptionKey,
-    });
-    if (!decErr && decData) {
-      decryptedPassword = decData;
+    try {
+      // Try base64 decode - if it succeeds, it's likely encrypted
+      const raw = Uint8Array.from(atob(account.investor_password), c => c.charCodeAt(0));
+      // Use Web Crypto to decrypt AES
+      const keyBytes = new TextEncoder().encode(encryptionKey);
+      // pgcrypto AES uses raw key; pad/truncate to 16 bytes for AES-128
+      const keyPadded = new Uint8Array(16);
+      keyPadded.set(keyBytes.slice(0, 16));
+      const cryptoKey = await crypto.subtle.importKey("raw", keyPadded, { name: "AES-CBC", length: 128 }, false, ["decrypt"]);
+      // pgcrypto prepends a random 16-byte IV
+      const iv = raw.slice(0, 16);
+      const ciphertext = raw.slice(16);
+      const decrypted = await crypto.subtle.decrypt({ name: "AES-CBC", iv }, cryptoKey, ciphertext);
+      decryptedPassword = new TextDecoder().decode(decrypted).replace(/\0+$/, ""); // strip padding
+    } catch {
+      // If decryption fails, assume plaintext (pre-encryption data)
+      decryptedPassword = account.investor_password;
     }
   }
 
