@@ -166,9 +166,9 @@ export function SharedSignals({ isFreeUser = false }: { isFreeUser?: boolean }) 
                 </div>
               </div>
 
-              <div className="px-4 py-3 space-y-3">
+              <div className="px-3 sm:px-4 py-3 space-y-3">
                 {/* Price levels */}
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                   {[
                     { label: "Entry", value: sig.entry_price, color: "text-foreground", blur: false },
                     { label: "Stop Loss", value: sig.stop_loss, color: "text-destructive", blur: isFreeUser },
