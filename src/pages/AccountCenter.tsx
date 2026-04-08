@@ -565,12 +565,12 @@ function PnLValue({ value, prefix = "" }: { value: number; prefix?: string }) {
 function MetricCard({ label, value, warn, small, accent }: { label: string; value: React.ReactNode; warn?: boolean; small?: boolean; accent?: boolean }) {
   return (
     <div className={cn(
-      "rounded-xl p-3.5 transition-colors",
+      "rounded-xl transition-colors",
       accent ? "card-elevated accent-line-top" : "panel-inset",
-      small && "p-2.5"
+      small ? "p-2 sm:p-2.5" : "p-2.5 sm:p-3.5"
     )}>
-      <p className={cn("text-label font-semibold uppercase text-muted-foreground/50 mb-1.5", small ? "text-[9px]" : "text-[10px]")}>{label}</p>
-      <p className={cn("font-semibold text-foreground", small ? "text-sm" : "text-base", warn && "text-destructive")}>
+      <p className={cn("text-label font-semibold uppercase text-muted-foreground/50 mb-1", small ? "text-[8px] sm:text-[9px]" : "text-[9px] sm:text-[10px]")}>{label}</p>
+      <p className={cn("font-semibold text-foreground", small ? "text-xs sm:text-sm" : "text-sm sm:text-base", warn && "text-destructive")}>
         {value}
       </p>
     </div>
