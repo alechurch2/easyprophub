@@ -1697,10 +1697,12 @@ export type Database = {
       decrypt_investor_password:
         | { Args: { _account_id: string }; Returns: string }
         | { Args: { _account_id: string; _key: string }; Returns: string }
+      decrypt_investor_pwd: { Args: { _account_id: string }; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      encrypt_investor_pwd: { Args: { _plaintext: string }; Returns: string }
       encrypt_text_value: {
         Args: { _key: string; _plaintext: string }
         Returns: string
