@@ -227,19 +227,19 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
         </div>
 
         {/* ─── SECTION: ACCOUNT SIZE ─── */}
-        <div className="card-premium p-5">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="card-premium p-3.5 sm:p-5">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
             <span className="inline-flex items-center justify-center h-5 w-5 rounded-md bg-primary/10 text-primary text-[10px] font-bold">2</span>
-            <p className="text-label font-semibold uppercase text-muted-foreground/60">Grandezza conto</p>
+            <p className="text-label font-semibold uppercase text-muted-foreground/60 text-[10px] sm:text-xs">Grandezza conto</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
             {ACCOUNT_PRESETS.map((p) => (
               <button
                 key={p.value}
                 type="button"
                 onClick={() => setAccountPreset(String(p.value))}
                 className={cn(
-                  "rounded-lg px-4 py-2 text-xs font-semibold border transition-all duration-200",
+                  "rounded-lg px-2.5 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold border transition-all duration-200",
                   accountPreset === String(p.value)
                     ? "bg-primary/10 text-primary border-primary/30 ring-1 ring-primary/20"
                     : "bg-card text-muted-foreground border-border hover:border-primary/20 hover:text-foreground"
@@ -252,27 +252,27 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
               type="button"
               onClick={() => setAccountPreset("custom")}
               className={cn(
-                "rounded-lg px-4 py-2 text-xs font-semibold border transition-all duration-200",
+                "rounded-lg px-2.5 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold border transition-all duration-200",
                 isCustom
                   ? "bg-primary/10 text-primary border-primary/30 ring-1 ring-primary/20"
                   : "bg-card text-muted-foreground border-border hover:border-primary/20 hover:text-foreground"
               )}
             >
-              Personalizzato
+              Custom
             </button>
             {connectedEquity && connectedEquity > 0 && (
               <button
                 type="button"
                 onClick={() => setAccountPreset("linked")}
                 className={cn(
-                  "rounded-lg px-4 py-2 text-xs font-semibold border transition-all duration-200 flex items-center gap-1.5",
+                  "rounded-lg px-2.5 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold border transition-all duration-200 flex items-center gap-1",
                   isLinked
                     ? "bg-primary/10 text-primary border-primary/30 ring-1 ring-primary/20"
                     : "bg-card text-muted-foreground border-border hover:border-primary/20 hover:text-foreground"
                 )}
               >
-                <Link2 className="h-3 w-3" />
-                Conto collegato
+                <Link2 className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                Collegato
               </button>
             )}
           </div>
@@ -282,16 +282,16 @@ export function EasyReviewForm({ onClose, onSuccess, reviewTier = "standard", li
               value={customAccount}
               onChange={(e) => setCustomAccount(e.target.value)}
               placeholder="Es: 75000"
-              className="mt-3 max-w-[200px]"
+              className="mt-2.5 sm:mt-3 max-w-[180px] h-8 sm:h-9 text-xs sm:text-sm"
               min={1}
             />
           )}
           {isLinked && connectedEquity && (
-            <div className="mt-3 panel-inset p-3 flex items-center gap-3">
-              <Link2 className="h-4 w-4 text-primary shrink-0" />
+            <div className="mt-2.5 sm:mt-3 panel-inset p-2.5 sm:p-3 flex items-center gap-2.5 sm:gap-3">
+              <Link2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary shrink-0" />
               <div>
-                <p className="text-[11px] text-muted-foreground">Equity corrente</p>
-                <p className="text-sm font-semibold text-foreground font-mono-data">
+                <p className="text-[10px] sm:text-[11px] text-muted-foreground">Equity corrente</p>
+                <p className="text-xs sm:text-sm font-semibold text-foreground font-mono-data">
                   {connectedAccountName} — ${connectedEquity.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
