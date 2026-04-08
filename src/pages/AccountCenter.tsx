@@ -604,9 +604,11 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="outline" className="text-[10px]">
-                <Eye className="h-2.5 w-2.5 mr-1" />Read-only
-              </Badge>
+              {acc.read_only_mode && (
+                <Badge variant="outline" className="text-[10px]">
+                  <Eye className="h-2.5 w-2.5 mr-1" />Read-only
+                </Badge>
+              )}
               <Badge variant="outline" className="text-[10px] text-muted-foreground">
                 {acc.provider_type === "metaapi" ? "⚡ MetaApi" : acc.provider_type === "mock" ? "📊 Demo" : acc.provider_type}
               </Badge>
