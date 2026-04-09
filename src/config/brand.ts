@@ -18,5 +18,5 @@ export const BRAND = {
   // Paths per asset — aggiorna qui quando carichi i file definitivi
   logo: null as string | null,       // Loaded via ES6 import in BrandLogo
   logoIcon: null as string | null,
-  favicon: "/favicon.svg",
+  favicon: "/favicon.png",
 } as const;
