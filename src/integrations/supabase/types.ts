@@ -677,6 +677,7 @@ export type Database = {
           screenshot_url: string | null
           timeframe: string
           user_id: string
+          uses_overlay: boolean
           warning: string | null
         }
         Insert: {
@@ -690,6 +691,7 @@ export type Database = {
           screenshot_url?: string | null
           timeframe: string
           user_id: string
+          uses_overlay?: boolean
           warning?: string | null
         }
         Update: {
@@ -703,6 +705,7 @@ export type Database = {
           screenshot_url?: string | null
           timeframe?: string
           user_id?: string
+          uses_overlay?: boolean
           warning?: string | null
         }
         Relationships: []
