@@ -4,18 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { Upload, Crosshair, TrendingUp, TrendingDown, MinusCircle, Clock, ChevronDown, ChevronUp, AlertTriangle, ImageIcon } from "lucide-react";
+import { Crosshair, TrendingUp, TrendingDown, MinusCircle, Clock, ChevronDown, ChevronUp, AlertTriangle, ImageIcon, RotateCcw, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import DeltaZeroResult from "@/components/delta-zero/DeltaZeroResult";
+import DeltaZeroHistory from "@/components/delta-zero/DeltaZeroHistory";
 
 const ASSETS = ["EURUSD","GBPUSD","USDJPY","XAUUSD","US30","NAS100","BTCUSD","AUDUSD","USDCAD","EURGBP","GBPJPY","EURJPY","US500","GER40","USOIL"];
 const TIMEFRAMES = ["M1","M5","M15","M30","H1","H4","D1","W1","MN"];
-
-const biasConfig = {
-  buy: { label: "BUY", icon: TrendingUp, gradient: "from-emerald-500 to-green-600", bg: "bg-emerald-500/10", border: "border-emerald-500/30", text: "text-emerald-400" },
-  sell: { label: "SELL", icon: TrendingDown, gradient: "from-red-500 to-rose-600", bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-400" },
-  no_trade: { label: "NO TRADE", icon: MinusCircle, gradient: "from-amber-500 to-yellow-600", bg: "bg-amber-500/10", border: "border-amber-500/30", text: "text-amber-400" },
-};
 
 export default function DeltaZero() {
   const { user } = useAuth();
@@ -26,7 +22,7 @@ export default function DeltaZero() {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [usesOverlay, setUsesOverlay] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +55,13 @@ export default function DeltaZero() {
     if (f) handleFile(f);
   }, [handleFile]);
 
+  const resetForNewAnalysis = () => {
+    setFile(null);
+    setPreview(null);
+    setResult(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
   const analyze = async () => {
     if (!file || !user) return;
     setLoading(true);
@@ -70,9 +73,8 @@ export default function DeltaZero() {
       const { error: uploadErr } = await supabase.storage.from("chart-screenshots").upload(path, file);
       if (uploadErr) throw uploadErr;
 
-      const { data: urlData } = supabase.storage.from("chart-screenshots").getPublicUrl(path);
-      // chart-screenshots is private, use signed URL
       const { data: signedData } = await supabase.storage.from("chart-screenshots").createSignedUrl(path, 600);
+      const { data: urlData } = supabase.storage.from("chart-screenshots").getPublicUrl(path);
       const screenshotUrl = signedData?.signedUrl || urlData.publicUrl;
 
       const { data: session } = await supabase.auth.getSession();
@@ -82,7 +84,7 @@ export default function DeltaZero() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.session?.access_token}`,
         },
-        body: JSON.stringify({ asset, timeframe, screenshot_url: screenshotUrl }),
+        body: JSON.stringify({ asset, timeframe, screenshot_url: screenshotUrl, uses_overlay: usesOverlay }),
       });
 
       if (!resp.ok) {
@@ -99,8 +101,6 @@ export default function DeltaZero() {
       setLoading(false);
     }
   };
-
-  const bc = result ? biasConfig[result.bias as keyof typeof biasConfig] || biasConfig.no_trade : null;
 
   return (
     <AppLayout>
@@ -133,6 +133,42 @@ export default function DeltaZero() {
               </select>
             </div>
           </div>
+
+          {/* Overlay toggle */}
+          <button
+            type="button"
+            onClick={() => setUsesOverlay(!usesOverlay)}
+            className={cn(
+              "w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 text-left",
+              usesOverlay
+                ? "border-primary/40 bg-primary/5"
+                : "border-border/40 bg-muted/20 hover:border-border/60"
+            )}
+          >
+            <div className={cn(
+              "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+              usesOverlay ? "bg-primary/15 text-primary" : "bg-muted/50 text-muted-foreground/50"
+            )}>
+              <Layers className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={cn("text-sm font-medium", usesOverlay ? "text-foreground" : "text-muted-foreground")}>
+                AI Overlay
+              </p>
+              <p className="text-[10px] text-muted-foreground/60">
+                Screenshot con indicatore AI Overlay EasyProp
+              </p>
+            </div>
+            <div className={cn(
+              "h-5 w-9 rounded-full transition-colors relative shrink-0",
+              usesOverlay ? "bg-primary" : "bg-muted-foreground/20"
+            )}>
+              <div className={cn(
+                "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+                usesOverlay ? "translate-x-4" : "translate-x-0.5"
+              )} />
+            </div>
+          </button>
 
           {/* Upload */}
           <div
@@ -204,110 +240,13 @@ export default function DeltaZero() {
 
         {/* Result */}
         <AnimatePresence>
-          {result && bc && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className={cn("rounded-2xl border bg-card overflow-hidden", bc.border)}
-            >
-              {/* Bias hero */}
-              <div className={cn("p-6 flex flex-col items-center gap-3 bg-gradient-to-b", bc.bg)}>
-                <div className={cn("h-16 w-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg", bc.gradient)}>
-                  <bc.icon className="h-8 w-8 text-white" />
-                </div>
-                <div className={cn("text-2xl font-bold font-display tracking-tight", bc.text)}>
-                  {bc.label}
-                </div>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "h-2 w-6 rounded-full transition-all",
-                        i <= result.confidence ? `bg-gradient-to-r ${bc.gradient}` : "bg-muted-foreground/15"
-                      )}
-                    />
-                  ))}
-                  <span className="text-xs text-muted-foreground ml-2 font-mono">{result.confidence}/5</span>
-                </div>
-              </div>
-
-              {/* Reasoning */}
-              <div className="p-5 space-y-3">
-                <div>
-                  <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider mb-1">Motivazione</p>
-                  <p className="text-sm text-foreground leading-relaxed">{result.reasoning}</p>
-                </div>
-
-                {result.warning && (
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/15">
-                    <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-amber-600 dark:text-amber-400">{result.warning}</p>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-3 text-[10px] text-muted-foreground/50 pt-1">
-                  <span className="font-mono">{result.asset} · {result.timeframe}</span>
-                  <span>·</span>
-                  <span>{new Date(result.created_at).toLocaleString("it-IT", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</span>
-                </div>
-              </div>
-            </motion.div>
+          {result && (
+            <DeltaZeroResult result={result} onNewAnalysis={resetForNewAnalysis} />
           )}
         </AnimatePresence>
 
-        {/* History toggle */}
-        {(history?.length || 0) > 0 && (
-          <div>
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
-            >
-              <Clock className="h-4 w-4" />
-              <span>Storico Delta-Zero ({history?.length})</span>
-              {showHistory ? <ChevronUp className="h-3.5 w-3.5 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 ml-auto" />}
-            </button>
-
-            <AnimatePresence>
-              {showHistory && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden mt-3 space-y-2"
-                >
-                  {history?.map((h: any) => {
-                    const hbc = biasConfig[h.bias as keyof typeof biasConfig] || biasConfig.no_trade;
-                    return (
-                      <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card/50">
-                        <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br", hbc.gradient)}>
-                          <hbc.icon className="h-4 w-4 text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold font-mono text-foreground">{h.asset}</span>
-                            <span className="text-[10px] text-muted-foreground">{h.timeframe}</span>
-                            <span className={cn("text-[10px] font-bold uppercase", hbc.text)}>{hbc.label}</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground truncate">{h.reasoning}</p>
-                        </div>
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <div key={i} className={cn("h-1.5 w-3 rounded-full", i <= h.confidence ? `bg-gradient-to-r ${hbc.gradient}` : "bg-muted-foreground/10")} />
-                          ))}
-                        </div>
-                        <span className="text-[9px] text-muted-foreground/50 shrink-0">
-                          {new Date(h.created_at).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
+        {/* History */}
+        <DeltaZeroHistory history={history} />
       </div>
     </AppLayout>
   );

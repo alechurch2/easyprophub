@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.100.0";
+import { OVERLAY_PROMPT_ADDON } from "../_shared/overlay-prompt.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,45 +8,79 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `Sei Delta-Zero, un modulo di bias operativo ultra-rapido.
+const BASE_SYSTEM_PROMPT = `Sei Delta-Zero, un modulo di bias operativo ultra-rapido.
 
 Il tuo compito è analizzare uno screenshot di un grafico di trading e restituire SOLO un bias operativo minimale.
 
 REGOLE ASSOLUTE:
 - NON fare una chart review completa
-- NON parlare di struttura, liquidità, order blocks, FVG, ecc.
+- NON parlare di struttura, liquidità, order blocks, FVG, ecc. a meno che non sia strettamente necessario per il bias
 - NON dare spiegazioni lunghe
 - NON fornire livelli di entry, SL, TP
+- NON inventare pattern che non si vedono chiaramente
+- Analizza SOLO ciò che è visibile nello screenshot
+- Se il contesto non è chiaro, preferisci "no_trade" piuttosto che forzare una direzione
 - Rispondi SOLO con il formato richiesto
+
+PROCESSO DI ANALISI:
+1. Guarda la price action recente: dove sta andando il prezzo? Sta facendo higher highs/lows o lower highs/lows?
+2. Identifica la tendenza dominante visibile nel timeframe dello screenshot
+3. Valuta se c'è momentum chiaro o se il prezzo è in consolidamento/range
+4. Se vedi una direzione chiara, indica buy o sell. Se non è chiaro, indica no_trade
+5. Sii onesto con il confidence score: non gonfiarlo
 
 OUTPUT (usa ESATTAMENTE questo formato JSON):
 {
   "bias": "buy" | "sell" | "no_trade",
   "confidence": 1-5,
-  "reasoning": "una frase breve e concreta",
-  "warning": "solo se il grafico è ambiguo, poco leggibile o non adatto" | null
+  "reasoning": "una o due frasi brevi, concrete e utili",
+  "warning": "solo se c'è un problema reale" | null
 }
 
 CRITERI PER IL BIAS:
-- "buy": il prezzo mostra chiaramente intenzione rialzista
-- "sell": il prezzo mostra chiaramente intenzione ribassista
-- "no_trade": grafico ambiguo, laterale, o senza direzione chiara
+- "buy": il prezzo mostra chiaramente intenzione rialzista (higher lows, rottura resistenze, momentum up)
+- "sell": il prezzo mostra chiaramente intenzione ribassista (lower highs, rottura supporti, momentum down)
+- "no_trade": grafico ambiguo, laterale, in range stretto, o senza direzione chiara
 
 CRITERI PER CONFIDENCE (1-5):
-- 1: molto incerto
-- 2: leggermente inclinato
-- 3: moderatamente chiaro
-- 4: chiaro
-- 5: fortemente chiaro
+- 1: molto incerto, quasi impossibile determinare una direzione
+- 2: leggermente inclinato verso una direzione ma debole
+- 3: moderatamente chiaro, qualche segnale ma non forte
+- 4: chiaro, la direzione è evidente
+- 5: fortemente chiaro, momentum inequivocabile
 
-CRITERI PER WARNING:
+CRITERI PER WARNING (null se non serve):
 - grafico poco leggibile o risoluzione bassa
-- timeframe troppo basso per una lettura affidabile
+- timeframe troppo basso per una lettura affidabile del bias
 - asset non riconosciuto
-- grafico in range stretto senza contesto
-- Se non c'è warning, metti null
+- grafico in range stretto senza contesto sufficiente
+- prezzo vicino a zone di inversione importanti
+
+CRITERI PER REASONING:
+- Sii specifico: "prezzo sta facendo higher lows dopo rottura struttura" NON "il grafico sembra rialzista"
+- Fai riferimento a ciò che si VEDE, non a ciò che "potrebbe" succedere
+- Massimo 2 frasi
+- Linguaggio diretto, senza gergo inutile
 
 Rispondi SOLO con il JSON, nessun altro testo.`;
+
+const OVERLAY_DELTA_ADDON = `
+
+===== DELTA-ZERO OVERLAY MODE =====
+
+Lo screenshot usa l'indicatore AI Overlay di EasyProp. In aggiunta alle regole base di Delta-Zero:
+
+- Leggi il pannello contestuale come fonte primaria per il bias
+- Usa i colori dell'overlay per confermare o smentire la direzione
+- Se il pannello indica un bias chiaro e la price action lo conferma, aumenta il confidence
+- Se pannello e price action sono in conflitto, riduci il confidence e spiega brevemente nel reasoning
+- Continua a restituire SOLO il formato JSON minimale di Delta-Zero
+- NON trasformare l'output in una review completa
+
+${OVERLAY_PROMPT_ADDON}
+
+===== FINE DELTA-ZERO OVERLAY =====
+`;
 
 const MODEL = "google/gemini-2.5-flash";
 
@@ -78,14 +113,21 @@ serve(async (req) => {
       });
     }
 
-    const { asset, timeframe, screenshot_url } = await req.json();
+    const { asset, timeframe, screenshot_url, uses_overlay } = await req.json();
     if (!asset || !timeframe || !screenshot_url) {
       return new Response(JSON.stringify({ error: "Campi mancanti: asset, timeframe, screenshot_url" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userPrompt = `Asset: ${asset}\nTimeframe: ${timeframe}\n\nAnalizza lo screenshot del grafico e restituisci il bias operativo.`;
+    // Build system prompt based on overlay mode
+    const systemPrompt = uses_overlay
+      ? BASE_SYSTEM_PROMPT + OVERLAY_DELTA_ADDON
+      : BASE_SYSTEM_PROMPT;
+
+    const userPrompt = uses_overlay
+      ? `Asset: ${asset}\nTimeframe: ${timeframe}\n\nLo screenshot usa l'indicatore AI Overlay. Analizza il grafico considerando pannello e annotazioni overlay, e restituisci il bias operativo.`
+      : `Asset: ${asset}\nTimeframe: ${timeframe}\n\nAnalizza lo screenshot del grafico e restituisci il bias operativo.`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -96,7 +138,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model: MODEL,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           {
             role: "user",
             content: [
@@ -129,7 +171,6 @@ serve(async (req) => {
     const aiData = await aiResponse.json();
     const rawContent = aiData.choices?.[0]?.message?.content || "";
 
-    // Parse JSON from AI response
     let parsed: { bias: string; confidence: number; reasoning: string; warning: string | null };
     try {
       const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
@@ -138,11 +179,9 @@ serve(async (req) => {
       parsed = { bias: "no_trade", confidence: 1, reasoning: "Errore nell'analisi del grafico.", warning: "Risposta AI non interpretabile" };
     }
 
-    // Validate
     if (!["buy", "sell", "no_trade"].includes(parsed.bias)) parsed.bias = "no_trade";
     parsed.confidence = Math.max(1, Math.min(5, Math.round(parsed.confidence || 1)));
 
-    // Save to DB
     const { data: analysis, error: dbError } = await supabase
       .from("delta_zero_analyses")
       .insert({
@@ -155,6 +194,7 @@ serve(async (req) => {
         reasoning: parsed.reasoning || null,
         warning: parsed.warning || null,
         ai_model_used: MODEL,
+        uses_overlay: !!uses_overlay,
       })
       .select()
       .single();
@@ -166,7 +206,6 @@ serve(async (req) => {
       });
     }
 
-    // Log usage
     supabase.from("ai_usage_log").insert({
       user_id: user.id,
       function_type: "delta_zero",
@@ -174,7 +213,7 @@ serve(async (req) => {
       tokens_input: 0,
       tokens_output: 0,
       estimated_cost: 0.003,
-      metadata: { asset, timeframe },
+      metadata: { asset, timeframe, uses_overlay: !!uses_overlay },
     }).then(() => {});
 
     return new Response(JSON.stringify(analysis), {
