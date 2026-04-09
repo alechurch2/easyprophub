@@ -594,6 +594,12 @@ function AdminUsers() {
                               {ls?.trade_execution_enabled ? "✅" : "❌"}
                             </p>
                           </div>
+                          <div className="card-premium p-2">
+                            <p className="text-[10px] text-muted-foreground">Delta-Zero</p>
+                            <p className={cn("text-xs font-bold", ls?.delta_zero_enabled ? "text-success" : "text-muted-foreground")}>
+                              {ls?.delta_zero_enabled ? "✅" : "❌"}
+                            </p>
+                          </div>
                         </div>
 
                         {/* Quick level select */}
@@ -658,6 +664,12 @@ function AdminUsers() {
                               <span className="text-[11px] text-muted-foreground">AI Assistant</span>
                               <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", (ls?.ai_assistant_enabled ?? true) && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "ai_assistant_enabled", !(ls?.ai_assistant_enabled ?? true))}>
                                 {(ls?.ai_assistant_enabled ?? true) ? "ON" : "OFF"}
+                              </Button>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] text-muted-foreground">Delta-Zero</span>
+                              <Button size="sm" variant="outline" className={cn("h-6 text-[10px]", ls?.delta_zero_enabled && "border-success text-success")} onClick={() => updateLicenseSetting(p.user_id, "delta_zero_enabled", !(ls?.delta_zero_enabled ?? false))}>
+                                {ls?.delta_zero_enabled ? "ON" : "OFF"}
                               </Button>
                             </div>
                           </div>
