@@ -1928,6 +1928,8 @@ export default function AccountCenter() {
       }
       if (result.success) {
         toast.success(`Sincronizzazione completata! ${result.trades_synced} nuovi trade importati.`);
+      } else if (result.error_type === "tls_network" || result.recoverable) {
+        toast.warning("Connessione al provider temporaneamente non disponibile. Riprova tra qualche minuto.");
       } else {
         toast.error(`Errore: ${result.error || "Sconosciuto"}`);
       }
