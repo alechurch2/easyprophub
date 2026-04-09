@@ -526,6 +526,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
 
 // ---- Status Badge ----
 function StatusBadge({ status, lastError }: { status: string; lastError?: string | null }) {
+  const isTlsError = status === "sync_error_tls";
   const config: Record<string, { class: string; label: string; icon: React.ReactNode }> = {
     connected: { class: "bg-success/10 text-success", label: "Connesso", icon: <CheckCircle2 className="h-2.5 w-2.5" /> },
     syncing: { class: "bg-info/10 text-info", label: "Connessione...", icon: <RefreshCw className="h-2.5 w-2.5 animate-spin" /> },
@@ -533,13 +534,16 @@ function StatusBadge({ status, lastError }: { status: string; lastError?: string
     awaiting_connection: { class: "bg-warning/10 text-warning", label: "In attesa connessione", icon: <Clock className="h-2.5 w-2.5" /> },
     pending: { class: "bg-warning/10 text-warning", label: "In attesa", icon: <Clock className="h-2.5 w-2.5" /> },
     failed: { class: "bg-destructive/10 text-destructive", label: "Errore", icon: <XCircle className="h-2.5 w-2.5" /> },
+    sync_error_tls: { class: "bg-warning/10 text-warning", label: "Errore rete temporaneo", icon: <WifiOff className="h-2.5 w-2.5" /> },
     disconnected: { class: "bg-warning/10 text-warning", label: "Deploy OK, attesa broker", icon: <Clock className="h-2.5 w-2.5" /> },
     disconnected_from_broker: { class: "bg-destructive/10 text-destructive", label: "Disconnesso dal broker", icon: <WifiOff className="h-2.5 w-2.5" /> },
     deploy_failed: { class: "bg-destructive/10 text-destructive", label: "Deploy fallito", icon: <XCircle className="h-2.5 w-2.5" /> },
   };
   const c = config[status] || config.disconnected;
-  const isIntermediate = ["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected"].includes(status);
-  const errorHint = lastError && (status === "failed" || isIntermediate) ? ` — ${lastError.substring(0, 80)}` : "";
+  const isIntermediate = ["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected", "sync_error_tls"].includes(status);
+  const errorHint = isTlsError
+    ? " — riprova la connessione"
+    : lastError && (status === "failed" || isIntermediate) ? ` — ${lastError.substring(0, 80)}` : "";
   return (
     <Badge className={cn(c.class, "flex items-center gap-1")} title={lastError || undefined}>
       {c.icon}{c.label}{errorHint && <span className="text-[9px] opacity-70 max-w-[150px] truncate">{errorHint}</span>}
