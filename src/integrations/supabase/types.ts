@@ -1577,6 +1577,7 @@ export type Database = {
           account_center_enabled: boolean
           ai_assistant_enabled: boolean
           chart_review_monthly_limit: number
+          delta_zero_enabled: boolean
           id: string
           license_level: Database["public"]["Enums"]["license_level"]
           premium_review_monthly_limit: number
@@ -1590,6 +1591,7 @@ export type Database = {
           account_center_enabled?: boolean
           ai_assistant_enabled?: boolean
           chart_review_monthly_limit?: number
+          delta_zero_enabled?: boolean
           id?: string
           license_level?: Database["public"]["Enums"]["license_level"]
           premium_review_monthly_limit?: number
@@ -1603,6 +1605,7 @@ export type Database = {
           account_center_enabled?: boolean
           ai_assistant_enabled?: boolean
           chart_review_monthly_limit?: number
+          delta_zero_enabled?: boolean
           id?: string
           license_level?: Database["public"]["Enums"]["license_level"]
           premium_review_monthly_limit?: number

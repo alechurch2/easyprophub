@@ -26,6 +26,7 @@ const ADMIN_SETTINGS: LicenseSettings = {
   premium_review_monthly_limit: 9999,
   account_center_enabled: true,
   trade_execution_enabled: true,
+  delta_zero_enabled: true,
 };
 
 const ADMIN_USAGE: LicenseUsage = {
@@ -55,6 +56,7 @@ function normalizeLicenseSettings(licenseData: any): LicenseSettings {
     premium_review_monthly_limit: licenseData.premium_review_monthly_limit ?? 0,
     account_center_enabled: licenseData.account_center_enabled ?? false,
     trade_execution_enabled: licenseData.trade_execution_enabled ?? false,
+    delta_zero_enabled: licenseData.delta_zero_enabled ?? false,
   };
 }
 

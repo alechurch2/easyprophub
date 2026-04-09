@@ -8,6 +8,7 @@ export interface LicenseSettings {
   premium_review_monthly_limit: number;
   account_center_enabled: boolean;
   trade_execution_enabled: boolean;
+  delta_zero_enabled: boolean;
 }
 
 export const LICENSE_PRESETS: Record<LicenseLevel, LicenseSettings> = {
@@ -19,6 +20,7 @@ export const LICENSE_PRESETS: Record<LicenseLevel, LicenseSettings> = {
     premium_review_monthly_limit: 1,
     account_center_enabled: false,
     trade_execution_enabled: false,
+    delta_zero_enabled: false,
   },
   pro: {
     license_level: "pro",
@@ -28,6 +30,7 @@ export const LICENSE_PRESETS: Record<LicenseLevel, LicenseSettings> = {
     premium_review_monthly_limit: 3,
     account_center_enabled: false,
     trade_execution_enabled: false,
+    delta_zero_enabled: false,
   },
   live: {
     license_level: "live",
@@ -37,6 +40,7 @@ export const LICENSE_PRESETS: Record<LicenseLevel, LicenseSettings> = {
     premium_review_monthly_limit: 10,
     account_center_enabled: true,
     trade_execution_enabled: true,
+    delta_zero_enabled: false,
   },
 };
 

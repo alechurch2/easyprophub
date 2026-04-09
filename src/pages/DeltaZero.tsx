@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
-import { Crosshair, TrendingUp, TrendingDown, MinusCircle, Clock, ChevronDown, ChevronUp, AlertTriangle, ImageIcon, RotateCcw, Layers } from "lucide-react";
+import { useLicenseSettings } from "@/hooks/useLicenseSettings";
+import { Crosshair, TrendingUp, TrendingDown, MinusCircle, Clock, ChevronDown, ChevronUp, AlertTriangle, ImageIcon, RotateCcw, Layers, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import DeltaZeroResult from "@/components/delta-zero/DeltaZeroResult";
@@ -14,8 +15,10 @@ const ASSETS = ["EURUSD","GBPUSD","USDJPY","XAUUSD","US30","NAS100","BTCUSD","AU
 const TIMEFRAMES = ["M1","M5","M15","M30","H1","H4","D1","W1","MN"];
 
 export default function DeltaZero() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
+  const { settings: licenseSettings, loading: licenseLoading } = useLicenseSettings();
+  const isDeltaZeroEnabled = isAdmin || licenseSettings.delta_zero_enabled;
   const [asset, setAsset] = useState("XAUUSD");
   const [timeframe, setTimeframe] = useState("H1");
   const [file, setFile] = useState<File | null>(null);
@@ -115,6 +118,20 @@ export default function DeltaZero() {
             <p className="text-xs text-muted-foreground">Bias operativo istantaneo</p>
           </div>
         </div>
+
+        {/* Premium Gate */}
+        {!isDeltaZeroEnabled && !licenseLoading ? (
+          <div className="rounded-2xl border border-border/60 bg-card p-8 flex flex-col items-center gap-4 text-center">
+            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Crown className="h-7 w-7 text-primary" />
+            </div>
+            <h2 className="text-lg font-bold text-foreground font-display">Funzione non attiva</h2>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Delta-Zero non è incluso nel tuo piano attuale. Contatta il supporto per richiedere l'attivazione.
+            </p>
+          </div>
+        ) : (
+          <>
 
         {/* Form */}
         <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
@@ -247,6 +264,8 @@ export default function DeltaZero() {
 
         {/* History */}
         <DeltaZeroHistory history={history} />
+        </>
+        )}
       </div>
     </AppLayout>
   );

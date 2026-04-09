@@ -28,7 +28,7 @@ interface NavItem {
   icon: React.ElementType;
   path: string;
   adminOnly?: boolean;
-  requireKey?: keyof Pick<import("@/config/licensePresets").LicenseSettings, "account_center_enabled" | "ai_assistant_enabled">;
+  requireKey?: keyof Pick<import("@/config/licensePresets").LicenseSettings, "account_center_enabled" | "ai_assistant_enabled" | "delta_zero_enabled">;
 }
 
 const navItems: NavItem[] = [
@@ -37,7 +37,7 @@ const navItems: NavItem[] = [
   { label: "Segnali", icon: Radio, path: "/signals" },
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
   { label: "AI Assistant", icon: Bot, path: "/ai-assistant", requireKey: "ai_assistant_enabled" },
-  { label: "Delta-Zero", icon: Crosshair, path: "/delta-zero" },
+  { label: "Delta-Zero", icon: Crosshair, path: "/delta-zero", requireKey: "delta_zero_enabled" },
   { label: "Account Center", icon: Wallet, path: "/account-center", requireKey: "account_center_enabled" },
   { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
   { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
