@@ -1790,6 +1790,43 @@ Deno.serve(async (req) => {
       } catch (err) {
         const errorMessage = getErrorMessage(err);
         console.error("[recheck_connection] FAILED:", errorMessage);
+
+        // Classify TLS errors as recoverable
+        const isTlsError = errorMessage.includes("certificate") ||
+          errorMessage.includes("TLS") ||
+          errorMessage.includes("UnknownIssuer") ||
+          errorMessage.includes("Expired") ||
+          errorMessage.includes("MetaApi client TLS/network error");
+
+        if (isTlsError) {
+          const userFriendlyError = "Connessione al provider temporaneamente non disponibile (errore TLS/rete). Riprova tra qualche minuto.";
+          await supabase.from("trading_accounts").update({
+            connection_status: "sync_error_tls",
+            last_sync_error: userFriendlyError,
+            metadata: mergeAccountMetadata(
+              (account.metadata && typeof account.metadata === "object") ? account.metadata : {},
+              {
+                last_tls_error: {
+                  raw_error: errorMessage.substring(0, 500),
+                  occurred_at: new Date().toISOString(),
+                  error_type: "tls_network",
+                  recoverable: true,
+                },
+              }
+            ),
+          }).eq("id", account_id);
+
+          return new Response(JSON.stringify({
+            success: false,
+            error: userFriendlyError,
+            error_type: "tls_network",
+            recoverable: true,
+            can_retry: true,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
         return new Response(JSON.stringify({ success: false, error: errorMessage }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
