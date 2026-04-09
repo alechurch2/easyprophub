@@ -15,7 +15,7 @@ interface Props {
   onTradeSetup?: () => void;
 }
 
-export default function DeltaZeroResult({ result, onNewAnalysis }: Props) {
+export default function DeltaZeroResult({ result, onNewAnalysis, showTradeAction, onTradeSetup }: Props) {
   const bc = biasConfig[result.bias as keyof typeof biasConfig] || biasConfig.no_trade;
 
   return (
