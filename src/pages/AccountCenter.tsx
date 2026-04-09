@@ -526,6 +526,7 @@ function ConnectAccountForm({ onClose, onSaved }: { onClose: () => void; onSaved
 
 // ---- Status Badge ----
 function StatusBadge({ status, lastError }: { status: string; lastError?: string | null }) {
+  const isTlsError = status === "sync_error_tls";
   const config: Record<string, { class: string; label: string; icon: React.ReactNode }> = {
     connected: { class: "bg-success/10 text-success", label: "Connesso", icon: <CheckCircle2 className="h-2.5 w-2.5" /> },
     syncing: { class: "bg-info/10 text-info", label: "Connessione...", icon: <RefreshCw className="h-2.5 w-2.5 animate-spin" /> },
@@ -533,13 +534,16 @@ function StatusBadge({ status, lastError }: { status: string; lastError?: string
     awaiting_connection: { class: "bg-warning/10 text-warning", label: "In attesa connessione", icon: <Clock className="h-2.5 w-2.5" /> },
     pending: { class: "bg-warning/10 text-warning", label: "In attesa", icon: <Clock className="h-2.5 w-2.5" /> },
     failed: { class: "bg-destructive/10 text-destructive", label: "Errore", icon: <XCircle className="h-2.5 w-2.5" /> },
+    sync_error_tls: { class: "bg-warning/10 text-warning", label: "Errore rete temporaneo", icon: <WifiOff className="h-2.5 w-2.5" /> },
     disconnected: { class: "bg-warning/10 text-warning", label: "Deploy OK, attesa broker", icon: <Clock className="h-2.5 w-2.5" /> },
     disconnected_from_broker: { class: "bg-destructive/10 text-destructive", label: "Disconnesso dal broker", icon: <WifiOff className="h-2.5 w-2.5" /> },
     deploy_failed: { class: "bg-destructive/10 text-destructive", label: "Deploy fallito", icon: <XCircle className="h-2.5 w-2.5" /> },
   };
   const c = config[status] || config.disconnected;
-  const isIntermediate = ["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected"].includes(status);
-  const errorHint = lastError && (status === "failed" || isIntermediate) ? ` — ${lastError.substring(0, 80)}` : "";
+  const isIntermediate = ["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected", "sync_error_tls"].includes(status);
+  const errorHint = isTlsError
+    ? " — riprova la connessione"
+    : lastError && (status === "failed" || isIntermediate) ? ` — ${lastError.substring(0, 80)}` : "";
   return (
     <Badge className={cn(c.class, "flex items-center gap-1")} title={lastError || undefined}>
       {c.icon}{c.label}{errorHint && <span className="text-[9px] opacity-70 max-w-[150px] truncate">{errorHint}</span>}
@@ -614,16 +618,29 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
               </Badge>
               <SyncStatusBadge status={acc.sync_status} />
               <StatusBadge status={acc.connection_status} lastError={acc.last_sync_error} />
-              {["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected"].includes(acc.connection_status) && (
+              {["deploying", "awaiting_connection", "disconnected_from_broker", "disconnected", "sync_error_tls", "failed"].includes(acc.connection_status) && acc.provider_account_id && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs border-warning/50 text-warning hover:bg-warning/10"
-                  onClick={() => onRecheck(acc.id)}
-                  disabled={rechecking === acc.id}
+                  className={cn("h-7 text-xs",
+                    acc.connection_status === "sync_error_tls"
+                      ? "border-warning/50 text-warning hover:bg-warning/10"
+                      : "border-warning/50 text-warning hover:bg-warning/10"
+                  )}
+                  onClick={() => acc.connection_status === "sync_error_tls" ? onSync(acc.id) : onRecheck(acc.id)}
+                  disabled={rechecking === acc.id || syncing === acc.id}
                 >
-                  <Wifi className={cn("h-3 w-3 mr-1", rechecking === acc.id && "animate-pulse")} />
-                  Verifica stato
+                  {acc.connection_status === "sync_error_tls" ? (
+                    <>
+                      <RefreshCw className={cn("h-3 w-3 mr-1", syncing === acc.id && "animate-spin")} />
+                      Riprova sincronizzazione
+                    </>
+                  ) : (
+                    <>
+                      <Wifi className={cn("h-3 w-3 mr-1", rechecking === acc.id && "animate-pulse")} />
+                      Verifica stato
+                    </>
+                  )}
                 </Button>
               )}
               <Button
@@ -631,8 +648,8 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
                 variant="outline"
                 className="h-7 text-xs"
                 onClick={() => onSync(acc.id)}
-                disabled={syncing === acc.id || acc.sync_status === "running" || !acc.provider_account_id || acc.connection_status !== "connected"}
-                title={!acc.provider_account_id ? "Connessione MetaApi non completata" : acc.connection_status !== "connected" ? "Conto non ancora connesso" : "Aggiorna dati"}
+                disabled={syncing === acc.id || acc.sync_status === "running" || !acc.provider_account_id || !["connected", "sync_error_tls"].includes(acc.connection_status)}
+                title={!acc.provider_account_id ? "Connessione MetaApi non completata" : acc.connection_status === "sync_error_tls" ? "Riprova sincronizzazione" : acc.connection_status !== "connected" ? "Conto non ancora connesso" : "Aggiorna dati"}
               >
                 <RefreshCw className={cn("h-3 w-3 mr-1", syncing === acc.id && "animate-spin")} />
                 Aggiorna
@@ -681,9 +698,24 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
 
           {/* Error banner */}
           {acc.last_sync_error && (
-            <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-2 mb-3 flex items-start gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-destructive">{acc.last_sync_error}</p>
+            <div className={cn(
+              "rounded-lg p-2 mb-3 flex items-start gap-2",
+              acc.connection_status === "sync_error_tls"
+                ? "bg-warning/5 border border-warning/20"
+                : "bg-destructive/5 border border-destructive/20"
+            )}>
+              {acc.connection_status === "sync_error_tls" ? (
+                <WifiOff className="h-3.5 w-3.5 text-warning mt-0.5 flex-shrink-0" />
+              ) : (
+                <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 flex-shrink-0" />
+              )}
+              <div>
+                <p className={cn("text-xs", acc.connection_status === "sync_error_tls" ? "text-warning" : "text-destructive")}>
+                  {acc.connection_status === "sync_error_tls"
+                    ? "Connessione al provider temporaneamente non disponibile. Il conto è salvato — usa \"Riprova sincronizzazione\" per ricollegarti."
+                    : acc.last_sync_error}
+                </p>
+              </div>
             </div>
           )}
 
@@ -1613,7 +1645,7 @@ export default function AccountCenter() {
 
   // Auto-select account if only one exists
   useEffect(() => {
-    const syncable = accounts.filter(a => a.provider_account_id && a.connection_status === 'connected');
+    const syncable = accounts.filter(a => a.provider_account_id && ['connected', 'sync_error_tls'].includes(a.connection_status));
     if (syncable.length === 1) {
       setSelectedAccountId(syncable[0].id);
     } else if (syncable.length === 0) {
@@ -1791,7 +1823,7 @@ export default function AccountCenter() {
     if (!user || isSyncingRef.current || accounts.length === 0) return;
 
     const syncableAccounts = accounts.filter(
-      a => a.provider_account_id && a.connection_status === 'connected' && a.user_id === user.id
+      a => a.provider_account_id && ['connected', 'sync_error_tls'].includes(a.connection_status) && a.user_id === user.id
     );
     if (syncableAccounts.length === 0) return;
 
@@ -1896,6 +1928,8 @@ export default function AccountCenter() {
       }
       if (result.success) {
         toast.success(`Sincronizzazione completata! ${result.trades_synced} nuovi trade importati.`);
+      } else if (result.error_type === "tls_network" || result.recoverable) {
+        toast.warning("Connessione al provider temporaneamente non disponibile. Riprova tra qualche minuto.");
       } else {
         toast.error(`Errore: ${result.error || "Sconosciuto"}`);
       }
