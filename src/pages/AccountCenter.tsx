@@ -1823,7 +1823,7 @@ export default function AccountCenter() {
     if (!user || isSyncingRef.current || accounts.length === 0) return;
 
     const syncableAccounts = accounts.filter(
-      a => a.provider_account_id && a.connection_status === 'connected' && a.user_id === user.id
+      a => a.provider_account_id && ['connected', 'sync_error_tls'].includes(a.connection_status) && a.user_id === user.id
     );
     if (syncableAccounts.length === 0) return;
 
