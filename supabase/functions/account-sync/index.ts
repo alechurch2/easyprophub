@@ -173,6 +173,40 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Classify an error as recoverable provider issue (TLS, 503, network reset, etc.)
+ * These should NOT mark the account as permanently failed.
+ */
+function isRecoverableProviderError(errorMessage: string): { recoverable: boolean; errorType: string } {
+  const lower = errorMessage.toLowerCase();
+  
+  // TLS/certificate errors
+  if (lower.includes("certificate") || lower.includes("tls") || 
+      lower.includes("unknownissuer") || lower.includes("expired") ||
+      lower.includes("tls handshake") || lower.includes("certificate_verify_failed") ||
+      lower.includes("metaapi client tls/network error")) {
+    return { recoverable: true, errorType: "tls_network" };
+  }
+  
+  // Provider unavailable (503, 502, etc.)
+  if (lower.includes("error 503") || lower.includes("503 service") ||
+      lower.includes("error 502") || lower.includes("502 bad gateway") ||
+      lower.includes("service temporarily unavailable") ||
+      lower.includes("service unavailable")) {
+    return { recoverable: true, errorType: "provider_unavailable" };
+  }
+  
+  // Network-level errors
+  if (lower.includes("connection reset") || lower.includes("econnreset") ||
+      lower.includes("econnrefused") || lower.includes("etimedout") ||
+      lower.includes("fetch failed") || lower.includes("network error") ||
+      lower.includes("socket hang up")) {
+    return { recoverable: true, errorType: "network_error" };
+  }
+  
+  return { recoverable: false, errorType: "permanent" };
+}
+
 function normalizeEntryType(deal: any): string {
   return deal?.entryType || deal?.entry || "unknown";
 }
@@ -1791,25 +1825,29 @@ Deno.serve(async (req) => {
         const errorMessage = getErrorMessage(err);
         console.error("[recheck_connection] FAILED:", errorMessage);
 
-        // Classify TLS errors as recoverable
-        const isTlsError = errorMessage.includes("certificate") ||
-          errorMessage.includes("TLS") ||
-          errorMessage.includes("UnknownIssuer") ||
-          errorMessage.includes("Expired") ||
-          errorMessage.includes("MetaApi client TLS/network error");
+        const { recoverable, errorType } = isRecoverableProviderError(errorMessage);
 
-        if (isTlsError) {
-          const userFriendlyError = "Connessione al provider temporaneamente non disponibile (errore TLS/rete). Riprova tra qualche minuto.";
+        if (recoverable) {
+          const connectionStatus = errorType === "provider_unavailable" ? "provider_unavailable" : "sync_error_tls";
+          const userFriendlyMessages: Record<string, string> = {
+            tls_network: "Connessione al provider temporaneamente non disponibile (errore TLS/rete). Riprova tra qualche minuto.",
+            provider_unavailable: "Il provider MetaApi è temporaneamente non disponibile (503). Il conto è salvato — riprova tra qualche minuto.",
+            network_error: "Errore di rete temporaneo verso il provider. Riprova tra qualche minuto.",
+          };
+          const userFriendlyError = userFriendlyMessages[errorType] || userFriendlyMessages.network_error;
+
+          console.warn(`[recheck_connection] Recoverable error: type=${errorType} status=${connectionStatus}`);
+          
           await supabase.from("trading_accounts").update({
-            connection_status: "sync_error_tls",
+            connection_status: connectionStatus,
             last_sync_error: userFriendlyError,
             metadata: mergeAccountMetadata(
               (account.metadata && typeof account.metadata === "object") ? account.metadata : {},
               {
-                last_tls_error: {
+                last_provider_error: {
                   raw_error: errorMessage.substring(0, 500),
                   occurred_at: new Date().toISOString(),
-                  error_type: "tls_network",
+                  error_type: errorType,
                   recoverable: true,
                 },
               }
@@ -1819,7 +1857,7 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({
             success: false,
             error: userFriendlyError,
-            error_type: "tls_network",
+            error_type: errorType,
             recoverable: true,
             can_retry: true,
           }), {
@@ -2290,30 +2328,31 @@ Deno.serve(async (req) => {
           message: errorMessage,
         };
 
-        // Classify TLS/network errors as recoverable — don't mark account as "failed"
-        const isTlsNetworkError = errorMessage.includes("certificate") ||
-          errorMessage.includes("TLS") ||
-          errorMessage.includes("UnknownIssuer") ||
-          errorMessage.includes("Expired") ||
-          errorMessage.includes("tls handshake") ||
-          errorMessage.includes("CERTIFICATE_VERIFY_FAILED") ||
-          errorMessage.includes("MetaApi client TLS/network error");
+        // Classify recoverable provider errors — don't mark account as permanently "failed"
+        const { recoverable: isRecoverable, errorType: syncErrorType } = isRecoverableProviderError(errorMessage);
 
-        if (isTlsNetworkError) {
-          console.warn(`[Sync] TLS/network error detected (RECOVERABLE): ${errorMessage}`);
-          const userFriendlyError = "Connessione al provider temporaneamente non disponibile (errore TLS/rete). Il conto resta salvato — riprova la sincronizzazione tra qualche minuto.";
+        if (isRecoverable) {
+          const connectionStatus = syncErrorType === "provider_unavailable" ? "provider_unavailable" : "sync_error_tls";
+          const userFriendlyMessages: Record<string, string> = {
+            tls_network: "Connessione al provider temporaneamente non disponibile (errore TLS/rete). Il conto resta salvato — riprova la sincronizzazione tra qualche minuto.",
+            provider_unavailable: "Il provider MetaApi è temporaneamente non disponibile (503). Il conto resta salvato — riprova tra qualche minuto.",
+            network_error: "Errore di rete temporaneo verso il provider. Il conto resta salvato — riprova tra qualche minuto.",
+          };
+          const userFriendlyError = userFriendlyMessages[syncErrorType] || userFriendlyMessages.network_error;
+          
+          console.warn(`[Sync] Recoverable provider error: type=${syncErrorType} status=${connectionStatus} raw=${errorMessage.substring(0, 200)}`);
           
           await supabase.from("trading_accounts").update({
             sync_status: "error",
-            connection_status: "sync_error_tls",
+            connection_status: connectionStatus,
             last_sync_error: userFriendlyError,
             metadata: mergeAccountMetadata(
               (account.metadata && typeof account.metadata === "object") ? account.metadata : {},
               {
-                last_tls_error: {
+                last_provider_error: {
                   raw_error: errorMessage.substring(0, 500),
                   occurred_at: new Date().toISOString(),
-                  error_type: "tls_network",
+                  error_type: syncErrorType,
                   recoverable: true,
                 },
               }
@@ -2324,7 +2363,7 @@ Deno.serve(async (req) => {
             await supabase.from("account_sync_logs").update({
               status: "failed",
               completed_at: new Date().toISOString(),
-              error_message: `TLS/network (recoverable): ${errorMessage.substring(0, 300)}`,
+              error_message: `${syncErrorType} (recoverable): ${errorMessage.substring(0, 300)}`,
               metadata: syncDebug,
             }).eq("id", syncLog.id);
           }
@@ -2332,7 +2371,7 @@ Deno.serve(async (req) => {
           return new Response(JSON.stringify({
             success: false,
             error: userFriendlyError,
-            error_type: "tls_network",
+            error_type: syncErrorType,
             recoverable: true,
             can_retry: true,
           }), {
