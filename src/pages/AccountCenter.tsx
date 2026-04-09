@@ -1645,7 +1645,7 @@ export default function AccountCenter() {
 
   // Auto-select account if only one exists
   useEffect(() => {
-    const syncable = accounts.filter(a => a.provider_account_id && a.connection_status === 'connected');
+    const syncable = accounts.filter(a => a.provider_account_id && ['connected', 'sync_error_tls'].includes(a.connection_status));
     if (syncable.length === 1) {
       setSelectedAccountId(syncable[0].id);
     } else if (syncable.length === 0) {
