@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, MinusCircle, AlertTriangle, RotateCcw, Layers } from "lucide-react";
+import { TrendingUp, TrendingDown, MinusCircle, AlertTriangle, RotateCcw, Layers, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -11,9 +11,11 @@ const biasConfig = {
 interface Props {
   result: any;
   onNewAnalysis: () => void;
+  showTradeAction?: boolean;
+  onTradeSetup?: () => void;
 }
 
-export default function DeltaZeroResult({ result, onNewAnalysis }: Props) {
+export default function DeltaZeroResult({ result, onNewAnalysis, showTradeAction, onTradeSetup }: Props) {
   const bc = biasConfig[result.bias as keyof typeof biasConfig] || biasConfig.no_trade;
 
   return (
@@ -72,6 +74,22 @@ export default function DeltaZeroResult({ result, onNewAnalysis }: Props) {
           <span>·</span>
           <span>{new Date(result.created_at).toLocaleString("it-IT", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</span>
         </div>
+
+        {/* CTA: Trade Setup */}
+        {showTradeAction && onTradeSetup && (
+          <button
+            onClick={onTradeSetup}
+            className={cn(
+              "w-full mt-2 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.98]",
+              result.bias === "buy"
+                ? "bg-gradient-to-r from-emerald-500 to-green-600 hover:shadow-lg hover:shadow-emerald-500/20"
+                : "bg-gradient-to-r from-red-500 to-rose-600 hover:shadow-lg hover:shadow-red-500/20"
+            )}
+          >
+            <ArrowRightLeft className="h-4 w-4" />
+            Esegui su Broker + Hedge
+          </button>
+        )}
 
         {/* CTA: New analysis */}
         <button

@@ -1618,7 +1618,7 @@ export default function AccountCenter() {
   const loadData = useCallback(async () => {
     if (!user) return;
     const [accRes, tradeRes, journalRes] = await Promise.all([
-      supabase.from("trading_accounts").select("id, user_id, account_name, platform, broker, server, account_number, connection_status, sync_status, read_only_mode, balance, equity, profit_loss, drawdown, daily_pnl, weekly_pnl, win_rate, profit_factor, open_positions_count, user_note, last_sync_at, last_sync_error, last_successful_sync_at, provider_type, provider_account_id, created_at, updated_at, credential_mode, trading_execution_enabled, metadata").eq("user_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("trading_accounts").select("id, user_id, account_name, platform, broker, server, account_number, connection_status, sync_status, read_only_mode, balance, equity, profit_loss, drawdown, daily_pnl, weekly_pnl, win_rate, profit_factor, open_positions_count, user_note, last_sync_at, last_sync_error, last_successful_sync_at, provider_type, provider_account_id, created_at, updated_at, credential_mode, trading_execution_enabled, metadata").eq("user_id", user.id).eq("scope", "standard").order("created_at", { ascending: false }),
       supabase.from("account_trade_history").select("*").eq("user_id", user.id).order("opened_at", { ascending: false }),
       supabase.from("trade_journal_entries").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
     ]);
