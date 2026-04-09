@@ -8,6 +8,7 @@ export interface LicenseSettings {
   premium_review_monthly_limit: number;
   account_center_enabled: boolean;
   trade_execution_enabled: boolean;
+  delta_zero_enabled: boolean;
 }
 
 export const LICENSE_PRESETS: Record<LicenseLevel, LicenseSettings> = {
