@@ -665,6 +665,53 @@ export type Database = {
           },
         ]
       }
+      delta_zero_account_settings: {
+        Row: {
+          account_id: string
+          created_at: string
+          default_lot_size: number
+          default_risk_percent: number
+          default_sl_pips: number
+          default_tp_pips: number
+          id: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          default_lot_size?: number
+          default_risk_percent?: number
+          default_sl_pips?: number
+          default_tp_pips?: number
+          id?: string
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          default_lot_size?: number
+          default_risk_percent?: number
+          default_sl_pips?: number
+          default_tp_pips?: number
+          id?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delta_zero_account_settings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "trading_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delta_zero_analyses: {
         Row: {
           ai_model_used: string | null
@@ -1447,6 +1494,7 @@ export type Database = {
           provider_account_id: string | null
           provider_type: string
           read_only_mode: boolean
+          scope: string
           server: string | null
           sync_status: string
           trading_execution_enabled: boolean
@@ -1480,6 +1528,7 @@ export type Database = {
           provider_account_id?: string | null
           provider_type?: string
           read_only_mode?: boolean
+          scope?: string
           server?: string | null
           sync_status?: string
           trading_execution_enabled?: boolean
@@ -1513,6 +1562,7 @@ export type Database = {
           provider_account_id?: string | null
           provider_type?: string
           read_only_mode?: boolean
+          scope?: string
           server?: string | null
           sync_status?: string
           trading_execution_enabled?: boolean
