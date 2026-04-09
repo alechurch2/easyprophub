@@ -18,6 +18,7 @@ import {
   Settings,
   ChevronRight,
   Crown,
+  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   { label: "Segnali", icon: Radio, path: "/signals" },
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
   { label: "AI Assistant", icon: Bot, path: "/ai-assistant", requireKey: "ai_assistant_enabled" },
+  { label: "Delta-Zero", icon: Crosshair, path: "/delta-zero" },
   { label: "Account Center", icon: Wallet, path: "/account-center", requireKey: "account_center_enabled" },
   { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
   { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
