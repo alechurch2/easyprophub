@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, MinusCircle, AlertTriangle, RotateCcw, Layers } from "lucide-react";
+import { TrendingUp, TrendingDown, MinusCircle, AlertTriangle, RotateCcw, Layers, ArrowRightLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -11,6 +11,8 @@ const biasConfig = {
 interface Props {
   result: any;
   onNewAnalysis: () => void;
+  showTradeAction?: boolean;
+  onTradeSetup?: () => void;
 }
 
 export default function DeltaZeroResult({ result, onNewAnalysis }: Props) {
