@@ -2252,6 +2252,59 @@ Deno.serve(async (req) => {
         syncDebug.error = {
           message: errorMessage,
         };
+
+        // Classify TLS/network errors as recoverable — don't mark account as "failed"
+        const isTlsNetworkError = errorMessage.includes("certificate") ||
+          errorMessage.includes("TLS") ||
+          errorMessage.includes("UnknownIssuer") ||
+          errorMessage.includes("Expired") ||
+          errorMessage.includes("tls handshake") ||
+          errorMessage.includes("CERTIFICATE_VERIFY_FAILED") ||
+          errorMessage.includes("MetaApi client TLS/network error");
+
+        if (isTlsNetworkError) {
+          console.warn(`[Sync] TLS/network error detected (RECOVERABLE): ${errorMessage}`);
+          const userFriendlyError = "Connessione al provider temporaneamente non disponibile (errore TLS/rete). Il conto resta salvato — riprova la sincronizzazione tra qualche minuto.";
+          
+          await supabase.from("trading_accounts").update({
+            sync_status: "error",
+            connection_status: "sync_error_tls",
+            last_sync_error: userFriendlyError,
+            metadata: mergeAccountMetadata(
+              (account.metadata && typeof account.metadata === "object") ? account.metadata : {},
+              {
+                last_tls_error: {
+                  raw_error: errorMessage.substring(0, 500),
+                  occurred_at: new Date().toISOString(),
+                  error_type: "tls_network",
+                  recoverable: true,
+                },
+              }
+            ),
+          }).eq("id", account_id);
+
+          if (syncLog) {
+            await supabase.from("account_sync_logs").update({
+              status: "failed",
+              completed_at: new Date().toISOString(),
+              error_message: `TLS/network (recoverable): ${errorMessage.substring(0, 300)}`,
+              metadata: syncDebug,
+            }).eq("id", syncLog.id);
+          }
+
+          return new Response(JSON.stringify({
+            success: false,
+            error: userFriendlyError,
+            error_type: "tls_network",
+            recoverable: true,
+            can_retry: true,
+          }), {
+            status: 503,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Non-TLS errors: mark as failed (original behavior)
         await supabase.from("trading_accounts").update({
           sync_status: "error",
           connection_status: "failed",
