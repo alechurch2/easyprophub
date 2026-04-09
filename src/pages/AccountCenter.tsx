@@ -698,9 +698,24 @@ function AccountOverview({ accounts, onSync, syncing, onDelete, deleting, onRech
 
           {/* Error banner */}
           {acc.last_sync_error && (
-            <div className="rounded-lg bg-destructive/5 border border-destructive/20 p-2 mb-3 flex items-start gap-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-destructive">{acc.last_sync_error}</p>
+            <div className={cn(
+              "rounded-lg p-2 mb-3 flex items-start gap-2",
+              acc.connection_status === "sync_error_tls"
+                ? "bg-warning/5 border border-warning/20"
+                : "bg-destructive/5 border border-destructive/20"
+            )}>
+              {acc.connection_status === "sync_error_tls" ? (
+                <WifiOff className="h-3.5 w-3.5 text-warning mt-0.5 flex-shrink-0" />
+              ) : (
+                <AlertTriangle className="h-3.5 w-3.5 text-destructive mt-0.5 flex-shrink-0" />
+              )}
+              <div>
+                <p className={cn("text-xs", acc.connection_status === "sync_error_tls" ? "text-warning" : "text-destructive")}>
+                  {acc.connection_status === "sync_error_tls"
+                    ? "Connessione al provider temporaneamente non disponibile. Il conto è salvato — usa \"Riprova sincronizzazione\" per ricollegarti."
+                    : acc.last_sync_error}
+                </p>
+              </div>
             </div>
           )}
 
