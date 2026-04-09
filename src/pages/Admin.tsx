@@ -205,6 +205,7 @@ function AdminUsers() {
       premium_review_monthly_limit: preset.premium_review_monthly_limit,
       account_center_enabled: preset.account_center_enabled,
       trade_execution_enabled: preset.trade_execution_enabled,
+      delta_zero_enabled: preset.delta_zero_enabled,
       updated_at: new Date().toISOString(),
       updated_by: authUser?.id || null,
     };
