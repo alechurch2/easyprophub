@@ -665,6 +665,48 @@ export type Database = {
           },
         ]
       }
+      delta_zero_analyses: {
+        Row: {
+          ai_model_used: string | null
+          asset: string
+          bias: string
+          confidence: number
+          created_at: string
+          id: string
+          reasoning: string | null
+          screenshot_url: string | null
+          timeframe: string
+          user_id: string
+          warning: string | null
+        }
+        Insert: {
+          ai_model_used?: string | null
+          asset: string
+          bias?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          reasoning?: string | null
+          screenshot_url?: string | null
+          timeframe: string
+          user_id: string
+          warning?: string | null
+        }
+        Update: {
+          ai_model_used?: string | null
+          asset?: string
+          bias?: string
+          confidence?: number
+          created_at?: string
+          id?: string
+          reasoning?: string | null
+          screenshot_url?: string | null
+          timeframe?: string
+          user_id?: string
+          warning?: string | null
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
