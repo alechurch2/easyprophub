@@ -1,0 +1,1 @@
+ALTER TABLE public.delta_zero_analyses ADD COLUMN uses_overlay boolean NOT NULL DEFAULT false;
