@@ -175,9 +175,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Trading non abilitato per questo conto" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // 4. Check connection status
+    // 4. Check connection status — block on any non-connected state
     if (account.connection_status !== "connected") {
-      return new Response(JSON.stringify({ error: "Conto non connesso" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      const isRecoverableState = ["sync_error_tls", "provider_unavailable"].includes(account.connection_status);
+      const errorMsg = isRecoverableState
+        ? "Connessione al provider temporaneamente non disponibile. Riprova la sincronizzazione dall'Account Center prima di eseguire ordini."
+        : "Conto non connesso";
+      return new Response(JSON.stringify({ error: errorMsg, recoverable: isRecoverableState }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // 5. Check provider_account_id
