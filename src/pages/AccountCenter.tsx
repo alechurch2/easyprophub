@@ -1646,7 +1646,7 @@ export default function AccountCenter() {
 
   // Auto-select account if only one exists
   useEffect(() => {
-    const syncable = accounts.filter(a => a.provider_account_id && ['connected', 'sync_error_tls'].includes(a.connection_status));
+    const syncable = accounts.filter(a => a.provider_account_id && ['connected', 'sync_error_tls', 'provider_unavailable'].includes(a.connection_status));
     if (syncable.length === 1) {
       setSelectedAccountId(syncable[0].id);
     } else if (syncable.length === 0) {
@@ -1824,7 +1824,7 @@ export default function AccountCenter() {
     if (!user || isSyncingRef.current || accounts.length === 0) return;
 
     const syncableAccounts = accounts.filter(
-      a => a.provider_account_id && ['connected', 'sync_error_tls'].includes(a.connection_status) && a.user_id === user.id
+      a => a.provider_account_id && ['connected', 'sync_error_tls', 'provider_unavailable'].includes(a.connection_status) && a.user_id === user.id
     );
     if (syncableAccounts.length === 0) return;
 
