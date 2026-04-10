@@ -312,6 +312,36 @@ function AccountCard({
     onRefresh();
   };
 
+  const handleSync = async () => {
+    if (!account) return;
+    setSyncing(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/account-sync`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: JSON.stringify({ action: "sync", account_id: account.id }),
+        }
+      );
+      const result = await res.json().catch(() => ({ success: false }));
+      if (result.success) {
+        toast.success(`Dati ${role} sincronizzati!`);
+      } else {
+        toast.warning(result.error || "Sincronizzazione non riuscita");
+      }
+    } catch {
+      toast.error("Errore sincronizzazione");
+    }
+    setSyncing(false);
+    onRefresh();
+  };
+
   const handleDelete = async () => {
     if (!account) return;
     setDeleting(true);
