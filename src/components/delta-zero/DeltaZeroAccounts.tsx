@@ -5,12 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Wallet, Loader2, Wifi, WifiOff, RefreshCw, Trash2, Settings2,
-  Shield, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, Save
+  Shield, ChevronDown, ChevronUp, AlertTriangle, Save, Plus, Zap
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -52,7 +51,6 @@ interface Props {
   onRefresh: () => void;
 }
 
-/** Parse numeric input supporting both dot and comma */
 function parseDecimal(raw: string): number {
   const val = parseFloat(raw.replace(",", "."));
   return isNaN(val) ? 0 : val;
@@ -80,7 +78,6 @@ function ConnectDZAccountForm({ role, onClose, onSaved }: { role: "broker" | "he
   const [investorPassword, setInvestorPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState("");
-
   const [riskPercent, setRiskPercent] = useState("0.5");
   const [slPips, setSlPips] = useState("20");
   const [tpPips, setTpPips] = useState("40");
@@ -184,81 +181,39 @@ function ConnectDZAccountForm({ role, onClose, onSaved }: { role: "broker" | "he
         </h3>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xs">Annulla</button>
       </div>
-
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label className="text-xs">Nome</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
-        </div>
+        <div><Label className="text-xs">Nome</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" /></div>
         <div>
           <Label className="text-xs">Piattaforma</Label>
           <Select value={platform} onValueChange={setPlatform}>
             <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="MT4">MT4</SelectItem>
-              <SelectItem value="MT5">MT5</SelectItem>
-            </SelectContent>
+            <SelectContent><SelectItem value="MT4">MT4</SelectItem><SelectItem value="MT5">MT5</SelectItem></SelectContent>
           </Select>
         </div>
       </div>
-
       <div>
         <Label className="text-xs">Broker *</Label>
         <Select value={broker} onValueChange={setBroker}>
           <SelectTrigger className="mt-1"><SelectValue placeholder="Seleziona broker" /></SelectTrigger>
-          <SelectContent>
-            {brokers.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}
-          </SelectContent>
+          <SelectContent>{brokers.map(b => <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>)}</SelectContent>
         </Select>
       </div>
-
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label className="text-xs">Server *</Label>
-          <Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: TMGM-MT5" className="mt-1" />
-        </div>
-        <div>
-          <Label className="text-xs">Numero conto *</Label>
-          <Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} className="mt-1" />
-        </div>
+        <div><Label className="text-xs">Server *</Label><Input value={server} onChange={(e) => setServer(e.target.value)} placeholder="Es: TMGM-MT5" className="mt-1" /></div>
+        <div><Label className="text-xs">Numero conto *</Label><Input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} className="mt-1" /></div>
       </div>
-
-      <div>
-        <Label className="text-xs">Password Master *</Label>
-        <Input type="password" value={investorPassword} onChange={(e) => setInvestorPassword(e.target.value)} className="mt-1" />
-      </div>
-
-      <div className="border-t border-border/40 pt-3">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Parametri predefiniti</p>
+      <div><Label className="text-xs">Password Master *</Label><Input type="password" value={investorPassword} onChange={(e) => setInvestorPassword(e.target.value)} className="mt-1" /></div>
+      <div className="border-t border-border/30 pt-3">
+        <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider mb-2">Parametri predefiniti</p>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs">Rischio %</Label>
-            <input type="text" inputMode="decimal" value={riskPercent} onChange={(e) => setRiskPercent(e.target.value)} className="mt-1 flex h-10 w-full rounded-lg border border-input bg-card px-3.5 py-2 text-sm" />
-          </div>
-          <div>
-            <Label className="text-xs">Lot size</Label>
-            <input type="text" inputMode="decimal" value={lotSize} onChange={(e) => setLotSize(e.target.value)} className="mt-1 flex h-10 w-full rounded-lg border border-input bg-card px-3.5 py-2 text-sm" />
-          </div>
-          <div>
-            <Label className="text-xs">SL (pips)</Label>
-            <input type="text" inputMode="decimal" value={slPips} onChange={(e) => setSlPips(e.target.value)} className="mt-1 flex h-10 w-full rounded-lg border border-input bg-card px-3.5 py-2 text-sm" />
-          </div>
-          <div>
-            <Label className="text-xs">TP (pips)</Label>
-            <input type="text" inputMode="decimal" value={tpPips} onChange={(e) => setTpPips(e.target.value)} className="mt-1 flex h-10 w-full rounded-lg border border-input bg-card px-3.5 py-2 text-sm" />
-          </div>
+          <div><Label className="text-xs">Rischio %</Label><input type="text" inputMode="decimal" value={riskPercent} onChange={(e) => setRiskPercent(e.target.value)} className="mt-1 flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono" /></div>
+          <div><Label className="text-xs">Lot size</Label><input type="text" inputMode="decimal" value={lotSize} onChange={(e) => setLotSize(e.target.value)} className="mt-1 flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono" /></div>
+          <div><Label className="text-xs">SL (pips)</Label><input type="text" inputMode="decimal" value={slPips} onChange={(e) => setSlPips(e.target.value)} className="mt-1 flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono" /></div>
+          <div><Label className="text-xs">TP (pips)</Label><input type="text" inputMode="decimal" value={tpPips} onChange={(e) => setTpPips(e.target.value)} className="mt-1 flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono" /></div>
         </div>
       </div>
-
       <Button onClick={handleSave} disabled={saving} className="w-full">
-        {saving ? (
-          <span className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {step}
-          </span>
-        ) : (
-          `Collega conto ${role}`
-        )}
+        {saving ? <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" />{step}</span> : `Collega conto ${role}`}
       </Button>
     </div>
   );
@@ -287,49 +242,38 @@ function InlineSettingsEditor({ settings, onSaved }: { settings: DZSettings; onS
       default_tp_pips: parseDecimal(tpStr) || 40,
     }).eq("id", settings.id);
 
-    if (error) {
-      toast.error("Errore nel salvataggio");
-    } else {
-      toast.success("Parametri aggiornati");
-      onSaved();
-    }
+    if (error) toast.error("Errore nel salvataggio");
+    else { toast.success("Parametri aggiornati"); onSaved(); }
     setSaving(false);
   };
 
-  const fieldClass = "h-6 w-16 text-[11px] font-mono px-1.5 py-0 text-right rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring/50";
-
   return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">Rischio:</span>
-          <div className="flex items-center gap-0.5">
-            <input type="text" inputMode="decimal" value={riskStr} onChange={(e) => setRiskStr(e.target.value)} className={fieldClass} />
-            <span className="text-[9px] text-muted-foreground/60">%</span>
+    <div className="space-y-2.5 pt-1">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+        {[
+          { label: "Rischio", value: riskStr, set: setRiskStr, unit: "%" },
+          { label: "Lotto", value: lotStr, set: setLotStr, unit: "" },
+          { label: "SL", value: slStr, set: setSlStr, unit: "pip" },
+          { label: "TP", value: tpStr, set: setTpStr, unit: "pip" },
+        ].map(({ label, value, set, unit }) => (
+          <div key={label} className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-muted-foreground/60 font-medium">{label}</span>
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={value}
+                onChange={(e) => set(e.target.value)}
+                className="h-6 w-14 text-[11px] font-mono text-right px-1.5 rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-primary/30"
+              />
+              {unit && <span className="text-[9px] text-muted-foreground/40">{unit}</span>}
+            </div>
           </div>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">Lot:</span>
-          <input type="text" inputMode="decimal" value={lotStr} onChange={(e) => setLotStr(e.target.value)} className={fieldClass} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">SL:</span>
-          <div className="flex items-center gap-0.5">
-            <input type="text" inputMode="decimal" value={slStr} onChange={(e) => setSlStr(e.target.value)} className={fieldClass} />
-            <span className="text-[9px] text-muted-foreground/60">pip</span>
-          </div>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">TP:</span>
-          <div className="flex items-center gap-0.5">
-            <input type="text" inputMode="decimal" value={tpStr} onChange={(e) => setTpStr(e.target.value)} className={fieldClass} />
-            <span className="text-[9px] text-muted-foreground/60">pip</span>
-          </div>
-        </div>
+        ))}
       </div>
       {hasChanges && (
         <Button size="sm" onClick={handleSave} disabled={saving} className="w-full h-7 text-[10px]">
-          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Save className="h-3 w-3 mr-1" />Salva parametri</>}
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Save className="h-3 w-3 mr-1" />Salva</>}
         </Button>
       )}
     </div>
@@ -337,9 +281,7 @@ function InlineSettingsEditor({ settings, onSaved }: { settings: DZSettings; onS
 }
 
 // ---- Account Card ----
-function AccountCard({
-  role, account, settings, onRefresh
-}: {
+function AccountCard({ role, account, settings, onRefresh }: {
   role: "broker" | "hedge";
   account: DZAccount | null;
   settings: DZSettings | null;
@@ -355,34 +297,25 @@ function AccountCard({
   const isError = account?.connection_status && ["failed", "sync_error_tls"].includes(account.connection_status);
   const isPending = account && !isConnected && !isError;
 
+  const roleColor = role === "broker" ? "blue" : "amber";
+  const roleIcon = role === "broker" ? <Zap className="h-4 w-4" /> : <Shield className="h-4 w-4" />;
+
   const handleCheckStatus = async () => {
     if (!account) return;
     setChecking(true);
     try {
       const { data: session } = await supabase.auth.getSession();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/account-sync`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.session?.access_token}`,
-          },
-          body: JSON.stringify({ action: "recheck_status", account_id: account.id }),
-        }
-      );
+      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/account-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.session?.access_token}` },
+        body: JSON.stringify({ action: "recheck_status", account_id: account.id }),
+      });
       const result = await res.json().catch(() => ({ success: false }));
-      if (result.success && result.new_status === "connected") {
-        toast.success(`Conto ${role} connesso!`);
-      } else if (result.new_status) {
-        toast.info(`Stato: ${result.new_status}`);
-      } else {
-        toast.warning("Stato invariato");
-      }
-    } catch {
-      toast.error("Errore verifica stato");
-    }
+      if (result.success && result.new_status === "connected") toast.success(`Conto ${role} connesso!`);
+      else if (result.new_status) toast.info(`Stato: ${result.new_status}`);
+      else toast.warning("Stato invariato");
+    } catch { toast.error("Errore verifica stato"); }
     setChecking(false);
     onRefresh();
   };
@@ -393,26 +326,15 @@ function AccountCard({
     try {
       const { data: session } = await supabase.auth.getSession();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/account-sync`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${session.session?.access_token}`,
-          },
-          body: JSON.stringify({ action: "sync", account_id: account.id }),
-        }
-      );
+      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/account-sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.session?.access_token}` },
+        body: JSON.stringify({ action: "sync", account_id: account.id }),
+      });
       const result = await res.json().catch(() => ({ success: false }));
-      if (result.success) {
-        toast.success(`Dati ${role} sincronizzati!`);
-      } else {
-        toast.warning(result.error || "Sincronizzazione non riuscita");
-      }
-    } catch {
-      toast.error("Errore sincronizzazione");
-    }
+      if (result.success) toast.success(`Dati ${role} sincronizzati!`);
+      else toast.warning(result.error || "Sincronizzazione non riuscita");
+    } catch { toast.error("Errore sincronizzazione"); }
     setSyncing(false);
     onRefresh();
   };
@@ -431,129 +353,144 @@ function AccountCard({
     return <ConnectDZAccountForm role={role} onClose={() => setShowConnect(false)} onSaved={() => { setShowConnect(false); onRefresh(); }} />;
   }
 
+  // Empty state
+  if (!account) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border/50 bg-card/50 p-5 flex flex-col items-center gap-3 text-center">
+        <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", `bg-${roleColor}-500/10 text-${roleColor}-500`)}>
+          {roleIcon}
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">{role === "broker" ? "Broker" : "Hedge"}</p>
+          <p className="text-[11px] text-muted-foreground/50 mt-0.5">Nessun conto collegato</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => setShowConnect(true)} className="text-xs gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Collega conto
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className={cn(
-      "rounded-2xl border bg-card p-4 space-y-3 transition-all",
-      isConnected ? "border-emerald-500/30" : isError ? "border-red-500/30" : "border-border/60"
+      "rounded-2xl border bg-card overflow-hidden transition-all",
+      isConnected ? "border-emerald-500/20" : isError ? "border-red-500/20" : "border-border/50"
     )}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center justify-between border-b border-border/20">
+        <div className="flex items-center gap-2.5">
           <div className={cn(
             "h-8 w-8 rounded-lg flex items-center justify-center",
             role === "broker" ? "bg-blue-500/10 text-blue-500" : "bg-amber-500/10 text-amber-500"
           )}>
-            <Shield className="h-4 w-4" />
+            {roleIcon}
           </div>
           <div>
             <p className="text-sm font-bold text-foreground">{role === "broker" ? "Broker" : "Hedge"}</p>
-            {account && (
-              <p className="text-[10px] text-muted-foreground font-mono">
-                {account.broker} · {account.platform}
-              </p>
-            )}
+            <p className="text-[10px] text-muted-foreground/50 font-mono">{account.broker} · {account.platform}</p>
           </div>
         </div>
-        {account ? (
-          <Badge variant="outline" className={cn(
-            "text-[10px]",
-            isConnected ? "border-emerald-500/40 text-emerald-500" :
-            isError ? "border-red-500/40 text-red-500" :
-            "border-amber-500/40 text-amber-500"
-          )}>
-            {isConnected ? <><Wifi className="h-3 w-3 mr-1" /> Connesso</> :
-             isError ? <><WifiOff className="h-3 w-3 mr-1" /> Errore</> :
-             <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> {account.connection_status}</>}
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground">
-            Non collegato
-          </Badge>
-        )}
+        <div className="flex items-center gap-1.5">
+          {isConnected ? (
+            <div className="flex items-center gap-1 text-[10px] text-emerald-500 font-medium">
+              <Wifi className="h-3 w-3" /> Online
+            </div>
+          ) : isError ? (
+            <div className="flex items-center gap-1 text-[10px] text-red-500 font-medium">
+              <WifiOff className="h-3 w-3" /> Errore
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-[10px] text-amber-500 font-medium">
+              <Loader2 className="h-3 w-3 animate-spin" /> {account.connection_status}
+            </div>
+          )}
+        </div>
       </div>
 
-      {account && isConnected && (
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-lg bg-muted/30 p-2">
-            <p className="text-[10px] text-muted-foreground">Balance</p>
+      {/* Balance row */}
+      {isConnected && (
+        <div className="px-4 py-3 grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-[9px] text-muted-foreground/50 uppercase tracking-wider font-semibold">Balance</p>
             {account.balance > 0 ? (
-              <p className="font-mono font-bold text-foreground">${account.balance.toFixed(2)}</p>
+              <p className="text-base font-bold font-mono text-foreground">${account.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
             ) : (
-              <p className="font-mono text-muted-foreground/50 text-[10px]">In attesa di sync…</p>
+              <p className="text-xs text-muted-foreground/40 italic">Attesa sync…</p>
             )}
           </div>
-          <div className="rounded-lg bg-muted/30 p-2">
-            <p className="text-[10px] text-muted-foreground">Equity</p>
+          <div>
+            <p className="text-[9px] text-muted-foreground/50 uppercase tracking-wider font-semibold">Equity</p>
             {account.equity > 0 ? (
-              <p className="font-mono font-bold text-foreground">${account.equity.toFixed(2)}</p>
+              <p className="text-base font-bold font-mono text-foreground">${account.equity.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
             ) : (
-              <p className="font-mono text-muted-foreground/50 text-[10px]">In attesa di sync…</p>
+              <p className="text-xs text-muted-foreground/40 italic">Attesa sync…</p>
             )}
           </div>
         </div>
       )}
 
-      {account && isError && account.last_sync_error && (
-        <div className="flex items-start gap-2 p-2 rounded-lg bg-red-500/5 border border-red-500/15">
-          <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />
-          <p className="text-[10px] text-red-500">{account.last_sync_error}</p>
+      {/* Error */}
+      {isError && account.last_sync_error && (
+        <div className="px-4 pb-3">
+          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-red-500/5 border border-red-500/10">
+            <AlertTriangle className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-red-500">{account.last_sync_error}</p>
+          </div>
         </div>
       )}
 
-      {/* Inline editable settings */}
+      {/* Settings toggle */}
       {settings && (
-        <>
-          <button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+        <div className="px-4 pb-3">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
             <Settings2 className="h-3 w-3" />
-            Parametri
+            <span>Parametri</span>
             {showSettings ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
           {showSettings && (
-            <InlineSettingsEditor settings={settings} onSaved={onRefresh} />
+            <div className="mt-2">
+              <InlineSettingsEditor settings={settings} onSaved={onRefresh} />
+            </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Actions */}
-      <div className="flex gap-2">
-        {!account ? (
-          <Button size="sm" onClick={() => setShowConnect(true)} className="w-full text-xs">
-            <Wallet className="h-3.5 w-3.5 mr-1" /> Collega conto
+      <div className="px-4 py-3 border-t border-border/15 flex gap-2">
+        {isConnected && (
+          <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing} className="flex-1 text-xs h-8">
+            {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            <span className="ml-1.5">Sync</span>
           </Button>
-        ) : (
-          <>
-            {isConnected && (
-              <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing} className="flex-1 text-xs">
-                {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                <span className="ml-1">Sincronizza</span>
-              </Button>
-            )}
-            {(isPending || isError) && (
-              <Button size="sm" variant="outline" onClick={handleCheckStatus} disabled={checking} className="flex-1 text-xs">
-                {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                <span className="ml-1">Verifica</span>
-              </Button>
-            )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button size="sm" variant="ghost" className="text-xs text-destructive hover:text-destructive">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Rimuovi conto {role}?</AlertDialogTitle>
-                  <AlertDialogDescription>Il conto verrà scollegato da Delta-Zero.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annulla</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-                    {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rimuovi"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
         )}
+        {(isPending || isError) && (
+          <Button size="sm" variant="outline" onClick={handleCheckStatus} disabled={checking} className="flex-1 text-xs h-8">
+            {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            <span className="ml-1.5">Verifica</span>
+          </Button>
+        )}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="ghost" className="text-xs h-8 text-destructive/60 hover:text-destructive px-2">
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Rimuovi conto {role}?</AlertDialogTitle>
+              <AlertDialogDescription>Il conto verrà scollegato da Delta-Zero.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting}>
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rimuovi"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
@@ -562,15 +499,9 @@ function AccountCard({
 // ---- Main Component ----
 export default function DeltaZeroAccounts({ brokerAccount, hedgeAccount, brokerSettings, hedgeSettings, onRefresh }: Props) {
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Wallet className="h-4 w-4 text-primary" />
-        <h2 className="text-sm font-bold text-foreground">Conti Delta-Zero</h2>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <AccountCard role="broker" account={brokerAccount} settings={brokerSettings} onRefresh={onRefresh} />
-        <AccountCard role="hedge" account={hedgeAccount} settings={hedgeSettings} onRefresh={onRefresh} />
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <AccountCard role="broker" account={brokerAccount} settings={brokerSettings} onRefresh={onRefresh} />
+      <AccountCard role="hedge" account={hedgeAccount} settings={hedgeSettings} onRefresh={onRefresh} />
     </div>
   );
 }
