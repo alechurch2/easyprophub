@@ -54,9 +54,49 @@ export default function DeltaZeroTradeSetup({
     if (!user || !bothConnected) return;
     setExecuting(true);
 
+    // === DIAGNOSTIC LOGGING ===
+    console.log("[DZ TradeSetup] === EXECUTE START ===");
+    console.log("[DZ TradeSetup] Broker params:", JSON.stringify({
+      account_id: brokerAccount.id,
+      asset,
+      direction: brokerDir,
+      lot_size: brokerSettings.default_lot_size,
+      sl_pips: brokerSettings.default_sl_pips,
+      tp_pips: brokerSettings.default_tp_pips,
+      risk_percent: brokerSettings.default_risk_percent,
+    }));
+    console.log("[DZ TradeSetup] Hedge params:", JSON.stringify({
+      account_id: hedgeAccount.id,
+      asset,
+      direction: hedgeDir,
+      lot_size: hedgeSettings.default_lot_size,
+      sl_pips: hedgeSettings.default_sl_pips,
+      tp_pips: hedgeSettings.default_tp_pips,
+      risk_percent: hedgeSettings.default_risk_percent,
+    }));
+
     try {
       const { data: session } = await supabase.auth.getSession();
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+
+      const brokerPayload = {
+        account_id: brokerAccount.id,
+        asset,
+        direction: brokerDir,
+        lot_size: brokerSettings.default_lot_size,
+        order_type: "market",
+      };
+
+      const hedgePayload = {
+        account_id: hedgeAccount.id,
+        asset,
+        direction: hedgeDir,
+        lot_size: hedgeSettings.default_lot_size,
+        order_type: "market",
+      };
+
+      console.log("[DZ TradeSetup] Broker payload:", JSON.stringify(brokerPayload));
+      console.log("[DZ TradeSetup] Hedge payload:", JSON.stringify(hedgePayload));
 
       // Execute on both accounts in parallel
       const [brokerRes, hedgeRes] = await Promise.all([
@@ -66,13 +106,7 @@ export default function DeltaZeroTradeSetup({
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.session?.access_token}`,
           },
-          body: JSON.stringify({
-            account_id: brokerAccount.id,
-            asset,
-            direction: brokerDir,
-            lot_size: brokerSettings.default_lot_size,
-            order_type: "market",
-          }),
+          body: JSON.stringify(brokerPayload),
         }),
         fetch(`https://${projectId}.supabase.co/functions/v1/execute-trade`, {
           method: "POST",
@@ -80,13 +114,7 @@ export default function DeltaZeroTradeSetup({
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.session?.access_token}`,
           },
-          body: JSON.stringify({
-            account_id: hedgeAccount.id,
-            asset,
-            direction: hedgeDir,
-            lot_size: hedgeSettings.default_lot_size,
-            order_type: "market",
-          }),
+          body: JSON.stringify(hedgePayload),
         }),
       ]);
 
