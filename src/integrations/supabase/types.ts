@@ -719,6 +719,7 @@ export type Database = {
           bias: string
           confidence: number
           created_at: string
+          current_price: number | null
           id: string
           reasoning: string | null
           screenshot_url: string | null
@@ -733,6 +734,7 @@ export type Database = {
           bias?: string
           confidence?: number
           created_at?: string
+          current_price?: number | null
           id?: string
           reasoning?: string | null
           screenshot_url?: string | null
@@ -747,6 +749,7 @@ export type Database = {
           bias?: string
           confidence?: number
           created_at?: string
+          current_price?: number | null
           id?: string
           reasoning?: string | null
           screenshot_url?: string | null
