@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Crown,
   Crosshair,
+  Calculator,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { label: "AI Chart Review", icon: BarChart3, path: "/ai-review" },
   { label: "AI Assistant", icon: Bot, path: "/ai-assistant", requireKey: "ai_assistant_enabled" },
   { label: "Delta-Zero", icon: Crosshair, path: "/delta-zero", requireKey: "delta_zero_enabled" },
+  { label: "Trade Calculator", icon: Calculator, path: "/trade-calculator" },
   { label: "Account Center", icon: Wallet, path: "/account-center", requireKey: "account_center_enabled" },
   { label: "Supporto", icon: HeadphonesIcon, path: "/support" },
   { label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
