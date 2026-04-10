@@ -449,6 +449,12 @@ function AccountCard({
           </Button>
         ) : (
           <>
+            {isConnected && (!account.balance || account.balance === 0) && (
+              <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing} className="flex-1 text-xs">
+                {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                <span className="ml-1">Sincronizza</span>
+              </Button>
+            )}
             {(isPending || isError) && (
               <Button size="sm" variant="outline" onClick={handleCheckStatus} disabled={checking} className="flex-1 text-xs">
                 {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
