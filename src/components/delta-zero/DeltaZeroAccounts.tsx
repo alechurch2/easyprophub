@@ -274,6 +274,7 @@ function AccountCard({
   const [checking, setChecking] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const isConnected = account?.connection_status === "connected";
   const isError = account?.connection_status && ["failed", "sync_error_tls"].includes(account.connection_status);
@@ -308,6 +309,36 @@ function AccountCard({
       toast.error("Errore verifica stato");
     }
     setChecking(false);
+    onRefresh();
+  };
+
+  const handleSync = async () => {
+    if (!account) return;
+    setSyncing(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/account-sync`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.session?.access_token}`,
+          },
+          body: JSON.stringify({ action: "sync", account_id: account.id }),
+        }
+      );
+      const result = await res.json().catch(() => ({ success: false }));
+      if (result.success) {
+        toast.success(`Dati ${role} sincronizzati!`);
+      } else {
+        toast.warning(result.error || "Sincronizzazione non riuscita");
+      }
+    } catch {
+      toast.error("Errore sincronizzazione");
+    }
+    setSyncing(false);
     onRefresh();
   };
 
@@ -369,11 +400,19 @@ function AccountCard({
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-lg bg-muted/30 p-2">
             <p className="text-[10px] text-muted-foreground">Balance</p>
-            <p className="font-mono font-bold text-foreground">${account.balance?.toFixed(2) || "0.00"}</p>
+            {account.balance > 0 ? (
+              <p className="font-mono font-bold text-foreground">${account.balance.toFixed(2)}</p>
+            ) : (
+              <p className="font-mono text-muted-foreground/50 text-[10px]">In attesa di sync…</p>
+            )}
           </div>
           <div className="rounded-lg bg-muted/30 p-2">
             <p className="text-[10px] text-muted-foreground">Equity</p>
-            <p className="font-mono font-bold text-foreground">${account.equity?.toFixed(2) || "0.00"}</p>
+            {account.equity > 0 ? (
+              <p className="font-mono font-bold text-foreground">${account.equity.toFixed(2)}</p>
+            ) : (
+              <p className="font-mono text-muted-foreground/50 text-[10px]">In attesa di sync…</p>
+            )}
           </div>
         </div>
       )}
@@ -410,6 +449,12 @@ function AccountCard({
           </Button>
         ) : (
           <>
+            {isConnected && (!account.balance || account.balance === 0) && (
+              <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing} className="flex-1 text-xs">
+                {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                <span className="ml-1">Sincronizza</span>
+              </Button>
+            )}
             {(isPending || isError) && (
               <Button size="sm" variant="outline" onClick={handleCheckStatus} disabled={checking} className="flex-1 text-xs">
                 {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}

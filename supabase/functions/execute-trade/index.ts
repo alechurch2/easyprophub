@@ -136,9 +136,18 @@ Deno.serve(async (req) => {
 
     const { account_id, review_id, signal_id, asset, direction, order_type, lot_size, entry_price, stop_loss, take_profit } = await req.json();
 
-    // Validate required fields
-    if (!account_id || !asset || !direction || !lot_size || !entry_price) {
-      return new Response(JSON.stringify({ error: "Parametri mancanti" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Validate required fields — entry_price is optional for market orders
+    const isMarketOrder = !order_type || order_type.toLowerCase() === "market";
+    const missingFields: string[] = [];
+    if (!account_id) missingFields.push("account_id");
+    if (!asset) missingFields.push("asset");
+    if (!direction) missingFields.push("direction");
+    if (!lot_size) missingFields.push("lot_size");
+    if (!isMarketOrder && !entry_price) missingFields.push("entry_price");
+
+    if (missingFields.length > 0) {
+      console.error(`[ExecuteTrade] Missing fields: ${missingFields.join(", ")}`);
+      return new Response(JSON.stringify({ error: `Parametri mancanti: ${missingFields.join(", ")}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // ===== LICENSE-LEVEL PERMISSION CHECK =====
@@ -189,7 +198,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Conto senza provider ID" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Create execution log (pending)
+    // Create execution log (pending) — entry_price defaults to 0 for market orders
     const { data: logEntry, error: logError } = await supabase
       .from("order_execution_logs")
       .insert({
@@ -200,7 +209,7 @@ Deno.serve(async (req) => {
         direction,
         order_type: order_type || "market",
         lot_size,
-        entry_price,
+        entry_price: entry_price || 0,
         stop_loss: stop_loss || null,
         take_profit: take_profit || null,
         status: "pending",

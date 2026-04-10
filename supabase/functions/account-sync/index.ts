@@ -1642,11 +1642,27 @@ Deno.serve(async (req) => {
         if (connResult.connected) {
           console.log("[connect_metaapi] Step 4 done. Connected!");
 
-          // 5. Mark connected
+          // 5. Fetch initial account-information (balance, equity)
+          let initialBalance: number | null = null;
+          let initialEquity: number | null = null;
+          try {
+            console.log("[connect_metaapi] Step 5: Fetching initial account-information...");
+            const accountInfo = await metaapiClientRequest(metaAccountId, "/account-information");
+            initialBalance = accountInfo?.balance ?? null;
+            initialEquity = accountInfo?.equity ?? null;
+            console.log(`[connect_metaapi] Step 5 done. balance=${initialBalance} equity=${initialEquity}`);
+          } catch (infoErr) {
+            console.warn(`[connect_metaapi] Step 5: Failed to fetch account-information (non-blocking): ${infoErr}`);
+          }
+
+          // 6. Mark connected + save balance/equity
           await supabase.from("trading_accounts").update({
             connection_status: "connected",
             sync_status: "idle",
             last_sync_error: null,
+            ...(initialBalance !== null ? { balance: initialBalance } : {}),
+            ...(initialEquity !== null ? { equity: initialEquity } : {}),
+            last_successful_sync_at: new Date().toISOString(),
             metadata: mergeAccountMetadata(account.metadata, {
               connection_debug: {
                 checked_at: new Date().toISOString(),
@@ -1664,6 +1680,8 @@ Deno.serve(async (req) => {
             metaapi_connection_status: connResult.connectionStatus,
             provisioning_profile_id: usedProfileId,
             provisioning_profile_source: usedProfileSource,
+            balance: initialBalance,
+            equity: initialEquity,
           }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
