@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { useLicenseSettings } from "@/hooks/useLicenseSettings";
-import { Crosshair, ImageIcon, Layers, Crown } from "lucide-react";
+import { Crosshair, ImageIcon, Layers, Crown, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import DeltaZeroResult from "@/components/delta-zero/DeltaZeroResult";
@@ -33,7 +33,6 @@ export default function DeltaZero() {
   const [showTradeSetup, setShowTradeSetup] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Delta-Zero dedicated accounts
   const { data: dzAccounts, refetch: refetchAccounts } = useQuery({
     queryKey: ["dz-accounts", user?.id],
     queryFn: async () => {
@@ -118,7 +117,6 @@ export default function DeltaZero() {
     refetchSettings();
   };
 
-  // When history panel closes, clear any review loaded from it
   const handleHistoryClose = () => {
     if (resultFromHistory) {
       setResult(null);
@@ -170,162 +168,202 @@ export default function DeltaZero() {
     }
   };
 
+  const connectedCount = [brokerAccount, hedgeAccount].filter(a => a?.connection_status === "connected").length;
+
   return (
     <AppLayout>
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-            <Crosshair className="h-5 w-5 text-primary" />
+      <div className="max-w-3xl mx-auto px-4 py-6 md:py-8 space-y-8">
+
+        {/* ──── HEADER ──── */}
+        <div className="flex items-start gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent flex items-center justify-center border border-primary/10 shrink-0">
+            <Crosshair className="h-6 w-6 text-primary" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground tracking-tight font-display">Delta-Zero</h1>
-            <p className="text-xs text-muted-foreground">Bias operativo istantaneo</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-foreground tracking-tight font-display">
+              Delta-Zero
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Carica uno screenshot, ottieni il bias operativo in pochi secondi.
+            </p>
           </div>
+          {isDeltaZeroEnabled && (
+            <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <div className={cn(
+                "h-2 w-2 rounded-full",
+                connectedCount === 2 ? "bg-emerald-500" : connectedCount === 1 ? "bg-amber-500" : "bg-muted-foreground/30"
+              )} />
+              <span className="text-[11px] text-muted-foreground font-mono">
+                {connectedCount}/2 conti
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Premium Gate */}
+        {/* ──── PREMIUM GATE ──── */}
         {!isDeltaZeroEnabled && !licenseLoading ? (
-          <div className="rounded-2xl border border-border/60 bg-card p-8 flex flex-col items-center gap-4 text-center">
-            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <Crown className="h-7 w-7 text-primary" />
+          <div className="rounded-2xl border border-border/60 bg-card p-10 flex flex-col items-center gap-5 text-center">
+            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Crown className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-lg font-bold text-foreground font-display">Funzione non attiva</h2>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              Delta-Zero non è incluso nel tuo piano attuale. Contatta il supporto per richiedere l'attivazione.
-            </p>
+            <div>
+              <h2 className="text-lg font-bold text-foreground font-display">Funzione non attiva</h2>
+              <p className="text-sm text-muted-foreground max-w-sm mt-1">
+                Delta-Zero non è incluso nel tuo piano attuale. Contatta il supporto per richiedere l'attivazione.
+              </p>
+            </div>
           </div>
         ) : (
           <>
-            {/* Accounts */}
-            <DeltaZeroAccounts
-              brokerAccount={brokerAccount}
-              hedgeAccount={hedgeAccount}
-              brokerSettings={brokerSettings}
-              hedgeSettings={hedgeSettings}
-              onRefresh={handleRefreshAccounts}
-            />
-
-            {/* Form */}
-            <div className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Asset</label>
-                  <select value={asset} onChange={(e) => setAsset(e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono">
-                    {ASSETS.map((a) => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 block">Timeframe</label>
-                  <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)} className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono">
-                    {TIMEFRAMES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
+            {/* ──── ANALYSIS BLOCK ──── */}
+            <section className="space-y-1.5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-1 w-1 rounded-full bg-primary" />
+                <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Analisi</h2>
               </div>
 
-              {/* Overlay toggle */}
-              <button
-                type="button"
-                onClick={() => setUsesOverlay(!usesOverlay)}
-                className={cn(
-                  "w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 text-left",
-                  usesOverlay ? "border-primary/40 bg-primary/5" : "border-border/40 bg-muted/20 hover:border-border/60"
-                )}
-              >
-                <div className={cn(
-                  "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                  usesOverlay ? "bg-primary/15 text-primary" : "bg-muted/50 text-muted-foreground/50"
-                )}>
-                  <Layers className="h-4 w-4" />
+              <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+                {/* Asset + TF row */}
+                <div className="p-4 pb-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1 block">Asset</label>
+                    <select
+                      value={asset}
+                      onChange={(e) => setAsset(e.target.value)}
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm font-mono focus:ring-1 focus:ring-primary/30 focus:border-primary/40 transition-all"
+                    >
+                      {ASSETS.map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-wider mb-1 block">Timeframe</label>
+                    <select
+                      value={timeframe}
+                      onChange={(e) => setTimeframe(e.target.value)}
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm font-mono focus:ring-1 focus:ring-primary/30 focus:border-primary/40 transition-all"
+                    >
+                      {TIMEFRAMES.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-medium", usesOverlay ? "text-foreground" : "text-muted-foreground")}>
-                    AI Overlay
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/60">
-                    Screenshot con indicatore AI Overlay EasyProp
-                  </p>
-                </div>
-                <div className={cn(
-                  "h-5 w-9 rounded-full transition-colors relative shrink-0",
-                  usesOverlay ? "bg-primary" : "bg-muted-foreground/20"
-                )}>
-                  <div className={cn(
-                    "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-                    usesOverlay ? "translate-x-4" : "translate-x-0.5"
-                  )} />
-                </div>
-              </button>
 
-              {/* Upload */}
-              <div
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                onClick={() => fileRef.current?.click()}
-                className={cn(
-                  "relative rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer flex flex-col items-center justify-center min-h-[140px] overflow-hidden",
-                  dragOver ? "border-primary bg-primary/5 scale-[1.01]" : "border-border/50 hover:border-primary/40 hover:bg-muted/30",
-                  preview && "border-solid border-border/30"
-                )}
-              >
-                {preview ? (
-                  <img src={preview} alt="Screenshot" className="w-full h-auto max-h-[240px] object-contain rounded-lg" />
-                ) : (
-                  <>
-                    <div className="h-10 w-10 rounded-full bg-muted/60 flex items-center justify-center mb-2">
-                      <ImageIcon className="h-5 w-5 text-muted-foreground/60" />
+                {/* Overlay toggle */}
+                <div className="px-4 pb-3">
+                  <button
+                    type="button"
+                    onClick={() => setUsesOverlay(!usesOverlay)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 text-left",
+                      usesOverlay ? "border-primary/30 bg-primary/5" : "border-border/30 bg-muted/20 hover:border-border/50"
+                    )}
+                  >
+                    <div className={cn(
+                      "h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+                      usesOverlay ? "bg-primary/15 text-primary" : "bg-muted/50 text-muted-foreground/40"
+                    )}>
+                      <Layers className="h-4 w-4" />
                     </div>
-                    <p className="text-sm text-muted-foreground">Trascina o clicca per caricare</p>
-                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Screenshot del grafico</p>
-                  </>
-                )}
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                    <div className="flex-1 min-w-0">
+                      <p className={cn("text-sm font-medium", usesOverlay ? "text-foreground" : "text-muted-foreground/70")}>
+                        AI Overlay
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/50">
+                        Screenshot con indicatore EasyProp
+                      </p>
+                    </div>
+                    <div className={cn(
+                      "h-5 w-9 rounded-full transition-colors relative shrink-0",
+                      usesOverlay ? "bg-primary" : "bg-muted-foreground/20"
+                    )}>
+                      <div className={cn(
+                        "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+                        usesOverlay ? "translate-x-4" : "translate-x-0.5"
+                      )} />
+                    </div>
+                  </button>
+                </div>
+
+                {/* Upload area */}
+                <div className="px-4 pb-4">
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileRef.current?.click()}
+                    className={cn(
+                      "relative rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer flex flex-col items-center justify-center overflow-hidden",
+                      preview ? "min-h-[180px] border-solid border-border/20" : "min-h-[140px]",
+                      dragOver ? "border-primary bg-primary/5 scale-[1.01]" : "border-border/40 hover:border-primary/30 hover:bg-muted/20",
+                    )}
+                  >
+                    {preview ? (
+                      <img src={preview} alt="Screenshot" className="w-full h-auto max-h-[260px] object-contain" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 py-4">
+                        <div className="h-12 w-12 rounded-xl bg-muted/50 flex items-center justify-center">
+                          <Upload className="h-5 w-5 text-muted-foreground/50" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-muted-foreground">Trascina o clicca per caricare</p>
+                          <p className="text-[10px] text-muted-foreground/40 mt-0.5">Screenshot del grafico · PNG, JPG</p>
+                        </div>
+                      </div>
+                    )}
+                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                  </div>
+                </div>
+
+                {/* CTA */}
+                <div className="px-4 pb-4">
+                  <button
+                    onClick={analyze}
+                    disabled={!file || loading}
+                    className={cn(
+                      "w-full py-3.5 rounded-xl text-sm font-semibold transition-all duration-200",
+                      !file || loading
+                        ? "bg-muted text-muted-foreground/50 cursor-not-allowed"
+                        : "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
+                    )}
+                  >
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                        Analisi in corso…
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        <Crosshair className="h-4 w-4" />
+                        Analizza bias
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
+            </section>
 
-              {/* CTA */}
-              <button
-                onClick={analyze}
-                disabled={!file || loading}
-                className={cn(
-                  "w-full py-3 rounded-xl text-sm font-semibold transition-all duration-200",
-                  !file || loading
-                    ? "bg-muted text-muted-foreground cursor-not-allowed"
-                    : "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
-                )}
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    Analisi in corso…
-                  </span>
-                ) : (
-                  "Analizza bias"
-                )}
-              </button>
-            </div>
-
-            {/* Loading */}
+            {/* ──── LOADING STATE ──── */}
             <AnimatePresence>
               {loading && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="rounded-2xl border border-primary/20 bg-card p-6 flex flex-col items-center gap-3"
+                  className="rounded-2xl border border-primary/15 bg-card p-8 flex flex-col items-center gap-4"
                 >
-                  <div className="relative h-12 w-12">
-                    <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping" />
+                  <div className="relative h-14 w-14">
+                    <div className="absolute inset-0 rounded-full border-2 border-primary/15 animate-ping" />
                     <div className="absolute inset-1 rounded-full border-2 border-t-primary border-transparent animate-spin" />
-                    <Crosshair className="absolute inset-3 h-6 w-6 text-primary" />
+                    <Crosshair className="absolute inset-3 h-8 w-8 text-primary" />
                   </div>
-                  <p className="text-sm font-medium text-foreground">Delta-Zero sta analizzando…</p>
-                  <p className="text-[11px] text-muted-foreground">Lettura bias in corso</p>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-foreground">Delta-Zero sta analizzando…</p>
+                    <p className="text-xs text-muted-foreground mt-1">Lettura bias dal grafico</p>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Result */}
+            {/* ──── RESULT ──── */}
             <AnimatePresence>
               {result && !showTradeSetup && (
                 <DeltaZeroResult
@@ -337,7 +375,7 @@ export default function DeltaZero() {
               )}
             </AnimatePresence>
 
-            {/* Trade Setup */}
+            {/* ──── TRADE SETUP ──── */}
             <AnimatePresence>
               {showTradeSetup && result && result.bias !== "no_trade" && brokerAccount && hedgeAccount && brokerSettings && hedgeSettings && (
                 <motion.div
@@ -361,18 +399,39 @@ export default function DeltaZero() {
               )}
             </AnimatePresence>
 
-            {/* History */}
-            <DeltaZeroHistory
-              history={history}
-              onSelect={(analysis) => {
-                setResult(analysis);
-                setResultFromHistory(true);
-                setShowTradeSetup(false);
-                setAsset(analysis.asset || asset);
-                setTimeframe(analysis.timeframe || timeframe);
-              }}
-              onClose={handleHistoryClose}
-            />
+            {/* ──── ACCOUNTS ──── */}
+            <section className="space-y-1.5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-1 w-1 rounded-full bg-primary" />
+                <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Conti operativi</h2>
+              </div>
+              <DeltaZeroAccounts
+                brokerAccount={brokerAccount}
+                hedgeAccount={hedgeAccount}
+                brokerSettings={brokerSettings}
+                hedgeSettings={hedgeSettings}
+                onRefresh={handleRefreshAccounts}
+              />
+            </section>
+
+            {/* ──── HISTORY ──── */}
+            <section className="space-y-1.5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="h-1 w-1 rounded-full bg-primary" />
+                <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Storico analisi</h2>
+              </div>
+              <DeltaZeroHistory
+                history={history}
+                onSelect={(analysis) => {
+                  setResult(analysis);
+                  setResultFromHistory(true);
+                  setShowTradeSetup(false);
+                  setAsset(analysis.asset || asset);
+                  setTimeframe(analysis.timeframe || timeframe);
+                }}
+                onClose={handleHistoryClose}
+              />
+            </section>
           </>
         )}
       </div>
