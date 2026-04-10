@@ -336,6 +336,7 @@ export default function DeltaZero() {
                     asset={result.asset || asset}
                     timeframe={result.timeframe || timeframe}
                     confidence={result.confidence}
+                    currentPrice={result.current_price || null}
                     brokerAccount={brokerAccount}
                     hedgeAccount={hedgeAccount}
                     brokerSettings={brokerSettings}

@@ -1,0 +1,1 @@
+ALTER TABLE public.delta_zero_analyses ADD COLUMN current_price numeric NULL;
