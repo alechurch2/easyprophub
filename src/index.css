@@ -204,6 +204,16 @@
     height: 1px;
     background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.4), hsl(var(--gold-light) / 0.2), transparent);
   }
+
+  /* iOS safe area support for Capacitor */
+  .safe-area-content {
+    padding-top: calc(3.5rem + env(safe-area-inset-top, 0px));
+  }
+  @media (min-width: 1024px) {
+    .safe-area-content {
+      padding-top: 0;
+    }
+  }
 }
 
 /* Custom scrollbar */

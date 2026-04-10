@@ -164,7 +164,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* ── Mobile header ── */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-background/95 glass-subtle border-b border-border/60 flex items-center justify-between px-4">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background/95 glass-subtle border-b border-border/60 flex items-center justify-between px-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)', paddingLeft: 'env(safe-area-inset-left, 1rem)', paddingRight: 'env(safe-area-inset-right, 1rem)', minHeight: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }}>
         <button
           onClick={() => setMobileOpen(true)}
           className="text-foreground p-2 -ml-2 rounded-lg active:bg-muted transition-colors"
@@ -180,7 +180,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-background/70 backdrop-blur-md" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-[280px] h-full bg-card border-r border-border/60 flex flex-col animate-slide-in-left shadow-2xl">
+          <aside className="relative w-[280px] h-full bg-card border-r border-border/60 flex flex-col animate-slide-in-left shadow-2xl" style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)', paddingLeft: 'env(safe-area-inset-left, 0px)' }}>
             <div className="flex h-14 items-center justify-between px-4 border-b border-border/60">
               <BrandLogo size="sm" />
               <button onClick={() => setMobileOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors p-2 rounded-lg">
@@ -254,7 +254,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* ── Main content ── */}
       <main className="flex-1 lg:ml-[240px]">
-        <div className="pt-14 lg:pt-0 min-h-screen">
+        <div className="min-h-screen safe-area-content">
           {children}
         </div>
       </main>
