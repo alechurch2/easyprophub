@@ -1,29 +1,30 @@
-import { useState, useMemo, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Calculator, Send, DollarSign, Crosshair, Target, SlidersHorizontal } from "lucide-react";
+import { TrendingUp, TrendingDown, Send, DollarSign, Crosshair, Target, SlidersHorizontal, AlertTriangle, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRiskPreferences } from "@/hooks/useRiskPreferences";
-import { getAssetConfig, priceToPips, calculateRR } from "@/components/ai-review/lotSizeCalculator";
+import { getAssetConfig, calculateRR } from "@/components/ai-review/lotSizeCalculator";
 import { TradeCalcResult } from "./TradeCalcResult";
 import { TradeCalcExecution } from "./TradeCalcExecution";
 
 const ASSETS = ["EUR/USD", "GBP/USD", "USD/JPY", "XAU/USD", "BTC/USD", "ETH/USD", "US30", "NAS100", "SPX500"];
 
-type CalcMode = "risk_money" | "pips" | "target_money" | "manual_lot";
+type CalcMode = "target_money" | "risk_money" | "pips" | "manual_lot";
 type Direction = "buy" | "sell";
 
 const MODES: { value: CalcMode; label: string; icon: React.ElementType; desc: string }[] = [
-  { value: "risk_money", label: "Rischio $", icon: DollarSign, desc: "Calcola il lotto dal rischio monetario" },
-  { value: "pips", label: "Pips", icon: Crosshair, desc: "Inserisci SL/TP in pips" },
-  { value: "target_money", label: "Target $", icon: Target, desc: "Parti dal profitto/perdita desiderati" },
+  { value: "target_money", label: "Target $", icon: Target, desc: "Imposta perdita e profitto desiderati" },
+  { value: "risk_money", label: "Rischio $", icon: DollarSign, desc: "Calcola il lotto dal rischio in dollari" },
+  { value: "pips", label: "Pips", icon: Crosshair, desc: "Parti dalla distanza SL/TP in pips" },
   { value: "manual_lot", label: "Lotto manuale", icon: SlidersHorizontal, desc: "Inserisci il lotto e scopri il rischio" },
 ];
+
+const RECOMMENDED_RISK_PCT = 0.002; // 0.2%
 
 function parseNum(v: string): number {
   return parseFloat(v.replace(",", ".")) || 0;
@@ -47,7 +48,7 @@ export function TradeCalcEngine() {
   const { getRiskContext, loading: riskLoading } = useRiskPreferences();
   const riskCtx = getRiskContext();
 
-  const [mode, setMode] = useState<CalcMode>("risk_money");
+  const [mode, setMode] = useState<CalcMode>("target_money");
   const [asset, setAsset] = useState("XAU/USD");
   const [direction, setDirection] = useState<Direction>("buy");
 
@@ -71,6 +72,43 @@ export function TradeCalcEngine() {
   const [showExecution, setShowExecution] = useState(false);
 
   const config = getAssetConfig(asset);
+
+  // Recommended values
+  const recommendedRisk = riskCtx.effectiveAccountSize * RECOMMENDED_RISK_PCT;
+  const recommendedLot = useMemo(() => {
+    if (!config) return 0.01;
+    // Use a default SL of 100 pips for lot calc
+    const defaultSlPips = asset === "XAU/USD" ? 100 : asset.includes("JPY") ? 50 : 30;
+    const lot = recommendedRisk / (defaultSlPips * config.pipValuePerLot);
+    return Math.round(lot * 100) / 100 || 0.01;
+  }, [config, recommendedRisk, asset]);
+
+  // Pre-fill recommended values on mode change
+  useEffect(() => {
+    if (mode === "target_money") {
+      if (!targetLoss) setTargetLoss(recommendedRisk.toFixed(0));
+      if (!targetProfit) setTargetProfit((recommendedRisk * 3).toFixed(0));
+      if (!manualLot) setManualLot(recommendedLot.toString());
+    }
+    if (mode === "manual_lot") {
+      if (!manualLot) setManualLot(recommendedLot.toString());
+    }
+  }, [mode]); // intentionally only on mode change
+
+  // Risk warning
+  const riskWarning = useMemo(() => {
+    if (!riskCtx.effectiveAccountSize) return null;
+    const currentRisk = (() => {
+      if (mode === "risk_money") return parseNum(riskMoney);
+      if (mode === "target_money") return parseNum(targetLoss);
+      return 0;
+    })();
+    if (currentRisk <= 0) return null;
+    const pct = (currentRisk / riskCtx.effectiveAccountSize) * 100;
+    if (pct > 2) return { level: "high" as const, pct, msg: `Rischio elevato: ${pct.toFixed(2)}% del conto` };
+    if (pct > 1) return { level: "medium" as const, pct, msg: `Rischio moderato: ${pct.toFixed(2)}% del conto` };
+    return null;
+  }, [mode, riskMoney, targetLoss, riskCtx.effectiveAccountSize]);
 
   const output = useMemo<CalcOutput | null>(() => {
     if (!config) return null;
@@ -116,10 +154,6 @@ export function TradeCalcEngine() {
       const loss = parseNum(targetLoss);
       const profit = parseNum(targetProfit);
       if (loss <= 0) return null;
-      // We need at least one of sl/tp to derive; use loss to find lot at default SL pips
-      // Strategy: user sets loss & profit targets; we calculate SL/TP assuming a reasonable lot
-      // We need entry + lot to compute. Let's derive from loss + default SL distance
-      // Use manual lot if given, otherwise derive from loss and a default SL
       const lot = parseNum(manualLot) || 0.01;
       const slp = Math.round((loss / (lot * config.pipValuePerLot)) * 100) / 100;
       const tpp = profit > 0 ? Math.round((profit / (lot * config.pipValuePerLot)) * 100) / 100 : 0;
@@ -158,15 +192,15 @@ export function TradeCalcEngine() {
   ), []);
 
   return (
-    <div className="space-y-6">
-      {/* Top bar: asset + direction + account info */}
-      <Card>
+    <div className="space-y-5">
+      {/* Top bar: asset + direction + account */}
+      <Card className="border-border/60 bg-card">
         <CardContent className="pt-5 pb-4">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
             <div className="flex-1 min-w-0">
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Asset</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 block font-medium">Asset</Label>
               <Select value={asset} onValueChange={setAsset}>
-                <SelectTrigger className="w-full sm:w-48">
+                <SelectTrigger className="w-full sm:w-48 font-semibold">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -177,13 +211,13 @@ export function TradeCalcEngine() {
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Direzione</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 block font-medium">Direzione</Label>
               <div className="flex gap-1.5">
                 <Button
                   variant={direction === "buy" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setDirection("buy")}
-                  className={cn(direction === "buy" && "bg-success hover:bg-success/90 text-white")}
+                  className={cn("px-4", direction === "buy" && "bg-success hover:bg-success/90 text-white shadow-sm")}
                 >
                   <TrendingUp className="h-3.5 w-3.5 mr-1" /> BUY
                 </Button>
@@ -191,20 +225,20 @@ export function TradeCalcEngine() {
                   variant={direction === "sell" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setDirection("sell")}
-                  className={cn(direction === "sell" && "bg-destructive hover:bg-destructive/90 text-white")}
+                  className={cn("px-4", direction === "sell" && "bg-destructive hover:bg-destructive/90 text-white shadow-sm")}
                 >
                   <TrendingDown className="h-3.5 w-3.5 mr-1" /> SELL
                 </Button>
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <Label className="text-xs text-muted-foreground mb-1.5 block">Entry Price</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 block font-medium">Entry Price</Label>
               <DecimalInput value={entry} onChange={setEntry} placeholder="es. 3250.50" />
             </div>
             {!riskLoading && (
-              <div className="text-right">
-                <p className="text-[10px] uppercase text-muted-foreground">Account ref.</p>
-                <p className="text-sm font-semibold text-foreground">{riskCtx.sourceLabel}</p>
+              <div className="text-right shrink-0">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Conto di riferimento</p>
+                <p className="text-sm font-bold text-foreground mt-0.5">{riskCtx.sourceLabel}</p>
                 <p className="text-[10px] text-muted-foreground">${riskCtx.effectiveAccountSize.toLocaleString()}</p>
               </div>
             )}
@@ -212,157 +246,169 @@ export function TradeCalcEngine() {
         </CardContent>
       </Card>
 
-      {/* Mode selector */}
-      <Tabs value={mode} onValueChange={(v) => setMode(v as CalcMode)}>
-        <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4 h-auto gap-1 bg-transparent p-0">
-          {MODES.map((m) => (
-            <TabsTrigger
+      {/* Mode selector — pill style */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {MODES.map((m) => {
+          const active = mode === m.value;
+          return (
+            <button
               key={m.value}
-              value={m.value}
-              className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl border border-transparent data-[state=active]:bg-primary/10 data-[state=active]:border-primary/20 data-[state=active]:text-primary bg-card hover:bg-muted/50"
+              onClick={() => setMode(m.value)}
+              className={cn(
+                "flex flex-col items-center gap-1.5 py-3.5 px-3 rounded-xl border transition-all duration-200 text-center",
+                active
+                  ? "bg-primary/10 border-primary/30 text-primary shadow-sm"
+                  : "bg-card border-border/50 text-muted-foreground hover:bg-muted/40 hover:border-border"
+              )}
             >
-              <m.icon className="h-4 w-4" />
-              <span className="text-xs font-semibold">{m.label}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+              <m.icon className={cn("h-4 w-4", active && "text-primary")} />
+              <span className="text-xs font-bold">{m.label}</span>
+              <span className="text-[10px] leading-tight opacity-70 hidden sm:block">{m.desc}</span>
+            </button>
+          );
+        })}
+      </div>
 
-        {/* Mode A: Risk Money */}
-        <TabsContent value="risk_money">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-primary" />
-                Calcolo da rischio monetario
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-xs text-muted-foreground">Inserisci Entry, SL, TP e il rischio in $ — il sistema calcola il lotto corretto.</p>
+      {/* Input card per mode */}
+      <Card className="border-border/60">
+        <CardContent className="pt-5 pb-5 space-y-4">
+          {/* Mode A: Risk Money */}
+          {mode === "risk_money" && (
+            <>
+              <ModeHeader
+                icon={DollarSign}
+                title="Calcolo da rischio monetario"
+                hint="Inserisci il prezzo di SL, TP e quanto vuoi rischiare in $. Il sistema calcola il lotto corretto."
+              />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs">Stop Loss (prezzo)</Label>
+                <FieldGroup label="Stop Loss (prezzo)" hint="Prezzo dove chiudi in perdita">
                   <DecimalInput value={slPrice} onChange={setSlPrice} placeholder="es. 3240.00" />
-                </div>
-                <div>
-                  <Label className="text-xs">Take Profit (prezzo)</Label>
+                </FieldGroup>
+                <FieldGroup label="Take Profit (prezzo)" hint="Prezzo dove chiudi in profitto">
                   <DecimalInput value={tpPrice} onChange={setTpPrice} placeholder="es. 3270.00" />
-                </div>
-                <div>
-                  <Label className="text-xs">Rischio ($)</Label>
-                  <DecimalInput value={riskMoney} onChange={setRiskMoney} placeholder="es. 200" />
-                </div>
+                </FieldGroup>
+                <FieldGroup label="Rischio ($)" hint={`Consigliato: $${recommendedRisk.toFixed(0)} (0.2%)`}>
+                  <DecimalInput value={riskMoney} onChange={setRiskMoney} placeholder={`es. ${recommendedRisk.toFixed(0)}`} />
+                </FieldGroup>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </>
+          )}
 
-        {/* Mode B: Pips */}
-        <TabsContent value="pips">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Crosshair className="h-4 w-4 text-primary" />
-                Calcolo da pips
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-xs text-muted-foreground">Inserisci SL/TP in pips e il rischio — il sistema calcola prezzi e lotto.</p>
+          {/* Mode B: Pips */}
+          {mode === "pips" && (
+            <>
+              <ModeHeader
+                icon={Crosshair}
+                title="Calcolo da pips"
+                hint="Inserisci la distanza SL/TP in pips e il rischio. Il sistema calcola prezzi e lotto."
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs">SL (pips)</Label>
+                <FieldGroup label="SL (pips)" hint="Distanza dello Stop Loss dall'entry">
                   <DecimalInput value={slPips} onChange={setSlPips} placeholder="es. 100" />
-                </div>
-                <div>
-                  <Label className="text-xs">TP (pips)</Label>
+                </FieldGroup>
+                <FieldGroup label="TP (pips)" hint="Distanza del Take Profit dall'entry">
                   <DecimalInput value={tpPips} onChange={setTpPips} placeholder="es. 300" />
-                </div>
+                </FieldGroup>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-xs">Tipo rischio</Label>
-                  <div className="flex gap-1.5 mt-1">
+                  <Label className="text-xs font-medium text-foreground">Tipo rischio</Label>
+                  <div className="flex gap-1.5 mt-1.5">
                     <Button variant={riskType === "money" ? "default" : "outline"} size="sm" onClick={() => setRiskType("money")}>$</Button>
                     <Button variant={riskType === "percent" ? "default" : "outline"} size="sm" onClick={() => setRiskType("percent")}>%</Button>
                   </div>
                 </div>
-                <div>
-                  <Label className="text-xs">{riskType === "money" ? "Rischio ($)" : "Rischio (%)"}</Label>
+                <FieldGroup label={riskType === "money" ? "Rischio ($)" : "Rischio (%)"} hint={riskType === "money" ? `Consigliato: $${recommendedRisk.toFixed(0)}` : "Consigliato: 0.2%"}>
                   {riskType === "money" ? (
-                    <DecimalInput value={riskMoney} onChange={setRiskMoney} placeholder="es. 200" />
+                    <DecimalInput value={riskMoney} onChange={setRiskMoney} placeholder={`es. ${recommendedRisk.toFixed(0)}`} />
                   ) : (
-                    <DecimalInput value={riskPercent} onChange={setRiskPercent} placeholder="es. 0.5" />
+                    <DecimalInput value={riskPercent} onChange={setRiskPercent} placeholder="es. 0.2" />
                   )}
-                </div>
+                </FieldGroup>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </>
+          )}
 
-        {/* Mode C: Target Money */}
-        <TabsContent value="target_money">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                Calcolo da target monetario
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-xs text-muted-foreground">Inserisci la perdita massima e il profitto target. Specifica il lotto per calcolare SL/TP.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs">Perdita max ($)</Label>
-                  <DecimalInput value={targetLoss} onChange={setTargetLoss} placeholder="es. 100" />
-                </div>
-                <div>
-                  <Label className="text-xs">Profitto target ($)</Label>
-                  <DecimalInput value={targetProfit} onChange={setTargetProfit} placeholder="es. 300" />
-                </div>
-                <div>
-                  <Label className="text-xs">Lotto</Label>
-                  <DecimalInput value={manualLot} onChange={setManualLot} placeholder="es. 0.1" />
-                </div>
+          {/* Mode C: Target Money */}
+          {mode === "target_money" && (
+            <>
+              <ModeHeader
+                icon={Target}
+                title="Calcolo da target monetario"
+                hint="Imposta quanto vuoi rischiare e quanto vuoi guadagnare. Il sistema calcola SL, TP e R:R."
+              />
+              {/* Recommended badge */}
+              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2">
+                <Info className="h-3.5 w-3.5 text-primary shrink-0" />
+                <p className="text-xs text-foreground">
+                  <span className="font-semibold text-primary">Rischio consigliato:</span> ${recommendedRisk.toFixed(0)} (0.2% di ${riskCtx.effectiveAccountSize.toLocaleString()}) · <span className="font-semibold text-primary">Lotto suggerito:</span> {recommendedLot}
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Mode D: Manual Lot */}
-        <TabsContent value="manual_lot">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <SlidersHorizontal className="h-4 w-4 text-primary" />
-                Calcolo da lotto manuale
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-xs text-muted-foreground">Inserisci il lotto desiderato con SL/TP — il sistema calcola rischio e profitto.</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-xs">Lotto</Label>
-                  <DecimalInput value={manualLot} onChange={setManualLot} placeholder="es. 0.5" />
-                </div>
-                <div>
-                  <Label className="text-xs">Stop Loss (prezzo)</Label>
+                <FieldGroup label="Perdita max ($)" hint="Quanto sei disposto a perdere">
+                  <DecimalInput value={targetLoss} onChange={setTargetLoss} placeholder={`es. ${recommendedRisk.toFixed(0)}`} />
+                </FieldGroup>
+                <FieldGroup label="Profitto target ($)" hint="Quanto vuoi guadagnare">
+                  <DecimalInput value={targetProfit} onChange={setTargetProfit} placeholder={`es. ${(recommendedRisk * 3).toFixed(0)}`} />
+                </FieldGroup>
+                <FieldGroup label="Lotto" hint={`Suggerito: ${recommendedLot}`}>
+                  <DecimalInput value={manualLot} onChange={setManualLot} placeholder={`es. ${recommendedLot}`} />
+                </FieldGroup>
+              </div>
+            </>
+          )}
+
+          {/* Mode D: Manual Lot */}
+          {mode === "manual_lot" && (
+            <>
+              <ModeHeader
+                icon={SlidersHorizontal}
+                title="Calcolo da lotto manuale"
+                hint="Inserisci il lotto che vuoi usare e i prezzi di SL/TP. Il sistema mostra rischio e profitto."
+              />
+              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.04] px-3 py-2">
+                <Info className="h-3.5 w-3.5 text-primary shrink-0" />
+                <p className="text-xs text-foreground">
+                  <span className="font-semibold text-primary">Lotto suggerito:</span> {recommendedLot} (basato su 0.2% di rischio)
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <FieldGroup label="Lotto" hint={`Suggerito: ${recommendedLot}`}>
+                  <DecimalInput value={manualLot} onChange={setManualLot} placeholder={`es. ${recommendedLot}`} />
+                </FieldGroup>
+                <FieldGroup label="Stop Loss (prezzo)" hint="Prezzo dove chiudi in perdita">
                   <DecimalInput value={manualSlPrice} onChange={setManualSlPrice} placeholder="es. 3240.00" />
-                </div>
-                <div>
-                  <Label className="text-xs">Take Profit (prezzo)</Label>
+                </FieldGroup>
+                <FieldGroup label="Take Profit (prezzo)" hint="Prezzo dove chiudi in profitto">
                   <DecimalInput value={manualTpPrice} onChange={setManualTpPrice} placeholder="es. 3270.00" />
-                </div>
+                </FieldGroup>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </>
+          )}
 
-      {/* Results */}
+          {/* Risk warning */}
+          {riskWarning && (
+            <div className={cn(
+              "flex items-center gap-2 rounded-lg border px-3 py-2",
+              riskWarning.level === "high"
+                ? "border-destructive/30 bg-destructive/5"
+                : "border-warning/30 bg-warning/5"
+            )}>
+              <AlertTriangle className={cn("h-3.5 w-3.5 shrink-0", riskWarning.level === "high" ? "text-destructive" : "text-warning")} />
+              <p className="text-xs text-foreground">{riskWarning.msg}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Results — always visible */}
+      <TradeCalcResult output={output} accountSize={riskCtx.effectiveAccountSize} />
+
+      {/* CTA */}
       {output && (
         <>
-          <TradeCalcResult output={output} accountSize={riskCtx.effectiveAccountSize} />
           <div className="flex justify-end">
-            <Button size="lg" onClick={() => setShowExecution(true)} className="gap-2">
+            <Button size="lg" onClick={() => setShowExecution(true)} className="gap-2 px-6 shadow-md">
               <Send className="h-4 w-4" />
               Invia al conto
             </Button>
@@ -374,6 +420,32 @@ export function TradeCalcEngine() {
           />
         </>
       )}
+    </div>
+  );
+}
+
+/* ── Helpers ─────────────────────────────────── */
+
+function ModeHeader({ icon: Icon, title, hint }: { icon: React.ElementType; title: string; hint: string }) {
+  return (
+    <div className="flex items-start gap-3 pb-1">
+      <div className="rounded-lg bg-primary/10 p-2 shrink-0">
+        <Icon className="h-4 w-4 text-primary" />
+      </div>
+      <div>
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{hint}</p>
+      </div>
+    </div>
+  );
+}
+
+function FieldGroup({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <Label className="text-xs font-medium text-foreground">{label}</Label>
+      {hint && <p className="text-[10px] text-muted-foreground mb-1">{hint}</p>}
+      <div className="mt-1">{children}</div>
     </div>
   );
 }
