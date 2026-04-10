@@ -34,7 +34,8 @@ OUTPUT (usa ESATTAMENTE questo formato JSON):
   "bias": "buy" | "sell" | "no_trade",
   "confidence": 1-5,
   "reasoning": "una o due frasi brevi, concrete e utili",
-  "warning": "solo se c'è un problema reale" | null
+  "warning": "solo se c'è un problema reale" | null,
+  "current_price": numero decimale del prezzo corrente visibile sul grafico (l'ultimo prezzo/candela visibile). Se non riesci a leggerlo, usa null
 }
 
 CRITERI PER IL BIAS:
@@ -171,16 +172,17 @@ serve(async (req) => {
     const aiData = await aiResponse.json();
     const rawContent = aiData.choices?.[0]?.message?.content || "";
 
-    let parsed: { bias: string; confidence: number; reasoning: string; warning: string | null };
+    let parsed: { bias: string; confidence: number; reasoning: string; warning: string | null; current_price?: number | null };
     try {
       const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
       parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawContent);
     } catch {
-      parsed = { bias: "no_trade", confidence: 1, reasoning: "Errore nell'analisi del grafico.", warning: "Risposta AI non interpretabile" };
+      parsed = { bias: "no_trade", confidence: 1, reasoning: "Errore nell'analisi del grafico.", warning: "Risposta AI non interpretabile", current_price: null };
     }
 
     if (!["buy", "sell", "no_trade"].includes(parsed.bias)) parsed.bias = "no_trade";
     parsed.confidence = Math.max(1, Math.min(5, Math.round(parsed.confidence || 1)));
+    const currentPrice = typeof parsed.current_price === "number" && parsed.current_price > 0 ? parsed.current_price : null;
 
     const { data: analysis, error: dbError } = await supabase
       .from("delta_zero_analyses")
@@ -195,6 +197,7 @@ serve(async (req) => {
         warning: parsed.warning || null,
         ai_model_used: MODEL,
         uses_overlay: !!uses_overlay,
+        current_price: currentPrice,
       })
       .select()
       .single();
