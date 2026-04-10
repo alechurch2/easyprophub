@@ -347,7 +347,15 @@ export default function DeltaZero() {
             </AnimatePresence>
 
             {/* History */}
-            <DeltaZeroHistory history={history} />
+            <DeltaZeroHistory
+              history={history}
+              onSelect={(analysis) => {
+                setResult(analysis);
+                setShowTradeSetup(false);
+                setAsset(analysis.asset || asset);
+                setTimeframe(analysis.timeframe || timeframe);
+              }}
+            />
           </>
         )}
       </div>
