@@ -274,6 +274,7 @@ function AccountCard({
   const [checking, setChecking] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const isConnected = account?.connection_status === "connected";
   const isError = account?.connection_status && ["failed", "sync_error_tls"].includes(account.connection_status);
