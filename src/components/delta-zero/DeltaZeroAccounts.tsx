@@ -369,11 +369,19 @@ function AccountCard({
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-lg bg-muted/30 p-2">
             <p className="text-[10px] text-muted-foreground">Balance</p>
-            <p className="font-mono font-bold text-foreground">${account.balance?.toFixed(2) || "0.00"}</p>
+            {account.balance > 0 ? (
+              <p className="font-mono font-bold text-foreground">${account.balance.toFixed(2)}</p>
+            ) : (
+              <p className="font-mono text-muted-foreground/50 text-[10px]">In attesa di sync…</p>
+            )}
           </div>
           <div className="rounded-lg bg-muted/30 p-2">
             <p className="text-[10px] text-muted-foreground">Equity</p>
-            <p className="font-mono font-bold text-foreground">${account.equity?.toFixed(2) || "0.00"}</p>
+            {account.equity > 0 ? (
+              <p className="font-mono font-bold text-foreground">${account.equity.toFixed(2)}</p>
+            ) : (
+              <p className="font-mono text-muted-foreground/50 text-[10px]">In attesa di sync…</p>
+            )}
           </div>
         </div>
       )}
