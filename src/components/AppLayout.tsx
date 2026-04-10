@@ -254,8 +254,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* ── Main content ── */}
       <main className="flex-1 lg:ml-[240px]">
-        <div className="lg:pt-0 min-h-screen" style={{ paddingTop: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }}>
+        <div className="min-h-screen pt-14 lg:pt-0 safe-area-content">
           {children}
+        </div>
         </div>
       </main>
     </div>
