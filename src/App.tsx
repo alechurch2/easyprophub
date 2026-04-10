@@ -19,6 +19,7 @@ import Signals from "./pages/Signals";
 import AccountCenter from "./pages/AccountCenter";
 import AccountSettings from "./pages/AccountSettings";
 import DeltaZero from "./pages/DeltaZero";
+import TradeCalculator from "./pages/TradeCalculator";
 import NotFound from "./pages/NotFound";
 import Unsubscribe from "./pages/Unsubscribe";
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/account-center" element={<ProtectedRoute><AccountCenter /></ProtectedRoute>} />
             <Route path="/account-settings" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
             <Route path="/delta-zero" element={<ProtectedRoute><DeltaZero /></ProtectedRoute>} />
+            <Route path="/trade-calculator" element={<ProtectedRoute><TradeCalculator /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
             <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="*" element={<NotFound />} />
