@@ -257,7 +257,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <div className="min-h-screen pt-14 lg:pt-0 safe-area-content">
           {children}
         </div>
-        </div>
       </main>
     </div>
   );
