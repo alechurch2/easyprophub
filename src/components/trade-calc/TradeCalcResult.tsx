@@ -1,11 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CalcOutput } from "./TradeCalcEngine";
 
 interface Props {
-  output: CalcOutput;
+  output: CalcOutput | null;
   accountSize: number;
 }
 
@@ -22,31 +22,47 @@ function fmtPrice(n: number, asset: string) {
 }
 
 export function TradeCalcResult({ output, accountSize }: Props) {
-  const isBuy = output.direction === "buy";
-  const riskPct = accountSize > 0 ? (output.riskMoney / accountSize) * 100 : 0;
-  const profitPct = accountSize > 0 ? (output.profitMoney / accountSize) * 100 : 0;
+  const hasData = !!output;
+  const isBuy = output?.direction === "buy";
+  const riskPct = hasData && accountSize > 0 ? (output.riskMoney / accountSize) * 100 : 0;
+  const profitPct = hasData && accountSize > 0 ? (output.profitMoney / accountSize) * 100 : 0;
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/[0.03] to-transparent">
+    <Card className={cn(
+      "border transition-all duration-300",
+      hasData
+        ? "border-primary/20 bg-gradient-to-br from-primary/[0.03] to-transparent"
+        : "border-border/40 bg-card/50"
+    )}>
       <CardContent className="pt-5 pb-5">
         <div className="flex items-center gap-2 mb-4">
-          {isBuy ? <TrendingUp className="h-5 w-5 text-success" /> : <TrendingDown className="h-5 w-5 text-destructive" />}
+          {hasData ? (
+            isBuy ? <TrendingUp className="h-5 w-5 text-success" /> : <TrendingDown className="h-5 w-5 text-destructive" />
+          ) : (
+            <BarChart3 className="h-5 w-5 text-muted-foreground/40" />
+          )}
           <span className="text-base font-bold text-foreground">Riepilogo operazione</span>
-          <Badge variant="outline" className={cn("ml-auto text-xs", isBuy ? "border-success/30 text-success" : "border-destructive/30 text-destructive")}>
-            {output.direction.toUpperCase()} {output.asset}
-          </Badge>
+          {hasData && (
+            <Badge variant="outline" className={cn("ml-auto text-xs", isBuy ? "border-success/30 text-success" : "border-destructive/30 text-destructive")}>
+              {output.direction.toUpperCase()} {output.asset}
+            </Badge>
+          )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <ResultCell label="Lotto" value={fmt(output.lotSize)} highlight />
-          <ResultCell label="Entry" value={fmtPrice(output.entryPrice, output.asset)} />
-          <ResultCell label="Stop Loss" value={fmtPrice(output.slPrice, output.asset)} sub={`${fmt(output.slPips, 1)} pips`} color="destructive" />
-          <ResultCell label="Take Profit" value={output.tpPrice > 0 ? fmtPrice(output.tpPrice, output.asset) : "—"} sub={output.tpPips > 0 ? `${fmt(output.tpPips, 1)} pips` : ""} color="success" />
-          <ResultCell label="Rischio" value={`$${fmt(output.riskMoney)}`} sub={`${fmt(riskPct, 2)}%`} color="destructive" />
-          <ResultCell label="Profitto pot." value={output.profitMoney > 0 ? `$${fmt(output.profitMoney)}` : "—"} sub={output.profitMoney > 0 ? `${fmt(profitPct, 2)}%` : ""} color="success" />
-          <ResultCell label="R:R" value={output.rr ? `1:${fmt(output.rr, 1)}` : "—"} highlight={!!output.rr && output.rr >= 2} />
-          <ResultCell label="Pip Value/Lot" value={`$${getAssetPipValue(output.asset)}`} />
+          <ResultCell label="Lotto" value={hasData ? fmt(output.lotSize) : "—"} highlight={hasData} />
+          <ResultCell label="Entry" value={hasData ? fmtPrice(output.entryPrice, output.asset) : "—"} />
+          <ResultCell label="Stop Loss" value={hasData ? fmtPrice(output.slPrice, output.asset) : "—"} sub={hasData && output.slPips > 0 ? `${fmt(output.slPips, 1)} pips` : undefined} color={hasData ? "destructive" : undefined} />
+          <ResultCell label="Take Profit" value={hasData && output.tpPrice > 0 ? fmtPrice(output.tpPrice, output.asset) : "—"} sub={hasData && output.tpPips > 0 ? `${fmt(output.tpPips, 1)} pips` : undefined} color={hasData ? "success" : undefined} />
+          <ResultCell label="Rischio" value={hasData ? `$${fmt(output.riskMoney)}` : "—"} sub={hasData ? `${fmt(riskPct, 2)}%` : undefined} color={hasData ? "destructive" : undefined} />
+          <ResultCell label="Profitto pot." value={hasData && output.profitMoney > 0 ? `$${fmt(output.profitMoney)}` : "—"} sub={hasData && output.profitMoney > 0 ? `${fmt(profitPct, 2)}%` : undefined} color={hasData ? "success" : undefined} />
+          <ResultCell label="R:R" value={hasData && output.rr ? `1:${fmt(output.rr, 1)}` : "—"} highlight={hasData && !!output.rr && output.rr >= 2} />
+          <ResultCell label="Pip Value/Lot" value={hasData ? `$${getAssetPipValue(output.asset)}` : "—"} />
         </div>
+
+        {!hasData && (
+          <p className="text-xs text-muted-foreground/60 text-center mt-3">Compila i campi sopra per vedere il riepilogo</p>
+        )}
       </CardContent>
     </Card>
   );
@@ -55,8 +71,8 @@ export function TradeCalcResult({ output, accountSize }: Props) {
 function ResultCell({ label, value, sub, color, highlight }: { label: string; value: string; sub?: string; color?: "success" | "destructive"; highlight?: boolean }) {
   return (
     <div className={cn("rounded-lg p-3", highlight ? "bg-primary/10 border border-primary/20" : "bg-secondary/50")}>
-      <p className="text-[10px] uppercase text-muted-foreground mb-0.5">{label}</p>
-      <p className={cn("text-sm font-bold", color === "success" ? "text-success" : color === "destructive" ? "text-destructive" : "text-foreground")}>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5 font-medium">{label}</p>
+      <p className={cn("text-sm font-bold font-mono", color === "success" ? "text-success" : color === "destructive" ? "text-destructive" : "text-foreground")}>
         {value}
       </p>
       {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
