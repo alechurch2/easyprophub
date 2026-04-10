@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   Wallet, Loader2, Wifi, WifiOff, RefreshCw, Trash2, Settings2,
-  Shield, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2
+  Shield, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, Save
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -52,6 +52,12 @@ interface Props {
   onRefresh: () => void;
 }
 
+/** Parse numeric input supporting both dot and comma */
+function parseDecimal(raw: string): number {
+  const val = parseFloat(raw.replace(",", "."));
+  return isNaN(val) ? 0 : val;
+}
+
 function useSupportedBrokers() {
   const [brokers, setBrokers] = useState<{ id: string; name: string; platforms: string[] }[]>([]);
   useEffect(() => {
@@ -75,7 +81,6 @@ function ConnectDZAccountForm({ role, onClose, onSaved }: { role: "broker" | "he
   const [saving, setSaving] = useState(false);
   const [step, setStep] = useState("");
 
-  // Settings
   const [riskPercent, setRiskPercent] = useState("0.5");
   const [slPips, setSlPips] = useState("20");
   const [tpPips, setTpPips] = useState("40");
@@ -111,15 +116,14 @@ function ConnectDZAccountForm({ role, onClose, onSaved }: { role: "broker" | "he
       return;
     }
 
-    // Create DZ settings
     await supabase.from("delta_zero_account_settings").insert({
       user_id: user.id,
       account_id: (account as any).id,
       role,
-      default_risk_percent: parseFloat(riskPercent) || 0.5,
-      default_sl_pips: parseFloat(slPips) || 20,
-      default_tp_pips: parseFloat(tpPips) || 40,
-      default_lot_size: parseFloat(lotSize) || 0.01,
+      default_risk_percent: parseDecimal(riskPercent) || 0.5,
+      default_sl_pips: parseDecimal(slPips) || 20,
+      default_tp_pips: parseDecimal(tpPips) || 40,
+      default_lot_size: parseDecimal(lotSize) || 0.01,
     } as any);
 
     setStep("Connessione a MetaApi…");
@@ -224,25 +228,24 @@ function ConnectDZAccountForm({ role, onClose, onSaved }: { role: "broker" | "he
         <Input type="password" value={investorPassword} onChange={(e) => setInvestorPassword(e.target.value)} className="mt-1" />
       </div>
 
-      {/* Settings */}
       <div className="border-t border-border/40 pt-3">
         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Parametri predefiniti</p>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label className="text-xs">Rischio %</Label>
-            <Input type="number" step="0.1" value={riskPercent} onChange={(e) => setRiskPercent(e.target.value)} className="mt-1" />
+            <input type="text" inputMode="decimal" value={riskPercent} onChange={(e) => setRiskPercent(e.target.value)} className="mt-1 flex h-10 w-full rounded-lg border border-input bg-card px-3.5 py-2 text-sm" />
           </div>
           <div>
             <Label className="text-xs">Lot size</Label>
-            <Input type="number" step="0.01" value={lotSize} onChange={(e) => setLotSize(e.target.value)} className="mt-1" />
+            <input type="text" inputMode="decimal" value={lotSize} onChange={(e) => setLotSize(e.target.value)} className="mt-1 flex h-10 w-full rounded-lg border border-input bg-card px-3.5 py-2 text-sm" />
           </div>
           <div>
             <Label className="text-xs">SL (pips)</Label>
-            <Input type="number" value={slPips} onChange={(e) => setSlPips(e.target.value)} className="mt-1" />
+            <input type="text" inputMode="decimal" value={slPips} onChange={(e) => setSlPips(e.target.value)} className="mt-1 flex h-10 w-full rounded-lg border border-input bg-card px-3.5 py-2 text-sm" />
           </div>
           <div>
             <Label className="text-xs">TP (pips)</Label>
-            <Input type="number" value={tpPips} onChange={(e) => setTpPips(e.target.value)} className="mt-1" />
+            <input type="text" inputMode="decimal" value={tpPips} onChange={(e) => setTpPips(e.target.value)} className="mt-1 flex h-10 w-full rounded-lg border border-input bg-card px-3.5 py-2 text-sm" />
           </div>
         </div>
       </div>
@@ -257,6 +260,78 @@ function ConnectDZAccountForm({ role, onClose, onSaved }: { role: "broker" | "he
           `Collega conto ${role}`
         )}
       </Button>
+    </div>
+  );
+}
+
+// ---- Inline Settings Editor ----
+function InlineSettingsEditor({ settings, onSaved }: { settings: DZSettings; onSaved: () => void }) {
+  const [riskStr, setRiskStr] = useState(String(settings.default_risk_percent));
+  const [lotStr, setLotStr] = useState(String(settings.default_lot_size));
+  const [slStr, setSlStr] = useState(String(settings.default_sl_pips));
+  const [tpStr, setTpStr] = useState(String(settings.default_tp_pips));
+  const [saving, setSaving] = useState(false);
+
+  const hasChanges =
+    parseDecimal(riskStr) !== settings.default_risk_percent ||
+    parseDecimal(lotStr) !== settings.default_lot_size ||
+    parseDecimal(slStr) !== settings.default_sl_pips ||
+    parseDecimal(tpStr) !== settings.default_tp_pips;
+
+  const handleSave = async () => {
+    setSaving(true);
+    const { error } = await supabase.from("delta_zero_account_settings").update({
+      default_risk_percent: parseDecimal(riskStr) || 0.5,
+      default_lot_size: parseDecimal(lotStr) || 0.01,
+      default_sl_pips: parseDecimal(slStr) || 20,
+      default_tp_pips: parseDecimal(tpStr) || 40,
+    }).eq("id", settings.id);
+
+    if (error) {
+      toast.error("Errore nel salvataggio");
+    } else {
+      toast.success("Parametri aggiornati");
+      onSaved();
+    }
+    setSaving(false);
+  };
+
+  const fieldClass = "h-6 w-16 text-[11px] font-mono px-1.5 py-0 text-right rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring/50";
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">Rischio:</span>
+          <div className="flex items-center gap-0.5">
+            <input type="text" inputMode="decimal" value={riskStr} onChange={(e) => setRiskStr(e.target.value)} className={fieldClass} />
+            <span className="text-[9px] text-muted-foreground/60">%</span>
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">Lot:</span>
+          <input type="text" inputMode="decimal" value={lotStr} onChange={(e) => setLotStr(e.target.value)} className={fieldClass} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">SL:</span>
+          <div className="flex items-center gap-0.5">
+            <input type="text" inputMode="decimal" value={slStr} onChange={(e) => setSlStr(e.target.value)} className={fieldClass} />
+            <span className="text-[9px] text-muted-foreground/60">pip</span>
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-muted-foreground">TP:</span>
+          <div className="flex items-center gap-0.5">
+            <input type="text" inputMode="decimal" value={tpStr} onChange={(e) => setTpStr(e.target.value)} className={fieldClass} />
+            <span className="text-[9px] text-muted-foreground/60">pip</span>
+          </div>
+        </div>
+      </div>
+      {hasChanges && (
+        <Button size="sm" onClick={handleSave} disabled={saving} className="w-full h-7 text-[10px]">
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Save className="h-3 w-3 mr-1" />Salva parametri</>}
+        </Button>
+      )}
     </div>
   );
 }
@@ -424,21 +499,18 @@ function AccountCard({
         </div>
       )}
 
+      {/* Inline editable settings */}
       {settings && (
-        <button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
-          <Settings2 className="h-3 w-3" />
-          Parametri
-          {showSettings ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        </button>
-      )}
-
-      {showSettings && settings && (
-        <div className="grid grid-cols-2 gap-1.5 text-[10px] text-muted-foreground">
-          <span>Rischio: <span className="text-foreground font-mono">{settings.default_risk_percent}%</span></span>
-          <span>Lot: <span className="text-foreground font-mono">{settings.default_lot_size}</span></span>
-          <span>SL: <span className="text-foreground font-mono">{settings.default_sl_pips} pips</span></span>
-          <span>TP: <span className="text-foreground font-mono">{settings.default_tp_pips} pips</span></span>
-        </div>
+        <>
+          <button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors">
+            <Settings2 className="h-3 w-3" />
+            Parametri
+            {showSettings ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+          {showSettings && (
+            <InlineSettingsEditor settings={settings} onSaved={onRefresh} />
+          )}
+        </>
       )}
 
       {/* Actions */}
@@ -449,7 +521,7 @@ function AccountCard({
           </Button>
         ) : (
           <>
-            {isConnected && (!account.balance || account.balance === 0) && (
+            {isConnected && (
               <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing} className="flex-1 text-xs">
                 {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                 <span className="ml-1">Sincronizza</span>

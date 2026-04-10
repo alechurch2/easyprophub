@@ -12,17 +12,27 @@ const biasConfig = {
 interface Props {
   history: any[] | undefined;
   onSelect?: (analysis: any) => void;
+  onClose?: () => void;
 }
 
-export default function DeltaZeroHistory({ history, onSelect }: Props) {
+export default function DeltaZeroHistory({ history, onSelect, onClose }: Props) {
   const [showHistory, setShowHistory] = useState(false);
 
   if (!history?.length) return null;
 
+  const handleToggle = () => {
+    const newState = !showHistory;
+    setShowHistory(newState);
+    // When closing history, notify parent to clear any loaded review
+    if (!newState && onClose) {
+      onClose();
+    }
+  };
+
   return (
     <div>
       <button
-        onClick={() => setShowHistory(!showHistory)}
+        onClick={handleToggle}
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
       >
         <Clock className="h-4 w-4" />

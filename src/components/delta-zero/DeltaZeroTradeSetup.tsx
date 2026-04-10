@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -45,8 +44,14 @@ function pipToPrice(pips: number, asset: string): number {
   if (["US30", "NAS100", "US500", "GER40", "UK100", "JPN225"].some(idx => a.includes(idx))) return pips * 1;
   if (a.includes("BTC")) return pips * 1;
   if (a.includes("OIL") || a.includes("WTI") || a.includes("BRENT")) return pips * 0.01;
-  // Default forex
   return pips * 0.0001;
+}
+
+/** Parse numeric input supporting both dot and comma as decimal separator */
+function parseDecimalInput(raw: string): number {
+  const normalized = raw.replace(",", ".");
+  const val = parseFloat(normalized);
+  return isNaN(val) ? 0 : val;
 }
 
 export default function DeltaZeroTradeSetup({
@@ -59,20 +64,26 @@ export default function DeltaZeroTradeSetup({
   const [executing, setExecuting] = useState(false);
   const [executed, setExecuted] = useState(false);
 
-  // Editable parameters
-  const [brokerLot, setBrokerLot] = useState(brokerSettings.default_lot_size);
-  const [brokerSlPips, setBrokerSlPips] = useState(brokerSettings.default_sl_pips);
-  const [brokerTpPips, setBrokerTpPips] = useState(brokerSettings.default_tp_pips);
-  const [hedgeLot, setHedgeLot] = useState(hedgeSettings.default_lot_size);
-  const [hedgeSlPips, setHedgeSlPips] = useState(hedgeSettings.default_sl_pips);
-  const [hedgeTpPips, setHedgeTpPips] = useState(hedgeSettings.default_tp_pips);
+  // Editable parameters — stored as strings for clean decimal editing
+  const [brokerLotStr, setBrokerLotStr] = useState(String(brokerSettings.default_lot_size));
+  const [brokerSlPipsStr, setBrokerSlPipsStr] = useState(String(brokerSettings.default_sl_pips));
+  const [brokerTpPipsStr, setBrokerTpPipsStr] = useState(String(brokerSettings.default_tp_pips));
+  const [hedgeLotStr, setHedgeLotStr] = useState(String(hedgeSettings.default_lot_size));
+  const [hedgeSlPipsStr, setHedgeSlPipsStr] = useState(String(hedgeSettings.default_sl_pips));
+  const [hedgeTpPipsStr, setHedgeTpPipsStr] = useState(String(hedgeSettings.default_tp_pips));
+
+  const brokerLot = parseDecimalInput(brokerLotStr);
+  const brokerSlPips = parseDecimalInput(brokerSlPipsStr);
+  const brokerTpPips = parseDecimalInput(brokerTpPipsStr);
+  const hedgeLot = parseDecimalInput(hedgeLotStr);
+  const hedgeSlPips = parseDecimalInput(hedgeSlPipsStr);
+  const hedgeTpPips = parseDecimalInput(hedgeTpPipsStr);
 
   const brokerDir = bias;
   const hedgeDir = bias === "buy" ? "sell" : "buy";
 
   const bothConnected = brokerAccount.connection_status === "connected" && hedgeAccount.connection_status === "connected";
 
-  // Calculate absolute SL/TP from pips + current price
   function calcSlTp(direction: "buy" | "sell", slPips: number, tpPips: number) {
     if (!currentPrice || currentPrice <= 0) return { sl: undefined, tp: undefined };
     const slDist = pipToPrice(slPips, asset);
@@ -89,6 +100,10 @@ export default function DeltaZeroTradeSetup({
 
   const handleExecute = async () => {
     if (!user || !bothConnected) return;
+    if (brokerLot <= 0 || hedgeLot <= 0) {
+      toast.error("Lot size deve essere maggiore di 0");
+      return;
+    }
     setExecuting(true);
 
     try {
@@ -169,16 +184,16 @@ export default function DeltaZeroTradeSetup({
     );
   }
 
-  const EditableField = ({ label, value, onChange, suffix }: { label: string; value: number; onChange: (v: number) => void; suffix?: string }) => (
+  const EditableField = ({ label, value, onChange, suffix }: { label: string; value: string; onChange: (v: string) => void; suffix?: string }) => (
     <div className="flex items-center justify-between gap-2">
       <span className="text-[10px] text-muted-foreground whitespace-nowrap">{label}:</span>
       <div className="flex items-center gap-1">
-        <Input
-          type="number"
-          step="any"
+        <input
+          type="text"
+          inputMode="decimal"
           value={value}
-          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="h-6 w-20 text-[11px] font-mono px-1.5 py-0 text-right"
+          onChange={(e) => onChange(e.target.value)}
+          className="h-6 w-20 text-[11px] font-mono px-1.5 py-0 text-right rounded-md border border-input bg-card focus:outline-none focus:ring-1 focus:ring-ring/50"
         />
         {suffix && <span className="text-[9px] text-muted-foreground/60">{suffix}</span>}
       </div>
@@ -189,9 +204,9 @@ export default function DeltaZeroTradeSetup({
     role: string,
     dir: "buy" | "sell",
     account: DZAccount,
-    lot: number, setLot: (v: number) => void,
-    slPips: number, setSlPips: (v: number) => void,
-    tpPips: number, setTpPips: (v: number) => void,
+    lotStr: string, setLotStr: (v: string) => void,
+    slStr: string, setSlStr: (v: string) => void,
+    tpStr: string, setTpStr: (v: string) => void,
     slTp: { sl?: number; tp?: number }
   ) => (
     <div className={cn(
@@ -211,9 +226,9 @@ export default function DeltaZeroTradeSetup({
         </span>
       </div>
       <div className="space-y-1.5">
-        <EditableField label="Lot" value={lot} onChange={setLot} />
-        <EditableField label="SL" value={slPips} onChange={setSlPips} suffix="pips" />
-        <EditableField label="TP" value={tpPips} onChange={setTpPips} suffix="pips" />
+        <EditableField label="Lot" value={lotStr} onChange={setLotStr} />
+        <EditableField label="SL" value={slStr} onChange={setSlStr} suffix="pips" />
+        <EditableField label="TP" value={tpStr} onChange={setTpStr} suffix="pips" />
         {currentPrice && slTp.sl && slTp.tp && (
           <div className="pt-1 border-t border-border/30 space-y-0.5">
             <p className="text-[9px] text-muted-foreground/60">
@@ -231,7 +246,6 @@ export default function DeltaZeroTradeSetup({
 
   return (
     <div className="rounded-2xl border border-primary/20 bg-card overflow-hidden">
-      {/* Header */}
       <div className="p-4 bg-primary/5 border-b border-primary/10">
         <div className="flex items-center gap-2">
           <ArrowRightLeft className="h-4 w-4 text-primary" />
@@ -249,11 +263,10 @@ export default function DeltaZeroTradeSetup({
         </div>
       </div>
 
-      {/* Two cards */}
       <div className="p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {renderOrderCard("Broker", brokerDir, brokerAccount, brokerLot, setBrokerLot, brokerSlPips, setBrokerSlPips, brokerTpPips, setBrokerTpPips, brokerSlTp)}
-          {renderOrderCard("Hedge", hedgeDir, hedgeAccount, hedgeLot, setHedgeLot, hedgeSlPips, setHedgeSlPips, hedgeTpPips, setHedgeTpPips, hedgeSlTp)}
+          {renderOrderCard("Broker", brokerDir, brokerAccount, brokerLotStr, setBrokerLotStr, brokerSlPipsStr, setBrokerSlPipsStr, brokerTpPipsStr, setBrokerTpPipsStr, brokerSlTp)}
+          {renderOrderCard("Hedge", hedgeDir, hedgeAccount, hedgeLotStr, setHedgeLotStr, hedgeSlPipsStr, setHedgeSlPipsStr, hedgeTpPipsStr, setHedgeTpPipsStr, hedgeSlTp)}
         </div>
 
         {!currentPrice && (

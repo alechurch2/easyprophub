@@ -27,6 +27,7 @@ export default function DeltaZero() {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [resultFromHistory, setResultFromHistory] = useState(false);
   const [usesOverlay, setUsesOverlay] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [showTradeSetup, setShowTradeSetup] = useState(false);
@@ -92,6 +93,7 @@ export default function DeltaZero() {
     reader.onload = (e) => setPreview(e.target?.result as string);
     reader.readAsDataURL(f);
     setResult(null);
+    setResultFromHistory(false);
     setShowTradeSetup(false);
   }, []);
 
@@ -106,6 +108,7 @@ export default function DeltaZero() {
     setFile(null);
     setPreview(null);
     setResult(null);
+    setResultFromHistory(false);
     setShowTradeSetup(false);
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -115,10 +118,20 @@ export default function DeltaZero() {
     refetchSettings();
   };
 
+  // When history panel closes, clear any review loaded from it
+  const handleHistoryClose = () => {
+    if (resultFromHistory) {
+      setResult(null);
+      setResultFromHistory(false);
+      setShowTradeSetup(false);
+    }
+  };
+
   const analyze = async () => {
     if (!file || !user) return;
     setLoading(true);
     setResult(null);
+    setResultFromHistory(false);
     setShowTradeSetup(false);
 
     try {
@@ -148,6 +161,7 @@ export default function DeltaZero() {
 
       const data = await resp.json();
       setResult(data);
+      setResultFromHistory(false);
       refetchHistory();
     } catch (e: any) {
       toast({ title: "Errore", description: e.message, variant: "destructive" });
@@ -352,10 +366,12 @@ export default function DeltaZero() {
               history={history}
               onSelect={(analysis) => {
                 setResult(analysis);
+                setResultFromHistory(true);
                 setShowTradeSetup(false);
                 setAsset(analysis.asset || asset);
                 setTimeframe(analysis.timeframe || timeframe);
               }}
+              onClose={handleHistoryClose}
             />
           </>
         )}
