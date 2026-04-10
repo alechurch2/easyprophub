@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown, MinusCircle, Clock, ChevronDown, ChevronUp, Layers } from "lucide-react";
+import { TrendingUp, TrendingDown, MinusCircle, Clock, ChevronDown, ChevronUp, Layers, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -11,9 +11,10 @@ const biasConfig = {
 
 interface Props {
   history: any[] | undefined;
+  onSelect?: (analysis: any) => void;
 }
 
-export default function DeltaZeroHistory({ history }: Props) {
+export default function DeltaZeroHistory({ history, onSelect }: Props) {
   const [showHistory, setShowHistory] = useState(false);
 
   if (!history?.length) return null;
@@ -40,7 +41,14 @@ export default function DeltaZeroHistory({ history }: Props) {
             {history.map((h: any) => {
               const hbc = biasConfig[h.bias as keyof typeof biasConfig] || biasConfig.no_trade;
               return (
-                <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card/50">
+                <button
+                  key={h.id}
+                  onClick={() => onSelect?.(h)}
+                  className={cn(
+                    "flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-card/50 w-full text-left transition-all",
+                    onSelect && "hover:border-primary/30 hover:bg-card cursor-pointer group"
+                  )}
+                >
                   <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center shrink-0 bg-gradient-to-br", hbc.gradient)}>
                     <hbc.icon className="h-4 w-4 text-white" />
                   </div>
@@ -61,7 +69,10 @@ export default function DeltaZeroHistory({ history }: Props) {
                   <span className="text-[9px] text-muted-foreground/50 shrink-0">
                     {new Date(h.created_at).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })}
                   </span>
-                </div>
+                  {onSelect && (
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
+                  )}
+                </button>
               );
             })}
           </motion.div>
