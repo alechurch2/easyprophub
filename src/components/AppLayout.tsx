@@ -254,7 +254,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       {/* ── Main content ── */}
       <main className="flex-1 lg:ml-[240px]">
-        <div className="min-h-screen pt-14 lg:pt-0 safe-area-content">
+        <div className="min-h-screen safe-area-content">
           {children}
         </div>
       </main>
